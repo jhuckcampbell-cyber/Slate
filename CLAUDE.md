@@ -20,8 +20,24 @@ npx supabase migration new <name>
 npm run db:types             # regenerate src/lib/supabase/database.types.ts from local DB
 npm test                     # vitest
 npm run test:db              # supabase test db (pgTAP in supabase/tests)
-npm run e2e                  # playwright
-npm run lint && npm run typecheck
+npm run e2e                  # playwright vs a PRODUCTION build (needs local Supabase + seed;
+                             # one-time: npx playwright install webkit)
+npm run lint && npm run typecheck   # typecheck runs `next typegen` first (PageProps/LayoutProps)
+
+Windows dev box: Docker Desktop must be running before `npx supabase start`.
+
+## Next.js 16 specifics (this is NOT older Next.js; see AGENTS.md + node_modules/next/dist/docs)
+- Middleware is `src/proxy.ts` exporting `proxy()` (refreshes the Supabase session cookie).
+- `params` / `searchParams` are Promises; use the global `PageProps<"/route">` / `LayoutProps` types.
+- Cache Components is ON. Per-user pages = sync default export rendering
+  `<Suspense fallback={<PageSkeleton/>}><Inner/></Suspense>`, and `Inner` starts with
+  `await connection()` (auth cookies, the clock, and Supabase's getClaims are per-request).
+- `notFound()` inside streamed content renders the segment's not-found UI but can't set a 404
+  status. Test the UI, not the status code.
+- Client inputs that matter before hydration (join flow) are UNCONTROLLED (`defaultValue` +
+  FormData) so text typed on slow phones isn't wiped when React hydrates.
+- shadcn here is the Base UI flavor: no `asChild`. For links styled as buttons use
+  `className={cn(buttonVariants(), ...)}` on `<Link>`.
 
 ## Layout
 src/app/                     routes (create/, join/[code]/, t/[code]/{page,slip,sweat}, auth/callback)
@@ -29,7 +45,8 @@ src/components/ui/           shadcn primitives (generated, don't hand-edit beyon
 src/components/<feature>/    slip/, odds/, leaderboard/, feed/
 src/lib/core/                PURE TS, no deps: odds math, payouts, probability, invite codes.
                              Imported by both Next and Edge Functions; must stay runtime-agnostic.
-src/lib/supabase/            browser/server/middleware clients + generated types
+src/lib/supabase/            client.ts (browser) · server.ts (RSC/actions) · proxy.ts (session refresh)
+                             public.ts (cookie-less anon: share previews/OG) · queries.ts · types
 src/lib/queries/             TanStack Query hooks + query keys
 supabase/migrations/         SQL (source of truth for schema, RLS, RPCs)
 supabase/functions/          odds-sync, scores-sync, grade (Deno)
@@ -51,6 +68,7 @@ supabase/tests/              pgTAP: every RLS policy and RPC has tests
    `private` unless meant to be exposed as RPC; revoke execute from public/anon by default.
 8. Service-role key is server-only (never `NEXT_PUBLIC_`).
 9. Regenerate DB types after every migration; never hand-edit database.types.ts.
+   RPCs raise stable UPPER_SNAKE error codes; map them to copy in src/lib/errors.ts.
 10. Mobile-first: design at 375px, tap targets ≥44px, bottom-sheet slip.
 
 ## v1 product defaults

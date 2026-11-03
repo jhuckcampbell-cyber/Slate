@@ -273,6 +273,7 @@ export type Database = {
           events: Json;
           host_name: string;
           id: string;
+          is_locked: boolean;
           lock_time: string;
           participant_count: number;
           sport_key: string;

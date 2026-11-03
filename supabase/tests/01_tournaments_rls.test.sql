@@ -2,7 +2,7 @@
 -- auth.uid() reads request.jwt.claims; RLS/grants depend on the active role. Switch both.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(30);
 
 -- ---------- fixtures (as postgres) ----------
 insert into auth.users (id, aud, role, email, is_anonymous, raw_user_meta_data) values
@@ -61,7 +61,10 @@ select is((select title from public.get_tournament_preview((select code from t_c
   'Thursday Night Football', 'anon can read share preview');
 select is((select participant_count from public.get_tournament_preview((select code from t_created))),
   1, 'preview shows participant count');
+select is((select is_locked from public.get_tournament_preview((select code from t_created))),
+  false, 'preview reports unlocked pre-lock');
 select throws_ok($$ select count(*) from public.tournaments $$, '42501', null, 'anon cannot read tables');
+select ok((select count(*) from public.events) >= 3, 'anon can read public schedule');
 
 -- ---------- C (outsider) ----------
 reset role;
@@ -91,6 +94,8 @@ select is((select count(*)::int from public.tournament_participants
 -- ---------- lock passes ----------
 reset role;
 update public.tournaments set lock_time = now() - interval '1 second' where id = (select id from t_created);
+select is((select is_locked from public.get_tournament_preview((select code from t_created))),
+  true, 'preview reports locked once lock_time passes');
 
 set local role authenticated;  -- claims still B
 select is((select count(*)::int from public.tournament_participants

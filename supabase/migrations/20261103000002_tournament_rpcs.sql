@@ -176,7 +176,8 @@ returns table (
   status public.tournament_status,
   starting_bankroll_cents int,
   participant_count int,
-  events jsonb
+  events jsonb,
+  is_locked boolean   -- DB clock decides (CLAUDE.md rule 5)
 )
 language sql stable security definer set search_path = '' as $$
   select
@@ -189,7 +190,8 @@ language sql stable security definer set search_path = '' as $$
         'id', e.id, 'home_team', e.home_team, 'away_team', e.away_team,
         'commence_time', e.commence_time) order by e.commence_time)
       from public.tournament_events te join public.events e on e.id = te.event_id
-      where te.tournament_id = t.id), '[]'::jsonb)
+      where te.tournament_id = t.id), '[]'::jsonb),
+    (t.lock_time <= now() or t.status not in ('draft', 'open'))
   from public.tournaments t
   join public.profiles h on h.id = t.host_id
   where t.code = upper(btrim(p_code));

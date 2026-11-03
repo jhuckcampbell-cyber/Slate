@@ -9,9 +9,12 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [{ name: "mobile-safari", use: { ...devices["iPhone 15"] } }],
+  timeout: 60_000,
+  // Production build so timings (e.g. "<15s to join") reflect real users, not dev compiles.
   webServer: {
-    command: "npm run dev",
+    command: "npm run build && npm run start",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
+    timeout: 300_000,
   },
 });

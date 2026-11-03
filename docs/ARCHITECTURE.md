@@ -410,3 +410,27 @@ That is roughly 1.5k credits per Sunday, so the $30/20k tier covers a season of 
 - `pnpm e2e`: Playwright on an iPhone viewport, with a multi-context test (two users) for blind and reveal.
 - Odds sync dry-run mode (`ODDS_SYNC_DRY_RUN=1`) reads recorded fixtures from `supabase/functions/_fixtures`, so dev doesn't burn credits.
 - Manual: real SMS share to iMessage and Android for previews, and a two-phone sweat test during a live game.
+
+---
+
+## Implementation notes: as built (Phase 0–1, 2026-11-03)
+Deviations from the plan above, and why:
+- **npm, not pnpm.** Corepack needs admin rights on the dev machine. The Supabase CLI is a devDependency (`npx supabase`).
+- **Next.js 16.4.** Middleware is `src/proxy.ts`. Cache Components is on, so per-user pages are a static shell plus `<Suspense>` plus `await connection()` (see CLAUDE.md).
+- **`events` is readable by `anon`.** Game schedules are public, and the create wizard lists games before the host has a session. Everything tournament-related stays participant-only.
+- **`get_tournament_preview` returns `is_locked`,** computed with the DB clock, so the join page never decides lock state with the server clock.
+- **`create_tournament(p_title, p_event_ids, p_code_prefix, …)`.** The prefix comes from `src/lib/core/codes.ts` (cosmetic). The 4-char suffix is generated in SQL with `gen_random_bytes`. Guards:
+  - 10 tournaments per host per hour
+  - at most 20 events per tournament
+  - one sport only
+  - lock must be at or before the first kickoff
+  - at most 100 participants (enforced by `join_tournament`)
+- **No `FORCE ROW LEVEL SECURITY`.** Writes happen only through security-definer RPCs owned by `postgres`. Clients have no write grants on those tables at all, which is stricter than having no policies.
+- **Local game catalog comes from `supabase/seed.sql`**, with games relative to `now()`, instead of a one-off Odds API fetch. Real ingestion arrives with odds-sync in Phase 2.
+- **Join flow signs guests in from the browser,** not a server action. Supabase's anonymous sign-in limit is per IP, and a server action would make every signup come from the server's IP.
+
+**Phase 1 items still open:**
+- SMS OTP. Email magic link is done. SMS needs Twilio credentials in Supabase Auth.
+- Turnstile captcha on anonymous sign-ins. Needs Cloudflare keys.
+- Linking a Vercel project.
+- Checking the OG preview on a real iMessage/Android device. Needs a public deploy.

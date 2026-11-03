@@ -40,6 +40,10 @@ odds_sync_claim() [lease + due jobs] → provider → normalize (_shared) → od
 - Cadence AND bet freshness come from one SQL source: private.odds_refresh_interval / odds_max_age.
 - odds_cache rows change only on real price moves (Realtime); market freshness lives in odds_markets.
 - Clients read the `odds_board` view (DB-clock is_stale) + Realtime on odds_cache.
+- Credit budget (Phase 4, migration 0007): every PAID call must `odds_budget_reserve` first and
+  `odds_budget_settle` after. The DB refuses when the paid switch is off (default), the monthly cap (400 of
+  the free tier's 500) would be passed, or the provider's counter is low. Never add a paid call that skips it.
+  Operate with `npm run odds -- status|dry-run|sync|enable|disable`. Cadence tiers live in app_settings.
 
 ## Lock & reveal (Phase 3)
 - Lock guards are TRIGGERS (migration 0006): after lock nothing can add/edit/delete a pick, move the lock,

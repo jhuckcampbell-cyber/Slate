@@ -134,3 +134,11 @@ export function selectionLabel(sel: {
         .join(" ");
   }
 }
+
+/** "just now" · "12 min ago" · "3 hr ago" (display only; never used for bet acceptance). */
+export function formatCheckedAgo(iso: string, nowMs: number): string {
+  const mins = Math.floor((nowMs - Date.parse(iso)) / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  return `${Math.floor(mins / 60)} hr ago`;
+}

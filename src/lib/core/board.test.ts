@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { applyOddsChange, indexBoard, movementFor, toBoardRow, type BoardRow } from "./board";
+import { applyOddsChange, indexBoard, movementFor, oldestCheck, toBoardRow, type BoardRow } from "./board";
 
-const base: BoardRow = toBoardRow({
+const rawBase = {
   id: 1,
   event_id: "e1",
   market_key: "spreads",
@@ -11,7 +11,8 @@ const base: BoardRow = toBoardRow({
   price_american: -110,
   updated_at: "2026-11-03T12:00:00Z",
   is_stale: false,
-});
+};
+const base: BoardRow = toBoardRow(rawBase);
 
 function update(patch: Partial<{ point: number | string | null; price_american: number | string }>) {
   return {
@@ -71,5 +72,26 @@ describe("indexBoard", () => {
   it("groups by event then market", () => {
     const idx = indexBoard([base, { ...base, id: 2, marketKey: "h2h", point: null }]);
     expect([...idx.get("e1")!.keys()]).toEqual(["spreads", "h2h"]);
+  });
+});
+
+describe("market freshness (checkedAt)", () => {
+  it("comes from the market's last sync, not the last price move", () => {
+    const row = toBoardRow({ ...rawBase, updated_at: "2026-11-03T09:00:00Z", last_seen_at: "2026-11-03T12:00:00Z" });
+    expect(row.checkedAt).toBe("2026-11-03T12:00:00Z");
+    expect(toBoardRow(rawBase).checkedAt).toBeNull();
+  });
+
+  it("a Realtime price move means the market was just checked", () => {
+    const [row] = applyOddsChange([base], update({ price_american: "-105" }));
+    expect(row!.checkedAt).toBe("2026-11-03T12:10:00Z");
+  });
+
+  it("oldestCheck is the stalest market on the card", () => {
+    const a = { ...base, checkedAt: "2026-11-03T12:00:00Z" };
+    const b = { ...base, checkedAt: "2026-11-03T11:30:00Z" };
+    expect(oldestCheck([a, b])).toBe("2026-11-03T11:30:00Z");
+    expect(oldestCheck([{ ...base, checkedAt: null }])).toBeNull();
+    expect(oldestCheck([])).toBeNull();
   });
 });

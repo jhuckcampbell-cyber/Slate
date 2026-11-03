@@ -7,7 +7,7 @@
 import type { RevealWager } from "@/lib/core/consensus";
 
 export const BOARD_COLUMNS =
-  "id, event_id, market_key, outcome_name, participant_name, point, price_american, updated_at, is_stale";
+  "id, event_id, market_key, outcome_name, participant_name, point, price_american, updated_at, last_seen_at, is_stale";
 
 export const WAGER_SELECT =
   "id, wager_type, amount_cents, odds_american, potential_payout_cents, status, created_at, wager_legs(id, event_id, market_key, selection, participant_name, line, odds_american, status)";

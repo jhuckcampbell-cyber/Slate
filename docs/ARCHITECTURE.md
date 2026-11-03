@@ -484,3 +484,43 @@ Migration `20261103000006_lock_reveal.sql`, pgTAP `04_lock_reveal.test.sql` (64 
 **Known gaps:**
 - **Intermittent missed broadcasts.** In 1 of ~40 e2e runs a lobby received neither Realtime signal, even after the catch-up refresh. The suspected cause, unconfirmed, is the channel never joining right after the guest sign-in. The 20s poll bounds the impact; the root cause isn't confirmed.
 - **No un-remove.** A removed player can rejoin only with a different account (a guest can clear cookies).
+
+## Implementation notes: as built (Phase 4, 2026-11-03)
+Plan: The Odds API **free tier** (500 credits/month). Migration 0007 (`odds_budget`).
+
+**Budget, enforced by the DB.** Every paid call reserves its estimated cost with `odds_budget_reserve` before calling, then `odds_budget_settle` replaces the estimate with the real cost from `x-requests-last` / `x-requests-remaining`. The DB refuses a reservation when:
+- the paid-call switch is off (`PAID_CALLS_DISABLED`; the switch is **off by default**);
+- this calendar month's ledger (UTC) would pass the cap of 400 (`BUDGET_EXHAUSTED`);
+- the provider's own counter would drop below its last 100 (`quota − cap`). This also covers usage the ledger can't see, such as another environment sharing the key.
+
+Reservations are serialized by an advisory transaction lock; the integration test proves a parallel race can't overspend, and it fails without the lock (426/400). An unsettled reservation keeps counting, so a crash can only over-count. A refused sport backs off for 15 minutes so cron stops waking the function.
+
+**Free calls.** The catalog (`/events`) costs 0 and still records headers, which keeps the provider-counter reading fresh. Settings live in `private.app_settings`. To upgrade the plan, change `odds_monthly_quota`, `odds_monthly_cap` and `odds_refresh_tiers`; no deploy is needed.
+
+**Cadence (free tier).** Refreshes run every 12h when a game is more than 24h out, every 2h within 24h, and every 30 min in the last hour. Bets accept prices up to 1.5 intervals + 1 min old. That's at most 46 minutes in the last hour, about 3 hours on game day, and about 18 hours further out. Each game card shows "Odds checked N min ago", or "Updating odds…" once a market is stale. Rough cost: about 40–50 credits per sport per slate with all three markets, shared by every tournament on that sport.
+
+**Operator commands** (`scripts/odds.mjs`):
+- `npm run odds -- status`
+- `npm run odds -- dry-run`: a plan with costs and no provider calls
+- `npm run odds -- sync`
+- `npm run odds -- enable`
+- `npm run odds -- disable`
+
+For production, run with `node --env-file=<prod env> scripts/odds.mjs …` and `ODDS_SYNC_SECRET` set.
+
+**First real call (2026-11-03, local).**
+1. Catalog: 41 real NFL/NBA games for 0 credits; provider at 500/500.
+2. Dry run predicted 1 credit for a moneyline-only test tournament.
+3. With the switch off, the sync was refused.
+4. With the switch on: one call cost 1 credit, real DraftKings prices were stored, and the ledger and provider both read 499. The switch was turned off afterwards.
+
+Local dev and e2e stay on `ODDS_PROVIDER=fake`.
+
+**Going live in production:**
+1. `npx supabase secrets set ODDS_PROVIDER=the-odds-api ODDS_API_KEY=… ODDS_SYNC_SECRET=…`, plus the Vault `odds_sync_url` / `odds_sync_secret`.
+2. `odds -- dry-run`.
+3. `odds -- enable`.
+
+**Known gaps:**
+- Our month is the UTC calendar month. If the provider resets on another day, the provider-counter guard keeps us safe, but the ledger may block a few days early.
+- Two environments sharing one key each keep their own ledger, so only the provider-counter guard spans both. Use a separate key per environment once paid.

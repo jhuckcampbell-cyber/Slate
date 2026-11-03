@@ -15,6 +15,8 @@ export type BoardRow = {
   point: number | null;
   priceAmerican: number;
   updatedAt: string;
+  /** When the market was last synced (prices can be unchanged since): odds_markets.last_seen_at. */
+  checkedAt: string | null;
   isStale: boolean;
   /** Direction of the last change, from the bettor's point of view (drives the flash). */
   movement: Movement;
@@ -30,6 +32,7 @@ export type OddsBoardRecord = {
   point: number | null;
   price_american: number | null;
   updated_at: string | null;
+  last_seen_at?: string | null;
   is_stale: boolean | null;
 };
 
@@ -43,6 +46,7 @@ export function toBoardRow(r: OddsBoardRecord): BoardRow {
     point: r.point === null ? null : Number(r.point),
     priceAmerican: Number(r.price_american),
     updatedAt: String(r.updated_at),
+    checkedAt: r.last_seen_at ?? null,
     isStale: r.is_stale ?? true,
     movement: null,
   };
@@ -82,7 +86,8 @@ export function applyOddsChange(rows: readonly BoardRow[], change: OddsChange): 
     point: rec.point === null ? null : Number(rec.point),
     priceAmerican: Number(rec.price_american),
     updatedAt: rec.updated_at,
-    isStale: false, // a Realtime write means this market was just synced
+    checkedAt: rec.updated_at, // a Realtime write means this market was just synced
+    isStale: false,
     movement: null,
   };
 
@@ -112,6 +117,15 @@ export function movementFor(
   const a = americanToDecimalE4(prev.priceAmerican);
   const b = americanToDecimalE4(next.priceAmerican);
   return b > a ? "up" : b < a ? "down" : null;
+}
+
+/** The stalest market check among these rows (ISO strings compare chronologically). */
+export function oldestCheck(rows: readonly Pick<BoardRow, "checkedAt">[]): string | null {
+  let oldest: string | null = null;
+  for (const r of rows) {
+    if (r.checkedAt && (oldest === null || Date.parse(r.checkedAt) < Date.parse(oldest))) oldest = r.checkedAt;
+  }
+  return oldest;
 }
 
 /** eventId → marketKey → rows */

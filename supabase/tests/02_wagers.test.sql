@@ -143,7 +143,7 @@ select throws_ok($$ select public.place_wagers((select id from t_created), '[]':
   'INVALID_SLIP', 'empty slip rejected');
 
 reset role;
-update public.odds_markets set last_seen_at = now() - interval '6 hours'
+update public.odds_markets set last_seen_at = now() - interval '20 hours'
  where event_id = 'tw-ev2' and market_key = 'h2h';
 set local role authenticated;
 select throws_ok($$ select public.place_wagers((select id from t_created), jsonb_build_array(

@@ -570,6 +570,16 @@ export type Database = {
       };
       join_tournament: { Args: { p_code: string }; Returns: string };
       lock_tournament_now: { Args: { p_tournament_id: string }; Returns: undefined };
+      odds_budget_reserve: {
+        Args: { p_cost: number; p_endpoint: string; p_sport_key: string };
+        Returns: Json;
+      };
+      odds_budget_settle: {
+        Args: { p_credits_remaining?: number; p_credits_used?: number; p_reservation_id: number };
+        Returns: undefined;
+      };
+      odds_budget_status: { Args: Record<PropertyKey, never>; Returns: Json };
+      odds_set_paid_calls: { Args: { p_enabled: boolean }; Returns: Json };
       odds_sync_claim: { Args: { p_lease_seconds?: number }; Returns: Json };
       odds_sync_ingest: {
         Args: {

@@ -1,10 +1,12 @@
 "use client";
 
 import { Clock } from "lucide-react";
-import type { BoardRow } from "@/lib/core/board";
+import { oldestCheck, type BoardRow } from "@/lib/core/board";
+import { useServerNow } from "@/lib/hooks/use-server-now";
 import {
   MARKET_LABELS,
   formatAmerican,
+  formatCheckedAgo,
   formatKickoff,
   formatSpread,
   selectionLabel,
@@ -81,10 +83,25 @@ export function EventCard({ event, markets, allowedMarkets, locked, selected, on
         </div>
       ))}
 
-      {!hasOdds && (
+      {hasOdds ? (
+        <Freshness rows={columns.flatMap((m) => markets?.get(m) ?? [])} />
+      ) : (
         <p className="mt-1 text-center text-xs text-muted-foreground">Lines post shortly…</p>
       )}
     </article>
+  );
+}
+
+/** How old the prices are. Odds refresh on a slow cadence (free API tier), so say so. */
+function Freshness({ rows }: { rows: BoardRow[] }) {
+  const now = useServerNow();
+  const checked = oldestCheck(rows);
+  if (rows.some((r) => r.isStale)) {
+    return <p className="mt-1.5 text-right text-[11px] text-warn">Updating odds…</p>;
+  }
+  if (now === null || checked === null) return null;
+  return (
+    <p className="mt-1.5 text-right text-[11px] text-muted-foreground">Odds checked {formatCheckedAgo(checked, now)}</p>
   );
 }
 

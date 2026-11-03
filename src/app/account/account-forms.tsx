@@ -106,8 +106,8 @@ export function AccountForms({
           </Button>
         </div>
       ) : sentTo ? (
-        <p className="flex gap-2 rounded-xl bg-emerald-500/10 p-4 text-sm">
-          <MailCheck className="size-5 shrink-0 text-emerald-400" />
+        <p className="flex gap-2 rounded-xl bg-brand/10 p-4 text-sm">
+          <MailCheck className="size-5 shrink-0 text-brand" />
           Check {sentTo} for a link to {state === "guest" ? "save your account" : "sign in"}.
         </p>
       ) : (

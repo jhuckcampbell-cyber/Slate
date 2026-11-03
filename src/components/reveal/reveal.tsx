@@ -47,9 +47,9 @@ export function Reveal({ tournamentId, events, players, wagers }: Props) {
     <section className="mt-6" aria-labelledby="reveal-heading">
       <Celebration tournamentId={tournamentId} summary={summary} />
 
-      <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95">
-        <h2 id="reveal-heading" className="flex items-center gap-2 text-xl font-bold">
-          <LockOpen className="size-5 text-emerald-400" /> Picks are in
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-hype/25 via-card to-card p-4 ring-1 ring-hype/40 motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95">
+        <h2 id="reveal-heading" className="flex items-center gap-2 font-display text-3xl font-extrabold uppercase">
+          <LockOpen className="size-6 text-hype" /> Picks are in
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">{summary}</p>
       </div>
@@ -134,8 +134,8 @@ function Celebration({ tournamentId, summary }: { tournamentId: string; summary:
       className="pointer-events-none fixed inset-0 z-40 grid place-items-center bg-background/85 backdrop-blur-sm motion-safe:animate-in motion-safe:fade-in"
     >
       <div className="text-center">
-        <LockOpen className="mx-auto size-16 text-emerald-400 motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:spin-in-12 motion-safe:duration-500" />
-        <p className="mt-4 text-3xl font-black tracking-tight motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 motion-safe:fill-mode-both motion-safe:delay-200 motion-safe:duration-500">
+        <LockOpen className="mx-auto size-16 text-hype motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:spin-in-12 motion-safe:duration-500" />
+        <p className="mt-4 font-display text-5xl font-extrabold uppercase motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 motion-safe:fill-mode-both motion-safe:delay-200 motion-safe:duration-500">
           Picks are in!
         </p>
         <p className="mt-2 text-sm text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:fill-mode-both motion-safe:delay-500">
@@ -166,7 +166,7 @@ function headline(market: ConsensusMarket) {
   return `${leader.playerCount} of ${playerCount} on ${label}`;
 }
 
-const SIDE_COLORS = ["bg-emerald-400", "bg-sky-400", "bg-amber-400", "bg-fuchsia-400"];
+const SIDE_COLORS = ["bg-chart-1", "bg-chart-2", "bg-chart-3", "bg-chart-4"];
 
 function stagger(index: number) {
   return {
@@ -192,7 +192,7 @@ function GameCard({
   return (
     <article aria-label={matchup} className={cn("rounded-2xl bg-card p-4 ring-1 ring-border", anim.className)} style={anim.style}>
       <header className="flex items-baseline justify-between gap-2">
-        <h3 className="font-semibold">{matchup}</h3>
+        <h3 className="font-display text-xl leading-none font-bold uppercase">{matchup}</h3>
         {event && <span className="text-xs text-muted-foreground">{formatKickoff(event.commence_time)}</span>}
       </header>
 
@@ -206,9 +206,9 @@ function GameCard({
                 <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                   {MARKET_LABELS[market.marketKey] ?? market.marketKey}
                 </span>
-                <span className="text-sm font-semibold">{headline(market)}</span>
+                <span className="font-display text-lg leading-none font-bold">{headline(market)}</span>
               </div>
-              <div className="mt-1.5 flex h-2 overflow-hidden rounded-full bg-muted" aria-hidden>
+              <div className="mt-1.5 flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-muted" aria-hidden>
                 {market.sides.map((side, i) => (
                   <div
                     key={side.selection + side.participantName}
@@ -248,7 +248,7 @@ function BackerChip({ backer, player, sideLine }: { backer: Backer; player: Reve
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ring-1",
-        player?.isYou ? "bg-emerald-500/15 ring-emerald-500/40" : "bg-muted ring-border",
+        player?.isYou ? "bg-brand/15 ring-brand/40" : "bg-muted ring-border",
       )}
     >
       <span className="font-medium">{player ? (player.isYou ? "You" : player.name) : "?"}</span>
@@ -281,26 +281,26 @@ function PlayerCard({
       aria-label={player.name}
       className={cn(
         "rounded-2xl bg-card p-4 ring-1",
-        player.isYou ? "ring-emerald-500/40" : "ring-border",
+        player.isYou ? "ring-brand/40" : "ring-border",
         anim.className,
       )}
       style={anim.style}
     >
       <header className="flex items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 font-semibold text-emerald-300">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand/15 font-semibold text-brand">
           {player.name.slice(0, 1).toUpperCase()}
         </span>
-        <h3 className="min-w-0 flex-1 truncate font-semibold">
+        <h3 className="min-w-0 flex-1 truncate font-display text-xl font-bold uppercase">
           {player.name}
           {player.isYou && <span className="font-normal text-muted-foreground"> (you)</span>}
-          {player.isHost && <Crown className="ml-1.5 inline size-4 text-amber-400" aria-label="Host" />}
+          {player.isHost && <Crown className="ml-1.5 inline size-4 text-warn" aria-label="Host" />}
         </h3>
         <div className="text-right text-xs text-muted-foreground tabular-nums">
           <div>
-            Risked <span className="font-semibold text-foreground">{formatCents(riskedCents)}</span>
+            Risked <span className="num text-base font-bold text-foreground">{formatCents(riskedCents)}</span>
           </div>
           <div>
-            To win <span className="font-semibold text-emerald-400">{formatCents(potentialCents)}</span>
+            Returns <span className="num text-base font-bold text-brand">{formatCents(potentialCents)}</span>
           </div>
         </div>
       </header>
@@ -318,7 +318,7 @@ function PlayerCard({
                   {w.wagerType === "parlay" ? `${w.legs.length}-leg parlay` : "Single"} · {formatAmerican(w.oddsAmerican)}
                 </span>
                 <span className="tabular-nums">
-                  {formatCents(w.amountCents)} → <span className="text-emerald-400">{formatCents(w.potentialPayoutCents)}</span>
+                  {formatCents(w.amountCents)} → <span className="text-brand">{formatCents(w.potentialPayoutCents)}</span>
                 </span>
               </div>
               <ul className="mt-1 space-y-0.5">

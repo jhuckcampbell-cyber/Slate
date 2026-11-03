@@ -4,7 +4,7 @@ Mobile-first, play-money sports betting tournaments for friend groups. Hosts cre
 tied to a game/slate, share `/join/CODE` by SMS, players build blind slips until lock, then
 everyone sweats a live leaderboard.
 
-Full architecture & roadmap: see `docs/ARCHITECTURE.md`.
+Full architecture & roadmap: see `docs/ARCHITECTURE.md`. Design system: `docs/DESIGN.md`.
 
 ## Stack
 Next.js (latest stable, App Router, RSC) · TypeScript strict · Tailwind v4 · shadcn/ui · lucide-react
@@ -106,6 +106,10 @@ supabase/tests/              pgTAP: every RLS policy and RPC has tests
 9. Regenerate DB types after every migration; never hand-edit database.types.ts.
    RPCs raise stable UPPER_SNAKE error codes; map them to copy in src/lib/errors.ts.
 10. Mobile-first: design at 375px, tap targets ≥44px, bottom-sheet slip.
+11. Visual design follows docs/DESIGN.md: semantic color tokens only (brand/hype/win/loss/warn/surface-2,
+    never raw palette classes like emerald-400), `font-display` + `num` for titles and numbers, brand
+    primitives from src/components/brand.tsx. After UI changes run the screenshot tour
+    (SCREENS=./screens npx playwright test e2e/screens.spec.ts) and look at it.
 
 ## v1 product defaults
 - Tournament-wide lock_time (defaults to earliest kickoff). Per-game locks are v2.

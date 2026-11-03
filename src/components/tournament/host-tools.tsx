@@ -44,14 +44,14 @@ export function HostTools({ tournamentId, rules, firstKickoff, canEditBankroll, 
   const [editOpen, setEditOpen] = useState(false);
 
   return (
-    <section aria-label="Host tools" className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-400/5 p-4">
-      <h2 className="text-xs font-semibold tracking-wide text-amber-300 uppercase">Host tools</h2>
+    <section aria-label="Host tools" className="mt-6 rounded-2xl border border-warn/30 bg-warn/5 p-4">
+      <h2 className="text-xs font-semibold tracking-wide text-warn uppercase">Host tools</h2>
       <div className="mt-3 grid grid-cols-2 gap-2">
         <Button variant="outline" className="h-11" onClick={() => setEditOpen(true)}>
           <SlidersHorizontal /> Edit rules
         </Button>
-        <Button className="h-11" onClick={() => setLockOpen(true)}>
-          <LockKeyhole /> Lock picks now
+        <Button variant="secondary" className="h-11 ring-1 ring-warn/40" onClick={() => setLockOpen(true)}>
+          <LockKeyhole className="text-warn" /> Lock picks now
         </Button>
       </div>
 
@@ -110,7 +110,7 @@ function LockNowDrawer({
             undone.
           </DrawerDescription>
           {waitingOn.length > 0 && (
-            <p className="mt-2 rounded-lg bg-amber-400/10 p-3 text-sm text-amber-300">
+            <p className="mt-2 rounded-lg bg-warn/10 p-3 text-sm text-warn">
               Still thinking: {waitingOn.join(", ")}
             </p>
           )}
@@ -240,7 +240,7 @@ function EditRulesForm({
                   onClick={() => set("markets", on ? draft.markets.filter((k) => k !== m.key) : [...draft.markets, m.key])}
                   className={cn(
                     "h-11 rounded-full border px-4 text-sm font-medium",
-                    on ? "border-emerald-500 bg-emerald-500/15 text-emerald-300" : "border-border text-muted-foreground",
+                    on ? "border-brand bg-brand/15 text-brand" : "border-border text-muted-foreground",
                   )}
                 >
                   {m.label}

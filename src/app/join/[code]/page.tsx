@@ -3,10 +3,11 @@ import { Suspense } from "react";
 import { PageSkeleton } from "@/components/page-skeleton";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { Lock, Users, Wallet } from "lucide-react";
+import { EyeOff, Users, Wallet } from "lucide-react";
+import { AppBar, DisplayTitle, Eyebrow } from "@/components/brand";
 import { LockCountdown } from "@/components/tournament/lock-countdown";
 import { normalizeCode } from "@/lib/core/codes";
-import { formatCents, formatKickoff, matchupLabel, sportEmoji } from "@/lib/format";
+import { formatCents, formatKickoff, sportEmoji, sportLabel } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { getTournamentPreview } from "@/lib/supabase/public";
 import { getViewer } from "@/lib/supabase/queries";
@@ -55,31 +56,46 @@ async function Join({ params, searchParams }: PageProps<"/join/[code]">) {
   const locked = t.is_locked;
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-10 pb-8">
-      <p className="text-sm text-muted-foreground">
-        <strong className="text-foreground">{t.host_name}</strong> invited you to
-      </p>
-      <h1 className="mt-1 text-3xl font-bold text-balance">
-        {sportEmoji(t.sport_key)} {t.title}
-      </h1>
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-[max(env(safe-area-inset-top),12px)] pb-8">
+      <AppBar />
 
-      <ul className="mt-5 space-y-1.5">
+      <div className="mt-8 flex items-center gap-2.5">
+        <span className="flex size-9 items-center justify-center rounded-full bg-hype font-display text-lg font-bold text-hype-foreground">
+          {t.host_name.slice(0, 1).toUpperCase()}
+        </span>
+        <p className="text-sm text-muted-foreground">
+          <strong className="text-foreground">{t.host_name}</strong> invited you to
+        </p>
+      </div>
+      <Eyebrow className="mt-5">
+        {sportEmoji(t.sport_key)} {sportLabel(t.sport_key)} · {t.events.length} {t.events.length === 1 ? "game" : "games"}
+      </Eyebrow>
+      <DisplayTitle className="mt-1.5">{t.title}</DisplayTitle>
+
+      <ul className="mt-5 space-y-2">
         {t.events.map((e) => (
-          <li key={e.id} className="flex justify-between gap-3 text-sm">
-            <span className="font-medium">{matchupLabel(e)}</span>
-            <span className="shrink-0 text-muted-foreground">{formatKickoff(e.commence_time)}</span>
+          <li key={e.id} className="flex items-center justify-between gap-3 rounded-2xl bg-card px-4 py-3 ring-1 ring-border">
+            <span className="min-w-0 font-medium">
+              <span className="block truncate">{e.away_team}</span>
+              <span className="block truncate text-muted-foreground">@ {e.home_team}</span>
+            </span>
+            <span className="shrink-0 rounded-lg bg-surface-2 px-2.5 py-1 text-xs font-medium">
+              {formatKickoff(e.commence_time)}
+            </span>
           </li>
         ))}
       </ul>
 
-      <div className="mt-6 grid grid-cols-3 gap-2 text-center text-sm">
+      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
         <Stat icon={<Wallet className="size-4" />} label="Bankroll" value={formatCents(t.starting_bankroll_cents)} />
         <Stat icon={<Users className="size-4" />} label="Players" value={String(t.participant_count)} />
-        <Stat icon={<Lock className="size-4" />} label="Picks" value="Blind" />
+        <Stat icon={<EyeOff className="size-4" />} label="Picks" value="Blind" />
       </div>
 
-      <div className="mt-6 rounded-xl border border-border p-3 text-center text-sm">
-        <LockCountdown lockTime={t.lock_time} isLocked={t.is_locked} />
+      <div className="mt-4 flex justify-center">
+        <span className="rounded-full bg-card px-4 py-2 text-sm ring-1 ring-border">
+          <LockCountdown lockTime={t.lock_time} isLocked={t.is_locked} />
+        </span>
       </div>
 
       <div className="mt-auto pt-8">
@@ -103,9 +119,9 @@ async function Join({ params, searchParams }: PageProps<"/join/[code]">) {
 
 function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-xl bg-card p-3 ring-1 ring-border">
-      <div className="flex justify-center text-emerald-400">{icon}</div>
-      <div className="mt-1 font-semibold">{value}</div>
+    <div className="rounded-2xl bg-card p-3 ring-1 ring-border">
+      <div className="flex justify-center text-brand">{icon}</div>
+      <div className="num mt-1 text-2xl leading-none font-bold">{value}</div>
       <div className="text-xs text-muted-foreground">{label}</div>
     </div>
   );

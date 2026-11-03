@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { EyeOff, UserRound } from "lucide-react";
+import { AppBar, DisplayTitle, Eyebrow } from "@/components/brand";
 import { PageSkeleton } from "@/components/page-skeleton";
 import { Reveal, type RevealPlayer } from "@/components/reveal/reveal";
 import { Sportsbook } from "@/components/sportsbook/sportsbook";
@@ -18,7 +19,7 @@ import { toBoardRow } from "@/lib/core/board";
 import { normalizeCode } from "@/lib/core/codes";
 import type { Rules } from "@/lib/core/slip";
 import { publicEnv } from "@/lib/env";
-import { MARKET_LABELS, formatCents, formatKickoff, sportEmoji } from "@/lib/format";
+import { MARKET_LABELS, formatCents, formatKickoff, sportEmoji, sportLabel } from "@/lib/format";
 import {
   BOARD_COLUMNS,
   REVEAL_WAGER_SELECT,
@@ -102,27 +103,29 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
   const shareUrl = `${publicEnv.siteUrl}/join/${t.code}`;
 
   return (
-    <main className="mx-auto w-full max-w-md flex-1 px-4 pt-6 pb-10">
+    <main className="mx-auto w-full max-w-md flex-1 px-4 pt-[max(env(safe-area-inset-top),12px)] pb-10">
       <TournamentLive tournamentId={t.id} code={t.code} viewerUserId={viewer.userId} renderedVersion={t.updated_at} />
 
       <header>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="font-mono tracking-widest">
-              {t.code}
-            </Badge>
-            {isLocked && <Badge variant="secondary">{STATUS_LABELS[t.status] ?? "Locked"}</Badge>}
-          </div>
-          <Link href="/account" className="flex items-center gap-1.5 text-sm text-muted-foreground" aria-label="Account">
-            <UserRound className="size-4" />
-            {viewer.profile?.display_name}
+        <AppBar>
+          <Badge variant="outline" className="h-7 font-mono tracking-widest">
+            {t.code}
+          </Badge>
+          <Link
+            href="/account"
+            aria-label="Account"
+            className="flex size-9 items-center justify-center rounded-full bg-card font-display text-base font-bold ring-1 ring-border"
+          >
+            {viewer.profile?.display_name?.slice(0, 1).toUpperCase() ?? <UserRound className="size-4" />}
           </Link>
-        </div>
-        <h1 className="mt-3 text-3xl font-bold text-balance">
-          {sportEmoji(t.sport_key)} {t.title}
-        </h1>
-        {t.description && <p className="mt-1 text-muted-foreground">{t.description}</p>}
-        <div className="mt-3 text-sm">
+        </AppBar>
+        <Eyebrow className="mt-6">
+          {sportEmoji(t.sport_key)} {sportLabel(t.sport_key)} · {events.length} {events.length === 1 ? "game" : "games"}
+          {isLocked && <span className="text-warn"> · {STATUS_LABELS[t.status] ?? "Locked"}</span>}
+        </Eyebrow>
+        <DisplayTitle className="mt-1.5">{t.title}</DisplayTitle>
+        {t.description && <p className="mt-2 text-muted-foreground">{t.description}</p>}
+        <div className="mt-3 inline-flex rounded-full bg-card px-3.5 py-1.5 text-sm ring-1 ring-border">
           <LockCountdown lockTime={t.lock_time} serverNow={t.server_now ?? undefined} isLocked={isLocked} />
         </div>
       </header>
@@ -138,7 +141,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
       ) : (
         <>
           {created && (
-            <section className="mt-6 rounded-2xl border border-emerald-500/40 bg-emerald-500/5 p-4">
+            <section className="mt-6 rounded-2xl border border-brand/40 bg-brand/5 p-4">
               <p className="mb-3 text-sm">
                 <strong>You&apos;re the host.</strong> Drop the link in the group chat. Friends join in one tap.
               </p>
@@ -302,9 +305,9 @@ async function RevealSection({
 
 function Rule({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl bg-card p-3 ring-1 ring-border">
+    <div className="rounded-2xl bg-card p-3 ring-1 ring-border">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 font-medium">{value}</dd>
+      <dd className="mt-0.5 font-display text-lg leading-tight font-bold">{value}</dd>
     </div>
   );
 }

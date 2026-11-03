@@ -48,7 +48,7 @@ export function EventCard({ event, markets, allowedMarkets, locked, selected, on
   ];
 
   return (
-    <article className="rounded-xl border border-border bg-card p-3" aria-label={`${event.away_team} at ${event.home_team}`}>
+    <article className="rounded-2xl bg-card p-3.5 ring-1 ring-border" aria-label={`${event.away_team} at ${event.home_team}`}>
       <header className={cn("mb-1 grid items-end gap-1.5 text-[11px] text-muted-foreground", grid)}>
         <span className="flex items-center gap-1">
           <Clock className="size-3" />
@@ -63,7 +63,7 @@ export function EventCard({ event, markets, allowedMarkets, locked, selected, on
 
       {sides.map((side) => (
         <div key={side.team} className={cn("grid items-center gap-1.5 py-1", grid)}>
-          <span className="truncate font-medium" title={side.team}>
+          <span className="truncate font-display text-lg font-bold uppercase" title={side.team}>
             {shortTeam(side.team)}
           </span>
           {columns.map((m) => {
@@ -101,7 +101,7 @@ function OddsButton({
 }) {
   if (!row) {
     return (
-      <div className="flex h-12 items-center justify-center rounded-lg bg-muted/40 text-xs text-muted-foreground">
+      <div className="flex h-13 items-center justify-center rounded-xl bg-muted/40 text-xs text-muted-foreground">
         —
       </div>
     );
@@ -111,7 +111,9 @@ function OddsButton({
     row.marketKey === "spreads"
       ? formatSpread(row.point)
       : row.marketKey === "totals"
-        ? `${row.outcomeName === "Over" ? "O" : "U"} ${row.point}`
+        ? row.point === null
+          ? null
+          : String(row.point)
         : null;
 
   return (
@@ -123,10 +125,10 @@ function OddsButton({
       onClick={onClick}
       aria-label={`${selectionLabel(row)} ${formatAmerican(row.priceAmerican)}${row.isStale ? " (updating)" : ""}`}
       className={cn(
-        "h-12 overflow-hidden rounded-lg border text-xs tabular-nums transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+        "num h-13 overflow-hidden rounded-xl border transition-colors active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40",
         selected
-          ? "border-emerald-400 bg-emerald-500 text-black"
-          : "border-border bg-background hover:bg-muted",
+          ? "border-brand bg-brand text-brand-foreground"
+          : "border-border bg-surface-2/60 hover:bg-surface-2",
       )}
     >
       {/* Keyed on updatedAt so the flash replays on every Realtime price move. */}
@@ -138,11 +140,21 @@ function OddsButton({
           row.movement === "down" && "animate-flash-down",
         )}
       >
-        {line && <span className="font-semibold">{line}</span>}
+        {line && (
+          <span className="text-base leading-none font-bold">
+            {row.marketKey === "totals" && (
+              // Body font: in the scoreboard face "O" is indistinguishable from zero.
+              <span className="mr-0.5 font-sans text-[11px] font-semibold opacity-70">
+                {row.outcomeName === "Over" ? "O" : "U"}
+              </span>
+            )}
+            {line}
+          </span>
+        )}
         <span
           className={cn(
-            line ? "text-[11px]" : "text-sm font-semibold",
-            line && (selected ? "text-black/75" : "text-muted-foreground"),
+            line ? "mt-0.5 text-[13px] leading-none" : "text-lg leading-none font-bold",
+            line && (selected ? "text-brand-foreground/75" : "text-muted-foreground"),
           )}
         >
           {formatAmerican(row.priceAmerican)}

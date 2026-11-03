@@ -388,6 +388,9 @@ That is roughly 1.5k credits per Sunday, so the $30/20k tier covers a season of 
   - the full pgTAP blind-pick matrix (section 2) is green
   - a manual two-browser test shows nothing leaks before lock via the network tab, Realtime, or the roster
 
+### Design foundation (done 2026-11-03)
+"Night game" visual identity and design system; see `docs/DESIGN.md`. Order agreed with the user: design foundation → Phase 4 → Phase 5 → closed beta (3–5 friend groups; success = a group starts a second tournament).
+
 ### Phase 4: Real odds, safely (re-scoped 2026-11-03 at the user's request)
 Goal: the most basic integration with The Odds API that can't leak the key, can't overspend, and degrades to "odds unavailable" instead of breaking. Scope is set at the start of the phase; the starting points are:
 - The key exists only as an Edge Function secret (rule 6) and is never logged; local dev and CI keep using the fake provider.

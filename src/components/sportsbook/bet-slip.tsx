@@ -156,7 +156,7 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, boa
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-4 pt-3 pb-[max(env(safe-area-inset-bottom),12px)] backdrop-blur">
           <div className="mx-auto max-w-md">
             <Button
-              className="h-12 w-full justify-between px-4 text-base"
+              className="h-14 w-full justify-between px-4 text-base font-semibold shadow-lg shadow-brand/20"
               onClick={() => dispatch({ type: "open", open: true })}
             >
               <span className="flex items-center gap-2">
@@ -165,7 +165,7 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, boa
                 </span>
                 Bet slip
               </span>
-              <span className="tabular-nums">
+              <span className="num text-lg">
                 {totals.stakeCents > 0
                   ? `${formatCents(totals.stakeCents)} → ${formatCents(totals.returnCents)}`
                   : "Add stakes"}
@@ -178,7 +178,7 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, boa
       <Drawer open={state.open} onOpenChange={(open) => dispatch({ type: "open", open })}>
         <DrawerContent className="mx-auto w-full max-w-md">
           <DrawerHeader className="flex-row items-center justify-between pb-2 text-left">
-            <DrawerTitle className="text-lg font-bold">Bet slip</DrawerTitle>
+            <DrawerTitle className="font-display text-2xl font-extrabold uppercase">Bet slip</DrawerTitle>
             <Button variant="ghost" size="sm" onClick={() => dispatch({ type: "clear" })}>
               Clear all
             </Button>
@@ -186,7 +186,7 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, boa
 
           {entries.length >= 2 && (
             <div className="px-4 pb-2">
-              <div role="tablist" className="grid grid-cols-2 rounded-lg bg-muted p-1 text-sm">
+              <div role="tablist" className="grid grid-cols-2 rounded-xl bg-card p-1 text-sm ring-1 ring-border">
                 {(["singles", "parlay"] as const).map((m) => (
                   <button
                     key={m}
@@ -196,8 +196,8 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, boa
                     disabled={m === "parlay" && !parlayCheck.ok}
                     onClick={() => dispatch({ type: "mode", mode: m })}
                     className={cn(
-                      "h-9 rounded-md font-medium capitalize disabled:opacity-40",
-                      mode === m && "bg-background shadow-sm",
+                      "h-10 rounded-lg font-semibold capitalize disabled:opacity-40",
+                      mode === m ? "bg-foreground text-background shadow-sm" : "text-muted-foreground",
                     )}
                   >
                     {m === "parlay" ? `Parlay (${entries.length})` : "Singles"}
@@ -228,10 +228,10 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, boa
             ))}
 
             {mode === "parlay" && drafts[0] && (
-              <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-3">
+              <div className="rounded-2xl border border-brand/40 bg-brand/5 p-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-semibold">{entries.length}-leg parlay</span>
-                  <span className="font-semibold tabular-nums">{formatAmerican(wagerAmerican(drafts[0].legs))}</span>
+                  <span className="num text-xl leading-none font-bold text-brand">{formatAmerican(wagerAmerican(drafts[0].legs))}</span>
                 </div>
                 <StakeInput
                   value={state.parlayStake}
@@ -277,7 +277,7 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, boa
             </dl>
 
             <Button
-              className={cn("h-12 w-full text-base", anyChanged && !locked && "bg-amber-400 text-black hover:bg-amber-300")}
+              className={cn("h-14 w-full text-base font-semibold", anyChanged && !locked && "bg-warn text-brand-foreground hover:bg-warn")}
               disabled={action.disabled}
               onClick={action.onClick}
             >
@@ -312,7 +312,7 @@ function SlipRow({
 }) {
   const current = row ?? null;
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-3", unavailable && "opacity-60")}>
+    <div className={cn("rounded-2xl bg-card p-3 ring-1 ring-border", unavailable && "opacity-60")}>
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{selectionLabel(current ?? entry)}</p>
@@ -320,11 +320,11 @@ function SlipRow({
             {MARKET_LABELS[entry.marketKey] ?? entry.marketKey} · {entry.matchup}
           </p>
         </div>
-        <div className="text-right text-sm font-semibold tabular-nums">
+        <div className="num text-right text-lg leading-none font-bold">
           {unavailable ? (
             <span className="text-xs font-medium text-muted-foreground">Unavailable</span>
           ) : changed && current ? (
-            <span className="flex items-center gap-1 text-amber-400">
+            <span className="flex items-center gap-1 text-warn">
               <s className="text-xs text-muted-foreground">{formatAmerican(entry.priceAmerican)}</s>
               <ArrowRight className="size-3" />
               {formatAmerican(current.priceAmerican)}
@@ -382,7 +382,7 @@ function StakeInput({
         />
       </div>
       <p className="text-sm text-muted-foreground">
-        Returns <span className="font-semibold text-foreground tabular-nums">{formatCents(returnCents)}</span>
+        Returns <span className="num text-lg font-bold text-foreground">{formatCents(returnCents)}</span>
       </p>
     </div>
   );
@@ -390,9 +390,9 @@ function StakeInput({
 
 function Summary({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className="rounded-lg bg-muted/50 p-2">
+    <div className="rounded-xl bg-card p-2 ring-1 ring-border">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className={cn("mt-0.5 text-sm font-semibold tabular-nums", highlight && "text-emerald-400")}>{value}</dd>
+      <dd className={cn("num mt-0.5 text-xl leading-none font-bold", highlight && "text-brand")}>{value}</dd>
     </div>
   );
 }

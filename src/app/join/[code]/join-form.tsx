@@ -50,7 +50,7 @@ export function JoinForm({ code, defaultName }: { code: string; defaultName: str
         defaultValue={defaultName}
         className="h-12 text-base"
       />
-      <Button type="submit" className="h-12 w-full text-base" disabled={pending}>
+      <Button type="submit" className="h-14 w-full text-base font-semibold" disabled={pending}>
         {pending && <Loader2 className="animate-spin" />}
         I&apos;m in
       </Button>

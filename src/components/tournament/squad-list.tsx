@@ -66,17 +66,17 @@ export function SquadList({ tournamentId, members, viewerUserId, showStatus, can
       <ul className="space-y-2">
         {members.map((m) => (
           <li key={m.user_id} className="flex min-h-15 items-center gap-3 rounded-xl bg-card p-3 ring-1 ring-border">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 font-semibold text-emerald-300">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand/15 font-semibold text-brand">
               {m.display_name.slice(0, 1).toUpperCase()}
             </span>
             <span className="min-w-0 flex-1 truncate font-medium">
               {m.display_name}
               {m.user_id === viewerUserId && <span className="text-muted-foreground"> (you)</span>}
-              {m.is_host && <Crown className="ml-1.5 inline size-4 text-amber-400" aria-label="Host" />}
+              {m.is_host && <Crown className="ml-1.5 inline size-4 text-warn" aria-label="Host" />}
             </span>
             {showStatus &&
               (m.has_submitted ? (
-                <span className="flex items-center gap-1 text-xs text-emerald-400">
+                <span className="flex items-center gap-1 text-xs text-brand">
                   <CircleCheck className="size-4" /> Picks in
                 </span>
               ) : (

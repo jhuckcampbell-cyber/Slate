@@ -117,7 +117,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
         )}
         <div>
           <p className="text-xs text-muted-foreground">Step {step} of 2</p>
-          <h1 className="text-2xl font-bold">{step === 1 ? "Pick the game(s)" : "Set the rules"}</h1>
+          <h1 className="font-display text-4xl leading-none font-extrabold uppercase">{step === 1 ? "Pick the game(s)" : "Set the rules"}</h1>
         </div>
       </header>
 
@@ -136,7 +136,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
                   className={cn(
                     "h-10 shrink-0 rounded-full border px-4 text-sm font-medium",
                     s === sport
-                      ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
+                      ? "border-brand bg-brand/15 text-brand"
                       : "border-border text-muted-foreground",
                   )}
                 >
@@ -163,13 +163,13 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
                           onClick={() => toggle(e.id)}
                           className={cn(
                             "flex min-h-14 w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors",
-                            on ? "border-emerald-500 bg-emerald-500/10" : "border-border bg-card",
+                            on ? "border-brand bg-brand/10" : "border-border bg-card",
                           )}
                         >
                           <span
                             className={cn(
                               "flex size-6 shrink-0 items-center justify-center rounded-md border",
-                              on ? "border-emerald-500 bg-emerald-500 text-black" : "border-border",
+                              on ? "border-brand bg-brand text-brand-foreground" : "border-border",
                             )}
                           >
                             {on && <Check className="size-4" />}
@@ -190,7 +190,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
           </div>
 
           <StickyFooter>
-            <Button className="h-12 w-full text-base" disabled={!selected.length} onClick={goToRules}>
+            <Button className="h-14 w-full text-base font-semibold" disabled={!selected.length} onClick={goToRules}>
               {selected.length
                 ? `Continue with ${selected.length} game${selected.length > 1 ? "s" : ""}`
                 : "Select at least one game"}
@@ -258,7 +258,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
                     className={cn(
                       "h-11 rounded-full border px-4 text-sm font-medium",
                       on
-                        ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
+                        ? "border-brand bg-brand/15 text-brand"
                         : "border-border text-muted-foreground",
                     )}
                   >
@@ -285,7 +285,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
           )}
 
           <StickyFooter>
-            <Button className="h-12 w-full text-base" disabled={submitting} onClick={submit}>
+            <Button className="h-14 w-full text-base font-semibold" disabled={submitting} onClick={submit}>
               {submitting && <Loader2 className="animate-spin" />}
               Create &amp; get invite link
             </Button>

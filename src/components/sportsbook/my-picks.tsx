@@ -43,7 +43,7 @@ export function MyPicks({ participantId, wagers, eventsById, locked }: Props) {
           return (
             <li
               key={w.id}
-              className={cn("rounded-xl border border-border bg-card p-3", (w.optimistic || cancelling) && "opacity-60")}
+              className={cn("rounded-2xl bg-card p-3.5 ring-1 ring-border", (w.optimistic || cancelling) && "opacity-60")}
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
@@ -77,7 +77,7 @@ export function MyPicks({ participantId, wagers, eventsById, locked }: Props) {
                   return (
                     <li key={leg.id} className="flex items-baseline justify-between gap-2">
                       <span className="min-w-0">
-                        <span className="font-medium">
+                        <span className="font-semibold">
                           {selectionLabel({
                             marketKey: leg.market_key,
                             outcomeName: leg.selection,
@@ -100,9 +100,9 @@ export function MyPicks({ participantId, wagers, eventsById, locked }: Props) {
                   );
                 })}
               </ul>
-              <p className="mt-2 text-sm text-muted-foreground tabular-nums">
-                {formatCents(w.amount_cents)} to return{" "}
-                <span className="font-semibold text-emerald-400">{formatCents(w.potential_payout_cents)}</span>
+              <p className="mt-2 flex items-baseline gap-1.5 text-sm text-muted-foreground">
+                <span className="num text-lg font-bold text-foreground">{formatCents(w.amount_cents)}</span> returns
+                <span className="num text-lg font-bold text-brand">{formatCents(w.potential_payout_cents)}</span>
               </p>
             </li>
           );

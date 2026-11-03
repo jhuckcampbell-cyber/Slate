@@ -99,7 +99,7 @@ function SportsbookInner({
         {tab === "board" ? (
           <div className="space-y-3">
             {isLocked && (
-              <p className="flex items-center gap-2 rounded-xl bg-amber-400/10 p-3 text-sm text-amber-300">
+              <p className="flex items-center gap-2 rounded-xl bg-warn/10 p-3 text-sm text-warn">
                 <Lock className="size-4 shrink-0" /> Picks are locked. The board is read-only.
               </p>
             )}
@@ -136,9 +136,9 @@ function SportsbookInner({
 
 function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className="rounded-xl bg-card p-2.5 ring-1 ring-border">
+    <div className="rounded-2xl bg-card p-2.5 ring-1 ring-border">
       <dt className="text-[11px] text-muted-foreground">{label}</dt>
-      <dd className={cn("mt-0.5 font-semibold tabular-nums", highlight && "text-emerald-400")}>{value}</dd>
+      <dd className={cn("num mt-0.5 text-2xl leading-none font-bold", highlight && "text-brand")}>{value}</dd>
     </div>
   );
 }

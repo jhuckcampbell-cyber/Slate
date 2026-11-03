@@ -34,7 +34,7 @@ export function LockCountdown({
 
   if (locked) {
     return (
-      <span className="inline-flex items-center gap-1.5 font-medium text-amber-400">
+      <span className="inline-flex items-center gap-1.5 font-medium text-warn">
         <Lock className="size-4" /> Picks locked
       </span>
     );
@@ -42,7 +42,7 @@ export function LockCountdown({
 
   return (
     <span className="inline-flex items-center gap-1.5 tabular-nums">
-      <Timer className="size-4 text-emerald-400" />
+      <Timer className="size-4 text-brand" />
       Locks in <strong>{remaining === null ? "…" : formatCountdown(remaining)}</strong>
     </span>
   );

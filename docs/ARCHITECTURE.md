@@ -388,7 +388,14 @@ That is roughly 1.5k credits per Sunday, so the $30/20k tier covers a season of 
   - the full pgTAP blind-pick matrix (section 2) is green
   - a manual two-browser test shows nothing leaks before lock via the network tab, Realtime, or the roster
 
-### Phase 4: Live grading, win probability, realtime leaderboard
+### Phase 4: Real odds, safely (re-scoped 2026-11-03 at the user's request)
+Goal: the most basic integration with The Odds API that can't leak the key, can't overspend, and degrades to "odds unavailable" instead of breaking. Scope is set at the start of the phase; the starting points are:
+- The key exists only as an Edge Function secret (rule 6) and is never logged; local dev and CI keep using the fake provider.
+- A hard credit budget enforced in the database (refuse to call, not just slow down) sized to the plan the user picks (the free tier is 500 credits/month), plus the existing breaker.
+- Minimum-cost fetching: one region, one book, only markets and games that open tournaments need, no live odds.
+- A one-command dry run against the real API (one call, credits reported) before the cron is switched on.
+
+### Phase 5: Live grading, win probability, realtime leaderboard
 - `scores-sync` and `grade_event` (core markets automated); a host prop-grading UI.
 - `src/lib/core/probability.ts`: de-vig, normal-model spread/total, parlay product. Live odds polling for events with pending wagers.
 - `recompute_leaderboard` after each odds/scores sync, then Realtime on participants and wagers.
@@ -450,6 +457,27 @@ Deviations from the plan above, and why:
 - **`events.commence_time` moving earlier pulls `lock_time` forward** (trigger), which keeps "lock ≤ first kickoff" true.
 
 **Deferred:**
-- **Player props → Phase 4**, alongside host grading. Props are ungradeable before that, so taking prop bets now would create bets that can't be settled. The data model, normalizer and slip already handle `participant_name`.
+- **Player props → Phase 5**, alongside host grading. Props are ungradeable before that, so taking prop bets now would create bets that can't be settled. The data model, normalizer and slip already handle `participant_name`.
 - **No edit UI for placed bets yet.** `replace_wager` (atomic cancel + re-place) exists and is tested; the UI offers cancel and re-add.
 - **`min_total_wager` isn't enforced** (no lock-time rule yet), and the slip doesn't survive a page refresh.
+
+## Implementation notes: as built (Phase 3, 2026-11-03)
+Migration `20261103000006_lock_reveal.sql`, pgTAP `04_lock_reveal.test.sql` (64 tests), integration `tests/integration/realtime.test.ts`, e2e `e2e/reveal.spec.ts`.
+
+**Built:**
+- **Lock guards (triggers).** Once `lock_time` passes (by `clock_timestamp()`, so a slip whose transaction straddles the lock is refused) or the status leaves draft/open: no wager/leg insert, no change except outcome columns (`status`, `is_locked`, `win_probability`, `settled_at`; legs also `odds_id`), and no delete except cascades from a deleted participant, account or tournament. The tournament's lock time and money rules freeze, status only moves forward, and nobody new can join. `pull_lock_forward` never touches a lock that already passed.
+- **Status machine.** `private.advance_statuses()` runs every **10 seconds** under pg_cron: open → locked at `lock_time`, locked → live at first kickoff, live → settled once every game is final and every wager graded (so never, until Phase 5 grading). Locking flips `wagers.is_locked`. There's a daily cleanup of `cron.job_run_details`.
+- **Signals, not data.** One private Realtime channel per tournament, `tournament:<id>`, fed by `realtime.send` from triggers. `tournament` events carry `{status, lock_time}`; `roster` events carry `{change, user_id}` on join/leave and only when a player's "picks in" flag flips (later bets stay silent). RLS on `realtime.messages` admits participants only. There's no INSERT policy, so clients can't publish. Lobbies respond by re-rendering server components, so RLS stays the only gate on what's visible.
+- **Missed signals are covered three ways.** A catch-up refresh on every channel (re)join, a refresh when the tab becomes visible, and a 20s poll of `tournaments.updated_at`. An e2e run with Realtime disabled still reveals on time via the countdown and the poll.
+- **DB-clock countdown.** The `server_now` computed field plus `createServerClock` mean a phone with a wrong clock still flips at the real lock moment.
+- **Host controls.** `update_tournament(id, changes jsonb)` edits title/description, lock time (any time in (now, first kickoff]), max bet, and bet types. Bankroll can change only while the host is alone with no bets. `lock_tournament_now(id)` and `remove_participant(id, user_id)` complete the set. A removed player is recorded in `private.tournament_removals`, and `join_tournament` refuses them with `REMOVED_BY_HOST`. Rule edits apply to new bets only, and no host error depends on hidden picks (lowering the max bet below a hidden bet succeeds), so the host can't probe picks through errors.
+- **Reveal UI.** A one-time "Picks are in!" moment per device, then a **By game** consensus view (`src/lib/core/consensus.ts`: distinct players per side, most common line, "Split 1–1" / "Everyone's on X" / "n of m on X") and a **By player** view with every slip, amount risked, potential win, and unbet bankroll.
+
+**Deviations:**
+- The reveal is a section of `/t/[code]` rather than a separate route; the lobby swaps the sportsbook for the reveal at lock.
+- Reveal data comes from plain RLS selects, not a security-definer RPC, so the blind-pick policies stay the single gate.
+- `join_tournament` now reads the tournament `FOR SHARE`, so a join can't interleave with a bankroll edit or an early lock.
+
+**Known gaps:**
+- **Intermittent missed broadcasts.** In 1 of ~40 e2e runs a lobby received neither Realtime signal, even after the catch-up refresh. The suspected cause, unconfirmed, is the channel never joining right after the guest sign-in. The 20s poll bounds the impact; the root cause isn't confirmed.
+- **No un-remove.** A removed player can rejoin only with a different account (a guest can clear cookies).

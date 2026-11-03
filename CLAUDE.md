@@ -41,6 +41,19 @@ odds_sync_claim() [lease + due jobs] → provider → normalize (_shared) → od
 - odds_cache rows change only on real price moves (Realtime); market freshness lives in odds_markets.
 - Clients read the `odds_board` view (DB-clock is_stale) + Realtime on odds_cache.
 
+## Lock & reveal (Phase 3)
+- Lock guards are TRIGGERS (migration 0006): after lock nothing can add/edit/delete a pick, move the lock,
+  change the rules, or add a player, even code that bypasses the RPCs. Grading may only touch outcome
+  columns (status, settled_at, win_probability, is_locked). If Phase 5 grading needs another column, widen
+  the guard on purpose.
+- pg_cron runs private.advance_statuses() every 10s: open → locked → live → settled.
+- Realtime: private channel `tournament:<id>` (participants only; RLS on realtime.messages) carries
+  SIGNALS, never data: `tournament` {status, lock_time}, `roster` {change, user_id}. Clients re-render
+  via router.refresh() so RLS stays the only gate. Never put picks or bankrolls in a payload.
+- Host RPC errors must never depend on hidden picks (the host could probe them through errors).
+- Next 16 keeps visited routes mounted but hidden: in e2e, scope locators (e.g. getByRole("dialog")) when a
+  label also exists on a previously visited page.
+
 ## Next.js 16 specifics (this is NOT older Next.js; see AGENTS.md + node_modules/next/dist/docs)
 - Middleware is `src/proxy.ts` exporting `proxy()` (refreshes the Supabase session cookie).
 - `params` / `searchParams` are Promises; use the global `PageProps<"/route">` / `LayoutProps` types.
@@ -68,7 +81,9 @@ supabase/functions/          Deno Edge Functions. Entrypoints (*/index.ts) are e
                              toolchain: add each new function dir to tsconfig "exclude".
 supabase/functions/_shared/  PURE TS shared by functions (import with .ts extensions); Vitest-tested
 src/components/sportsbook/   board (event cards), slip store + drawer, my picks
-tests/integration/           Vitest against the local stack (concurrency)
+src/components/tournament/   lobby pieces: countdown, live channel, squad list, host tools
+src/components/reveal/       post-lock reveal (consensus by game, slips by player)
+tests/integration/           Vitest against the local stack (concurrency, Realtime channel auth)
 supabase/tests/              pgTAP: every RLS policy and RPC has tests
 
 ## Non-negotiable rules
@@ -76,7 +91,8 @@ supabase/tests/              pgTAP: every RLS policy and RPC has tests
    Any new table/view/function touching wagers or bankrolls needs a pgTAP test proving a
    co-participant cannot read it before lock_time.
 2. Clients never write wagers/participants directly. All mutations go through RPCs
-   (create_tournament, join_tournament, place_wagers, cancel_wager, replace_wager). Players have
+   (create_tournament, join_tournament, place_wagers, cancel_wager, replace_wager, update_tournament,
+   lock_tournament_now, remove_participant). Players have
    no INSERT/UPDATE/DELETE grants on those tables at all.
 3. Never trust client odds or amounts: place_wagers re-reads odds_cache server-side and rejects
    with ODDS_CHANGED (new prices in `details`) on any move; the slip shows "Accept new odds".

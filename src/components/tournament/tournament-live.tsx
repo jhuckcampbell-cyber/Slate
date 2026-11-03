@@ -1,0 +1,90 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
+import { createClient } from "@/lib/supabase/client";
+
+type Props = {
+  tournamentId: string;
+  code: string;
+  viewerUserId: string;
+  /** tournaments.updated_at as rendered; bumped by every lock/rules/status change. */
+  renderedVersion: string;
+};
+
+type RosterSignal = { change?: string; user_id?: string };
+
+const POLL_MS = 20_000;
+const AUTH_WAIT_MS = 3_000;
+
+/**
+ * Keeps an open lobby in sync with the database. The private Realtime channel "tournament:<id>"
+ * (participants only, see migration 0006) carries bare signals, never picks:
+ *   tournament → lock time / rules / status changed   roster → someone joined, left, or submitted
+ * Each one re-renders the server components (RLS decides what's visible).
+ * Sockets aren't guaranteed (phones background tabs, joins race the first render), so:
+ *   - every (re)join of the channel triggers one catch-up refresh,
+ *   - returning to the tab refreshes,
+ *   - a cheap poll of tournaments.updated_at refreshes within ~20s if a signal was missed.
+ * The lock countdown separately refreshes at the lock moment.
+ */
+export function TournamentLive({ tournamentId, code, viewerUserId, renderedVersion }: Props) {
+  const router = useRouter();
+  // The poll compares against the latest render without re-joining the channel on every refresh.
+  const version = useRef(renderedVersion);
+  useEffect(() => {
+    version.current = renderedVersion;
+  }, [renderedVersion]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    let debounce: ReturnType<typeof setTimeout> | undefined;
+    let cancelled = false;
+    const refresh = () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => router.refresh(), 200);
+    };
+
+    const channel = supabase
+      .channel(`tournament:${tournamentId}`, { config: { private: true } })
+      .on("broadcast", { event: "tournament" }, refresh)
+      .on("broadcast", { event: "roster" }, ({ payload }: { payload: RosterSignal }) => {
+        if (payload.change === "left" && payload.user_id === viewerUserId) {
+          router.replace(`/join/${code}?removed=1`);
+          return;
+        }
+        refresh();
+      });
+
+    // Private channels need the user's JWT on the join message; don't let a slow token read
+    // block the subscription forever.
+    void Promise.race([supabase.realtime.setAuth(), new Promise((r) => setTimeout(r, AUTH_WAIT_MS))]).then(() => {
+      if (cancelled) return;
+      channel.subscribe((status) => {
+        if (status === "SUBSCRIBED") refresh(); // catch up on anything sent before the join
+      });
+    });
+
+    const poll = setInterval(async () => {
+      if (document.visibilityState !== "visible") return;
+      const { data } = await supabase.from("tournaments").select("updated_at").eq("id", tournamentId).maybeSingle();
+      if (!data) router.replace(`/join/${code}`);
+      else if (data.updated_at !== version.current) refresh();
+    }, POLL_MS);
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(debounce);
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
+      void supabase.removeChannel(channel);
+    };
+  }, [tournamentId, code, viewerUserId, router]);
+
+  return null;
+}

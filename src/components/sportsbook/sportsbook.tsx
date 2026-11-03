@@ -8,6 +8,7 @@ import { formatCents, shortTeam } from "@/lib/format";
 import { useBoard } from "@/lib/queries/board";
 import { useBankroll, useMyWagers, type Bankroll, type MyWager } from "@/lib/queries/wagers";
 import { cn } from "@/lib/utils";
+import { TabSwitch } from "../tab-switch";
 import { BetSlip } from "./bet-slip";
 import { EventCard, type SportsbookEvent } from "./event-card";
 import { MyPicks } from "./my-picks";
@@ -83,14 +84,16 @@ function SportsbookInner({
         <Stat label="Potential" value={formatCents(bankroll.data.potentialPayoutCents)} />
       </dl>
 
-      <div role="tablist" className="mt-4 grid grid-cols-2 rounded-lg bg-muted p-1 text-sm">
-        <TabButton active={tab === "board"} onClick={() => setTab("board")}>
-          Board
-        </TabButton>
-        <TabButton active={tab === "picks"} onClick={() => setTab("picks")}>
-          My picks{wagers.data.length > 0 ? ` (${wagers.data.length})` : ""}
-        </TabButton>
-      </div>
+      <TabSwitch
+        label="Sportsbook view"
+        className="mt-4"
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: "board", label: "Board" },
+          { value: "picks", label: `My picks${wagers.data.length > 0 ? ` (${wagers.data.length})` : ""}` },
+        ]}
+      />
 
       <div className="mt-4">
         {tab === "board" ? (
@@ -140,16 +143,3 @@ function Stat({ label, value, highlight }: { label: string; value: string; highl
   );
 }
 
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className={cn("h-9 rounded-md font-medium transition-colors", active ? "bg-background shadow-sm" : "text-muted-foreground")}
-    >
-      {children}
-    </button>
-  );
-}

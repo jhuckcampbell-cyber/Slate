@@ -1,49 +1,16 @@
-import { expect, test, type Page } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
-
-// Requires: local Supabase (+ seed) and `npx supabase functions serve` (odds-sync, fake provider).
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const admin = createClient(SUPABASE_URL, process.env.SUPABASE_SECRET_KEY!, { auth: { persistSession: false } });
-
-async function createTournament(page: Page, games: number) {
-  await page.goto("/create");
-  await page.waitForLoadState("networkidle");
-  const cards = page.getByRole("button").filter({ hasText: "@" });
-  for (let i = 0; i < games; i++) {
-    await cards.nth(i).click();
-    await expect(page.getByRole("button", { name: new RegExp(`Continue with ${i + 1} game`) })).toBeVisible();
-  }
-  await page.getByRole("button", { name: /Continue with/ }).click();
-  await page.getByLabel("Your name").fill("Hank");
-  await page.getByRole("button", { name: /Create & get invite link/ }).click();
-  await page.waitForURL(/\/t\/[A-Z0-9]{2,5}-[A-Z0-9]{4}/);
-  return new URL(page.url()).pathname.split("/").pop()!;
-}
-
-async function waitForOdds(page: Page) {
-  // Nudge the sync instead of waiting for the next cron minute (a held lease is fine: cron covers it).
-  await page.request
-    .post(`${SUPABASE_URL}/functions/v1/odds-sync`, {
-      headers: { "x-sync-secret": process.env.ODDS_SYNC_SECRET ?? "local-dev-sync-secret" },
-    })
-    .catch(() => undefined);
-  await expect(page.locator('article button[aria-pressed="false"]').first()).toBeEnabled({ timeout: 90_000 });
-}
+import { expect, test } from "@playwright/test";
+import { admin, createTournament, joinAs, newPage, waitForOdds } from "./helpers";
 
 test("blind slip: parlay, live odds change, cancel refund", async ({ browser }) => {
   test.setTimeout(180_000);
 
-  const host = await (await browser.newContext()).newPage();
+  const host = await newPage(browser);
   const code = await createTournament(host, 2);
   await waitForOdds(host);
 
   // Guest joins before anyone bets.
-  const guest = await (await browser.newContext()).newPage();
-  await guest.goto(`/join/${code}`);
-  await guest.waitForLoadState("networkidle");
-  await guest.getByLabel("Your name").fill("Gina");
-  await guest.getByRole("button", { name: "I'm in" }).click();
-  await guest.waitForURL(`**/t/${code}`);
+  const guest = await newPage(browser);
+  await joinAs(guest, code, "Gina");
 
   // Host: 2-leg parlay for $10.
   const firstGame = host.locator("article").nth(0);

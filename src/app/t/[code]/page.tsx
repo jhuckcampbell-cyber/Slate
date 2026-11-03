@@ -3,18 +3,30 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { CircleCheck, Crown, EyeOff, Hourglass, UserRound } from "lucide-react";
+import { EyeOff, UserRound } from "lucide-react";
 import { PageSkeleton } from "@/components/page-skeleton";
+import { Reveal, type RevealPlayer } from "@/components/reveal/reveal";
 import { Sportsbook } from "@/components/sportsbook/sportsbook";
+import type { SportsbookEvent } from "@/components/sportsbook/event-card";
+import { HostTools } from "@/components/tournament/host-tools";
 import { LockCountdown } from "@/components/tournament/lock-countdown";
 import { ShareButton } from "@/components/tournament/share-button";
+import { SquadList, type SquadMember } from "@/components/tournament/squad-list";
+import { TournamentLive } from "@/components/tournament/tournament-live";
 import { Badge } from "@/components/ui/badge";
 import { toBoardRow } from "@/lib/core/board";
 import { normalizeCode } from "@/lib/core/codes";
 import type { Rules } from "@/lib/core/slip";
 import { publicEnv } from "@/lib/env";
 import { MARKET_LABELS, formatCents, formatKickoff, sportEmoji } from "@/lib/format";
-import { BOARD_COLUMNS, WAGER_SELECT, toMyWager, type WagerRow } from "@/lib/queries/selects";
+import {
+  BOARD_COLUMNS,
+  REVEAL_WAGER_SELECT,
+  WAGER_SELECT,
+  toMyWager,
+  toRevealedWager,
+  type WagerRow,
+} from "@/lib/queries/selects";
 import { createClient } from "@/lib/supabase/server";
 import { getViewer } from "@/lib/supabase/queries";
 
@@ -25,6 +37,10 @@ type AllowedBetTypes = {
   parlays?: boolean;
   max_parlay_legs?: number;
 };
+
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+const STATUS_LABELS: Record<string, string> = { locked: "Locked", live: "Live", settled: "Final" };
 
 export default function LobbyPage(props: PageProps<"/t/[code]">) {
   return (
@@ -43,11 +59,11 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
   if (!viewer) redirect(`/join/${code}`);
 
   const supabase = await createClient();
-  // RLS: only visible to the host and participants. is_locked is a DB-clock computed field.
+  // RLS: only visible to the host and participants. is_locked/server_now are DB-clock computed fields.
   const { data: t } = await supabase
     .from("tournaments")
     .select(
-      "id, code, title, description, sport_key, host_id, lock_time, status, starting_bankroll_cents, max_bet_cents, allowed_bet_types, is_locked",
+      "id, code, title, description, sport_key, host_id, lock_time, status, starting_bankroll_cents, max_bet_cents, allowed_bet_types, updated_at, is_locked, server_now",
     )
     .eq("code", code)
     .maybeSingle();
@@ -72,15 +88,6 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
     .flatMap((l) => (l.events ? [l.events] : []))
     .sort((a, b) => a.commence_time.localeCompare(b.commence_time));
 
-  const [{ data: boardRows }, { data: wagerRows }] = await Promise.all([
-    supabase.from("odds_board").select(BOARD_COLUMNS).in("event_id", events.map((e) => e.id)),
-    supabase
-      .from("wagers")
-      .select(WAGER_SELECT)
-      .eq("participant_id", me.id)
-      .order("created_at", { ascending: false }),
-  ]);
-
   const allowed = (t.allowed_bet_types ?? {}) as AllowedBetTypes;
   const rules: Rules = {
     markets: allowed.markets ?? [],
@@ -89,17 +96,23 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
     maxBetCents: t.max_bet_cents === null ? null : Number(t.max_bet_cents),
   };
   const isLocked = Boolean(t.is_locked);
+  const isHost = t.host_id === viewer.userId;
   const bankroll = formatCents(t.starting_bankroll_cents);
-  const squad = roster ?? [];
-  const submitted = squad.filter((p) => p.has_submitted).length;
+  const squad: SquadMember[] = roster ?? [];
+  const shareUrl = `${publicEnv.siteUrl}/join/${t.code}`;
 
   return (
     <main className="mx-auto w-full max-w-md flex-1 px-4 pt-6 pb-10">
+      <TournamentLive tournamentId={t.id} code={t.code} viewerUserId={viewer.userId} renderedVersion={t.updated_at} />
+
       <header>
         <div className="flex items-center justify-between gap-2">
-          <Badge variant="outline" className="font-mono tracking-widest">
-            {t.code}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="font-mono tracking-widest">
+              {t.code}
+            </Badge>
+            {isLocked && <Badge variant="secondary">{STATUS_LABELS[t.status] ?? "Locked"}</Badge>}
+          </div>
           <Link href="/account" className="flex items-center gap-1.5 text-sm text-muted-foreground" aria-label="Account">
             <UserRound className="size-4" />
             {viewer.profile?.display_name}
@@ -110,91 +123,180 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
         </h1>
         {t.description && <p className="mt-1 text-muted-foreground">{t.description}</p>}
         <div className="mt-3 text-sm">
-          <LockCountdown lockTime={t.lock_time} />
+          <LockCountdown lockTime={t.lock_time} serverNow={t.server_now ?? undefined} isLocked={isLocked} />
         </div>
       </header>
 
-      {created && (
-        <section className="mt-6 rounded-2xl border border-emerald-500/40 bg-emerald-500/5 p-4">
-          <p className="mb-3 text-sm">
-            <strong>You&apos;re the host.</strong> Drop the link in the group chat. Friends join in one tap.
-          </p>
-          <ShareButton
-            code={t.code}
-            url={`${publicEnv.siteUrl}/join/${t.code}`}
-            title={t.title}
-            bankrollLabel={bankroll}
+      {isLocked ? (
+        <RevealSection
+          supabase={supabase}
+          tournamentId={t.id}
+          events={events}
+          squad={squad}
+          viewerUserId={viewer.userId}
+        />
+      ) : (
+        <>
+          {created && (
+            <section className="mt-6 rounded-2xl border border-emerald-500/40 bg-emerald-500/5 p-4">
+              <p className="mb-3 text-sm">
+                <strong>You&apos;re the host.</strong> Drop the link in the group chat. Friends join in one tap.
+              </p>
+              <ShareButton code={t.code} url={shareUrl} title={t.title} bankrollLabel={bankroll} />
+            </section>
+          )}
+
+          {isHost && (
+            <HostTools
+              tournamentId={t.id}
+              rules={{
+                title: t.title,
+                lockTime: t.lock_time,
+                maxBetCents: rules.maxBetCents,
+                startingBankrollCents: t.starting_bankroll_cents,
+                markets: rules.markets,
+                parlays: rules.parlays,
+                maxParlayLegs: rules.maxParlayLegs,
+              }}
+              firstKickoff={events[0]?.commence_time ?? t.lock_time}
+              canEditBankroll={squad.length === 1 && Number(me.total_potential_payout_cents) === 0}
+              waitingOn={squad.filter((m) => !m.has_submitted && m.user_id !== viewer.userId).map((m) => m.display_name)}
+            />
+          )}
+
+          <PreLockSportsbook
+            supabase={supabase}
+            tournamentId={t.id}
+            participantId={me.id}
+            rules={rules}
+            events={events}
+            bankroll={{
+              remainingCents: Number(me.remaining_bankroll_cents),
+              potentialPayoutCents: Number(me.total_potential_payout_cents),
+            }}
           />
-        </section>
+
+          <SquadList
+            tournamentId={t.id}
+            members={squad}
+            viewerUserId={viewer.userId}
+            showStatus
+            canRemove={isHost}
+          >
+            {!created && (
+              <ShareButton className="mt-3" code={t.code} url={shareUrl} title={t.title} bankrollLabel={bankroll} />
+            )}
+          </SquadList>
+        </>
       )}
 
-      <Sportsbook
-        tournamentId={t.id}
-        participantId={me.id}
-        isLocked={isLocked}
-        rules={rules}
-        events={events}
-        initialBoard={(boardRows ?? []).map(toBoardRow)}
-        initialWagers={((wagerRows ?? []) as unknown as WagerRow[]).map(toMyWager)}
-        initialBankroll={{
-          remainingCents: Number(me.remaining_bankroll_cents),
-          potentialPayoutCents: Number(me.total_potential_payout_cents),
-        }}
-      />
-
-      <section className="mt-8">
-        <h2 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          Squad · {isLocked ? squad.length : `${submitted}/${squad.length} locked in`}
+      <section className="mt-8" aria-labelledby="rules-heading">
+        <h2 id="rules-heading" className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          Rules
         </h2>
-        <ul className="space-y-2">
-          {squad.map((p) => (
-            <li key={p.user_id} className="flex items-center gap-3 rounded-xl bg-card p-3 ring-1 ring-border">
-              <span className="flex size-9 items-center justify-center rounded-full bg-emerald-500/15 font-semibold text-emerald-300">
-                {p.display_name.slice(0, 1).toUpperCase()}
-              </span>
-              <span className="min-w-0 flex-1 truncate font-medium">
-                {p.display_name}
-                {p.user_id === viewer.userId && <span className="text-muted-foreground"> (you)</span>}
-                {p.is_host && <Crown className="ml-1.5 inline size-4 text-amber-400" aria-label="Host" />}
-              </span>
-              {!isLocked &&
-                (p.has_submitted ? (
-                  <span className="flex items-center gap-1 text-xs text-emerald-400">
-                    <CircleCheck className="size-4" /> Picks in
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Hourglass className="size-4" /> Thinking…
-                  </span>
-                ))}
-            </li>
-          ))}
-        </ul>
-        {!isLocked && !created && (
-          <ShareButton
-            className="mt-3"
-            code={t.code}
-            url={`${publicEnv.siteUrl}/join/${t.code}`}
-            title={t.title}
-            bankrollLabel={bankroll}
-          />
-        )}
-      </section>
-
-      <section className="mt-8">
-        <h2 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Rules</h2>
         <dl className="grid grid-cols-2 gap-2 text-sm">
           <Rule label="Bankroll" value={bankroll} />
           <Rule label="Max bet" value={rules.maxBetCents ? formatCents(rules.maxBetCents) : "No limit"} />
           <Rule label="Bets" value={rules.markets.map((m) => MARKET_LABELS[m] ?? m).join(", ")} />
           <Rule label="Parlays" value={rules.parlays ? `Up to ${rules.maxParlayLegs} legs` : "Off"} />
         </dl>
-        <p className="mt-3 flex gap-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
-          <EyeOff className="mt-0.5 size-4 shrink-0" />
-          Picks stay hidden from everyone until {formatKickoff(t.lock_time)}, then they&apos;re all revealed at once.
-        </p>
+        {!isLocked && (
+          <p className="mt-3 flex gap-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
+            <EyeOff className="mt-0.5 size-4 shrink-0" />
+            Picks stay hidden from everyone until {formatKickoff(t.lock_time)}, then they&apos;re all revealed at once.
+          </p>
+        )}
       </section>
     </main>
+  );
+}
+
+async function PreLockSportsbook({
+  supabase,
+  tournamentId,
+  participantId,
+  rules,
+  events,
+  bankroll,
+}: {
+  supabase: Supabase;
+  tournamentId: string;
+  participantId: string;
+  rules: Rules;
+  events: SportsbookEvent[];
+  bankroll: { remainingCents: number; potentialPayoutCents: number };
+}) {
+  const [{ data: boardRows }, { data: wagerRows }] = await Promise.all([
+    supabase.from("odds_board").select(BOARD_COLUMNS).in("event_id", events.map((e) => e.id)),
+    supabase
+      .from("wagers")
+      .select(WAGER_SELECT)
+      .eq("participant_id", participantId)
+      .order("created_at", { ascending: false }),
+  ]);
+
+  return (
+    <Sportsbook
+      tournamentId={tournamentId}
+      participantId={participantId}
+      isLocked={false}
+      rules={rules}
+      events={events}
+      initialBoard={(boardRows ?? []).map(toBoardRow)}
+      initialWagers={((wagerRows ?? []) as unknown as WagerRow[]).map(toMyWager)}
+      initialBankroll={bankroll}
+    />
+  );
+}
+
+/** Post-lock: RLS now returns every participant's wagers and bankroll. */
+async function RevealSection({
+  supabase,
+  tournamentId,
+  events,
+  squad,
+  viewerUserId,
+}: {
+  supabase: Supabase;
+  tournamentId: string;
+  events: SportsbookEvent[];
+  squad: SquadMember[];
+  viewerUserId: string;
+}) {
+  const [{ data: wagerRows }, { data: participants }] = await Promise.all([
+    supabase.from("wagers").select(REVEAL_WAGER_SELECT).eq("tournament_id", tournamentId).order("created_at"),
+    supabase
+      .from("tournament_participants")
+      .select("id, user_id, remaining_bankroll_cents")
+      .eq("tournament_id", tournamentId),
+  ]);
+
+  // You first, then everyone in join order (get_roster's order).
+  const members = new Map(squad.map((m, joinOrder) => [m.user_id, { ...m, joinOrder }]));
+  const players: RevealPlayer[] = (participants ?? [])
+    .map((p) => {
+      const member = members.get(p.user_id);
+      return {
+        joinOrder: member?.joinOrder ?? Number.MAX_SAFE_INTEGER,
+        player: {
+          participantId: p.id,
+          name: member?.display_name ?? "Player",
+          isHost: member?.is_host ?? false,
+          isYou: p.user_id === viewerUserId,
+          holdingCents: Number(p.remaining_bankroll_cents),
+        },
+      };
+    })
+    .sort((a, b) => Number(b.player.isYou) - Number(a.player.isYou) || a.joinOrder - b.joinOrder)
+    .map((x) => x.player);
+
+  return (
+    <Reveal
+      tournamentId={tournamentId}
+      events={events}
+      players={players}
+      wagers={(wagerRows ?? []).map(toRevealedWager)}
+    />
   );
 }
 

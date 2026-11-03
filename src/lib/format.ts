@@ -57,6 +57,20 @@ export function formatDay(iso: string): string {
   });
 }
 
+/** ISO → `<input type="datetime-local">` value in the viewer's time zone ("2026-11-03T18:05"). */
+export function toDateTimeLocal(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** `<input type="datetime-local">` value (viewer's time zone) → ISO, or null if it isn't one. */
+export function fromDateTimeLocal(value: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return null;
+  const d = new Date(value); // no offset in the string → parsed as local time
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 /** "2d 3h", "3h 14m", "4m 09s" */
 export function formatCountdown(ms: number): string {
   if (ms <= 0) return "0s";

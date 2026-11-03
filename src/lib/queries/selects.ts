@@ -4,6 +4,8 @@
  * references when imported by a server component.
  */
 
+import type { RevealWager } from "@/lib/core/consensus";
+
 export const BOARD_COLUMNS =
   "id, event_id, market_key, outcome_name, participant_name, point, price_american, updated_at, is_stale";
 
@@ -42,6 +44,50 @@ export type SlipPayload = {
 }[];
 
 export type WagerRow = Omit<MyWager, "legs" | "optimistic"> & { wager_legs: WagerLeg[] | null };
+
+/** Everyone's wagers, for the post-lock reveal (RLS only returns them once picks are locked). */
+export const REVEAL_WAGER_SELECT =
+  "id, participant_id, wager_type, amount_cents, odds_american, potential_payout_cents, wager_legs(event_id, market_key, selection, participant_name, line, odds_american)";
+
+export type RevealedWager = RevealWager & { oddsAmerican: number };
+
+type RevealWagerRow = {
+  id: string;
+  participant_id: string;
+  wager_type: "single" | "parlay";
+  amount_cents: number;
+  odds_american: number;
+  potential_payout_cents: number;
+  wager_legs:
+    | {
+        event_id: string;
+        market_key: string;
+        selection: string;
+        participant_name: string;
+        line: number | null;
+        odds_american: number;
+      }[]
+    | null;
+};
+
+export function toRevealedWager(row: RevealWagerRow): RevealedWager {
+  return {
+    id: row.id,
+    participantId: row.participant_id,
+    wagerType: row.wager_type,
+    amountCents: Number(row.amount_cents),
+    oddsAmerican: row.odds_american,
+    potentialPayoutCents: Number(row.potential_payout_cents),
+    legs: (row.wager_legs ?? []).map((l) => ({
+      eventId: l.event_id,
+      marketKey: l.market_key,
+      selection: l.selection,
+      participantName: l.participant_name,
+      line: l.line === null ? null : Number(l.line),
+      oddsAmerican: l.odds_american,
+    })),
+  };
+}
 
 export function toMyWager(row: WagerRow): MyWager {
   const { wager_legs, ...rest } = row;

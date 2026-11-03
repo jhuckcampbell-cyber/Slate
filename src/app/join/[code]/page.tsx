@@ -37,7 +37,7 @@ export default function JoinPage(props: PageProps<"/join/[code]">) {
 async function Join({ params, searchParams }: PageProps<"/join/[code]">) {
   await connection(); // per-request: auth cookies + clock (Cache Components)
   const raw = (await params).code;
-  const typedName = (await searchParams).name; // pre-hydration native submit fallback
+  const { name: typedName, removed } = await searchParams; // name: pre-hydration native submit fallback
   const code = normalizeCode(raw);
   if (code !== raw) redirect(`/join/${code}`);
 
@@ -79,11 +79,14 @@ async function Join({ params, searchParams }: PageProps<"/join/[code]">) {
       </div>
 
       <div className="mt-6 rounded-xl border border-border p-3 text-center text-sm">
-        <LockCountdown lockTime={t.lock_time} />
+        <LockCountdown lockTime={t.lock_time} isLocked={t.is_locked} />
       </div>
 
       <div className="mt-auto pt-8">
-        {locked ? (
+        {removed === "1" ? (
+          // Sent here by the lobby when the host removes you (join_tournament would refuse anyway).
+          <p className="rounded-xl bg-muted p-4 text-center text-sm">The host removed you from this tournament.</p>
+        ) : locked ? (
           <p className="rounded-xl bg-muted p-4 text-center text-sm">
             Picks are locked. This one already kicked off. Ask {t.host_name} to start the next one!
           </p>

@@ -20,11 +20,26 @@ npx supabase migration new <name>
 npm run db:types             # regenerate src/lib/supabase/database.types.ts from local DB
 npm test                     # vitest
 npm run test:db              # supabase test db (pgTAP in supabase/tests)
-npm run e2e                  # playwright vs a PRODUCTION build (needs local Supabase + seed;
-                             # one-time: npx playwright install webkit)
+npm run test:integration     # real parallel RPCs vs local stack (tests/integration)
+npm run e2e                  # playwright vs a PRODUCTION build it starts itself (needs local
+                             # Supabase + seed + functions serve; one-time: npx playwright install webkit)
+npx supabase functions serve --env-file supabase/functions/.env   # odds-sync (fake provider) for local dev
 npm run lint && npm run typecheck   # typecheck runs `next typegen` first (PageProps/LayoutProps)
 
-Windows dev box: Docker Desktop must be running before `npx supabase start`.
+Windows dev box: Docker Desktop must be running before `npx supabase start`. Stopping a
+background `npm run start` leaves `next start` orphaned on :3000 (and it may not appear in
+Get-NetTCPConnection): find it by command line and `taskkill /T /F`. Never rebuild under a running
+`next start` — it serves stale chunk names (500s). Playwright refuses to reuse a server for this reason.
+
+## Odds pipeline (Phase 2)
+pg_cron (every min) → private.trigger_odds_sync() → pg_net → Edge Function odds-sync →
+odds_sync_claim() [lease + due jobs] → provider → normalize (_shared) → odds_sync_ingest() [diff-upsert].
+- ODDS_PROVIDER=fake locally (deterministic, drifts every 10 min, zero credits); prod:
+  `npx supabase secrets set ODDS_PROVIDER=the-odds-api ODDS_API_KEY=... ODDS_SYNC_SECRET=...`
+  plus Vault secrets `odds_sync_url` / `odds_sync_secret` (seed.sql sets local ones).
+- Cadence AND bet freshness come from one SQL source: private.odds_refresh_interval / odds_max_age.
+- odds_cache rows change only on real price moves (Realtime); market freshness lives in odds_markets.
+- Clients read the `odds_board` view (DB-clock is_stale) + Realtime on odds_cache.
 
 ## Next.js 16 specifics (this is NOT older Next.js; see AGENTS.md + node_modules/next/dist/docs)
 - Middleware is `src/proxy.ts` exporting `proxy()` (refreshes the Supabase session cookie).
@@ -49,7 +64,11 @@ src/lib/supabase/            client.ts (browser) · server.ts (RSC/actions) · p
                              public.ts (cookie-less anon: share previews/OG) · queries.ts · types
 src/lib/queries/             TanStack Query hooks + query keys
 supabase/migrations/         SQL (source of truth for schema, RLS, RPCs)
-supabase/functions/          odds-sync, scores-sync, grade (Deno)
+supabase/functions/          Deno Edge Functions. Entrypoints (*/index.ts) are excluded from the Node
+                             toolchain: add each new function dir to tsconfig "exclude".
+supabase/functions/_shared/  PURE TS shared by functions (import with .ts extensions); Vitest-tested
+src/components/sportsbook/   board (event cards), slip store + drawer, my picks
+tests/integration/           Vitest against the local stack (concurrency)
 supabase/tests/              pgTAP: every RLS policy and RPC has tests
 
 ## Non-negotiable rules
@@ -57,10 +76,11 @@ supabase/tests/              pgTAP: every RLS policy and RPC has tests
    Any new table/view/function touching wagers or bankrolls needs a pgTAP test proving a
    co-participant cannot read it before lock_time.
 2. Clients never write wagers/participants directly. All mutations go through RPCs
-   (create_tournament, join_tournament, place_wager, cancel_wager). No INSERT/UPDATE/DELETE
-   policies exist on those tables.
-3. Never trust client odds or amounts: place_wager re-reads odds_cache server-side and rejects
-   on price change (client shows "odds changed, accept?").
+   (create_tournament, join_tournament, place_wagers, cancel_wager, replace_wager). Players have
+   no INSERT/UPDATE/DELETE grants on those tables at all.
+3. Never trust client odds or amounts: place_wagers re-reads odds_cache server-side and rejects
+   with ODDS_CHANGED (new prices in `details`) on any move; the slip shows "Accept new odds".
+   Client-side payout previews must use src/lib/core/odds.ts (mirrors the SQL rounding exactly).
 4. Money = integer cents (`*_cents`). Odds stored as American int + decimal numeric(10,4).
 5. All times are timestamptz/UTC; compare against DB `now()`, never client clocks.
 6. The Odds API is called ONLY from Edge Functions with the secret key. Clients read odds_cache.
@@ -75,6 +95,7 @@ supabase/tests/              pgTAP: every RLS policy and RPC has tests
 - Tournament-wide lock_time (defaults to earliest kickoff). Per-game locks are v2.
 - Player props are graded manually by the host in v1 (Odds API has no player stats).
 - One leg per event in a parlay (keeps win-probability independence assumption valid).
+- Min stake $1; parlay payout capped at 1000-to-1 (decimal 1001); money columns are bigint cents.
 - Unwagered bankroll counts toward final score; host may set min_total_wager.
 
 ## Glossary

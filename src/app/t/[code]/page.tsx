@@ -1,33 +1,30 @@
-import { connection } from "next/server";
-import { Suspense } from "react";
-import { PageSkeleton } from "@/components/page-skeleton";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Crown, EyeOff, UserRound } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { connection } from "next/server";
+import { Suspense } from "react";
+import { CircleCheck, Crown, EyeOff, Hourglass, UserRound } from "lucide-react";
+import { PageSkeleton } from "@/components/page-skeleton";
+import { Sportsbook } from "@/components/sportsbook/sportsbook";
 import { LockCountdown } from "@/components/tournament/lock-countdown";
 import { ShareButton } from "@/components/tournament/share-button";
+import { Badge } from "@/components/ui/badge";
+import { toBoardRow } from "@/lib/core/board";
 import { normalizeCode } from "@/lib/core/codes";
+import type { Rules } from "@/lib/core/slip";
 import { publicEnv } from "@/lib/env";
-import { formatCents, formatKickoff, matchupLabel, sportEmoji } from "@/lib/format";
+import { MARKET_LABELS, formatCents, formatKickoff, sportEmoji } from "@/lib/format";
+import { BOARD_COLUMNS, WAGER_SELECT, toMyWager, type WagerRow } from "@/lib/queries/selects";
 import { createClient } from "@/lib/supabase/server";
 import { getViewer } from "@/lib/supabase/queries";
 
 export const metadata: Metadata = { title: "Lobby" };
-
-const MARKET_LABELS: Record<string, string> = {
-  h2h: "Moneyline",
-  spreads: "Spread",
-  totals: "Over/Under",
-};
 
 type AllowedBetTypes = {
   markets?: string[];
   parlays?: boolean;
   max_parlay_legs?: number;
 };
-
 
 export default function LobbyPage(props: PageProps<"/t/[code]">) {
   return (
@@ -46,30 +43,55 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
   if (!viewer) redirect(`/join/${code}`);
 
   const supabase = await createClient();
-  // RLS: only visible to the host and participants.
+  // RLS: only visible to the host and participants. is_locked is a DB-clock computed field.
   const { data: t } = await supabase
     .from("tournaments")
     .select(
-      "id, code, title, description, sport_key, host_id, lock_time, status, starting_bankroll_cents, max_bet_cents, allowed_bet_types",
+      "id, code, title, description, sport_key, host_id, lock_time, status, starting_bankroll_cents, max_bet_cents, allowed_bet_types, is_locked",
     )
     .eq("code", code)
     .maybeSingle();
   if (!t) redirect(`/join/${code}`);
 
-  const [{ data: eventLinks }, { data: roster }] = await Promise.all([
+  const [{ data: eventLinks }, { data: roster }, { data: me }] = await Promise.all([
     supabase
       .from("tournament_events")
       .select("events(id, home_team, away_team, commence_time, status)")
       .eq("tournament_id", t.id),
     supabase.rpc("get_roster", { p_tournament_id: t.id }),
+    supabase
+      .from("tournament_participants")
+      .select("id, remaining_bankroll_cents, total_potential_payout_cents")
+      .eq("tournament_id", t.id)
+      .eq("user_id", viewer.userId)
+      .maybeSingle(),
   ]);
+  if (!me) redirect(`/join/${code}`);
 
   const events = (eventLinks ?? [])
     .flatMap((l) => (l.events ? [l.events] : []))
     .sort((a, b) => a.commence_time.localeCompare(b.commence_time));
-  const rules = t.allowed_bet_types as AllowedBetTypes;
-  const isHost = t.host_id === viewer.userId;
+
+  const [{ data: boardRows }, { data: wagerRows }] = await Promise.all([
+    supabase.from("odds_board").select(BOARD_COLUMNS).in("event_id", events.map((e) => e.id)),
+    supabase
+      .from("wagers")
+      .select(WAGER_SELECT)
+      .eq("participant_id", me.id)
+      .order("created_at", { ascending: false }),
+  ]);
+
+  const allowed = (t.allowed_bet_types ?? {}) as AllowedBetTypes;
+  const rules: Rules = {
+    markets: allowed.markets ?? [],
+    parlays: Boolean(allowed.parlays),
+    maxParlayLegs: allowed.max_parlay_legs ?? 6,
+    maxBetCents: t.max_bet_cents === null ? null : Number(t.max_bet_cents),
+  };
+  const isLocked = Boolean(t.is_locked);
   const bankroll = formatCents(t.starting_bankroll_cents);
+  const squad = roster ?? [];
+  const submitted = squad.filter((p) => p.has_submitted).length;
 
   return (
     <main className="mx-auto w-full max-w-md flex-1 px-4 pt-6 pb-10">
@@ -78,11 +100,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
           <Badge variant="outline" className="font-mono tracking-widest">
             {t.code}
           </Badge>
-          <Link
-            href="/account"
-            className="flex items-center gap-1.5 text-sm text-muted-foreground"
-            aria-label="Account"
-          >
+          <Link href="/account" className="flex items-center gap-1.5 text-sm text-muted-foreground" aria-label="Account">
             <UserRound className="size-4" />
             {viewer.profile?.display_name}
           </Link>
@@ -96,14 +114,11 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
         </div>
       </header>
 
-      {(created || isHost) && (
+      {created && (
         <section className="mt-6 rounded-2xl border border-emerald-500/40 bg-emerald-500/5 p-4">
-          {created && (
-            <p className="mb-3 text-sm">
-              <strong>You&apos;re the host.</strong> Drop the link in the group chat. Friends join in
-              one tap.
-            </p>
-          )}
+          <p className="mb-3 text-sm">
+            <strong>You&apos;re the host.</strong> Drop the link in the group chat. Friends join in one tap.
+          </p>
           <ShareButton
             code={t.code}
             url={`${publicEnv.siteUrl}/join/${t.code}`}
@@ -113,70 +128,71 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
         </section>
       )}
 
-      <section className="mt-6">
-        <h2 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          Games
-        </h2>
-        <ul className="divide-y divide-border rounded-xl border border-border">
-          {events.map((e) => (
-            <li key={e.id} className="flex items-center justify-between gap-3 p-3 text-sm">
-              <span className="font-medium">{matchupLabel(e)}</span>
-              <span className="shrink-0 text-muted-foreground">{formatKickoff(e.commence_time)}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <Sportsbook
+        tournamentId={t.id}
+        participantId={me.id}
+        isLocked={isLocked}
+        rules={rules}
+        events={events}
+        initialBoard={(boardRows ?? []).map(toBoardRow)}
+        initialWagers={((wagerRows ?? []) as unknown as WagerRow[]).map(toMyWager)}
+        initialBankroll={{
+          remainingCents: Number(me.remaining_bankroll_cents),
+          potentialPayoutCents: Number(me.total_potential_payout_cents),
+        }}
+      />
 
-      <section className="mt-6">
+      <section className="mt-8">
         <h2 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          Rules
-        </h2>
-        <dl className="grid grid-cols-2 gap-2 text-sm">
-          <Rule label="Bankroll" value={bankroll} />
-          <Rule label="Max bet" value={t.max_bet_cents ? formatCents(t.max_bet_cents) : "No limit"} />
-          <Rule
-            label="Bets"
-            value={(rules.markets ?? []).map((m) => MARKET_LABELS[m] ?? m).join(", ")}
-          />
-          <Rule
-            label="Parlays"
-            value={rules.parlays ? `Up to ${rules.max_parlay_legs ?? 6} legs` : "Off"}
-          />
-        </dl>
-        <p className="mt-3 flex gap-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
-          <EyeOff className="mt-0.5 size-4 shrink-0" />
-          Picks stay hidden from everyone until {formatKickoff(t.lock_time)}, then they&apos;re all
-          revealed at once.
-        </p>
-      </section>
-
-      <section className="mt-6">
-        <h2 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          Squad · {roster?.length ?? 0}
+          Squad · {isLocked ? squad.length : `${submitted}/${squad.length} locked in`}
         </h2>
         <ul className="space-y-2">
-          {(roster ?? []).map((p) => (
-            <li
-              key={p.user_id}
-              className="flex items-center gap-3 rounded-xl bg-card p-3 ring-1 ring-border"
-            >
+          {squad.map((p) => (
+            <li key={p.user_id} className="flex items-center gap-3 rounded-xl bg-card p-3 ring-1 ring-border">
               <span className="flex size-9 items-center justify-center rounded-full bg-emerald-500/15 font-semibold text-emerald-300">
                 {p.display_name.slice(0, 1).toUpperCase()}
               </span>
-              <span className="flex-1 font-medium">
+              <span className="min-w-0 flex-1 truncate font-medium">
                 {p.display_name}
-                {p.user_id === viewer.userId && (
-                  <span className="text-muted-foreground"> (you)</span>
-                )}
+                {p.user_id === viewer.userId && <span className="text-muted-foreground"> (you)</span>}
+                {p.is_host && <Crown className="ml-1.5 inline size-4 text-amber-400" aria-label="Host" />}
               </span>
-              {p.is_host && <Crown className="size-4 text-amber-400" aria-label="Host" />}
+              {!isLocked &&
+                (p.has_submitted ? (
+                  <span className="flex items-center gap-1 text-xs text-emerald-400">
+                    <CircleCheck className="size-4" /> Picks in
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Hourglass className="size-4" /> Thinking…
+                  </span>
+                ))}
             </li>
           ))}
         </ul>
+        {!isLocked && !created && (
+          <ShareButton
+            className="mt-3"
+            code={t.code}
+            url={`${publicEnv.siteUrl}/join/${t.code}`}
+            title={t.title}
+            bankrollLabel={bankroll}
+          />
+        )}
       </section>
 
-      <section className="mt-8 rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-        Betting slip opens here in the next update. 🏗️
+      <section className="mt-8">
+        <h2 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Rules</h2>
+        <dl className="grid grid-cols-2 gap-2 text-sm">
+          <Rule label="Bankroll" value={bankroll} />
+          <Rule label="Max bet" value={rules.maxBetCents ? formatCents(rules.maxBetCents) : "No limit"} />
+          <Rule label="Bets" value={rules.markets.map((m) => MARKET_LABELS[m] ?? m).join(", ")} />
+          <Rule label="Parlays" value={rules.parlays ? `Up to ${rules.maxParlayLegs} legs` : "Off"} />
+        </dl>
+        <p className="mt-3 flex gap-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
+          <EyeOff className="mt-0.5 size-4 shrink-0" />
+          Picks stay hidden from everyone until {formatKickoff(t.lock_time)}, then they&apos;re all revealed at once.
+        </p>
       </section>
     </main>
   );

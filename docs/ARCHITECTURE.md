@@ -434,3 +434,22 @@ Deviations from the plan above, and why:
 - Turnstile captcha on anonymous sign-ins. Needs Cloudflare keys.
 - Linking a Vercel project.
 - Checking the OG preview on a real iMessage/Android device. Needs a public deploy.
+
+## Implementation notes: as built (Phase 2, 2026-11-03)
+**Deviations from the plan, and why:**
+- **One batch RPC, `place_wagers(tournament, slip)`, instead of `place_wager`.** A slip of N singles or one parlay books all-or-nothing in a single transaction. `ODDS_CHANGED` reports every moved line at once, with the new prices in `details`.
+- **Bet freshness is tied to the sync cadence.** The plan's fixed 10/4-minute windows contradicted its own 3h/20min cadence. Prices are now bookable up to 1.5 × the refresh interval + 1 minute. Cadence and freshness come from the same SQL functions (`private.odds_refresh_interval` / `odds_max_age`), and both widen together under the credit breaker.
+- **Freshness lives in `odds_markets.last_seen_at`, not on the price rows.** Unchanged prices never touch `odds_cache`, so Realtime traffic equals real line movement. Clients read the `odds_board` view, where `is_stale` is computed by the DB clock.
+- **One canonical price per outcome.** The `odds_cache` key is (event, market, outcome, player, is_live). Book choice (priority list with fallback) happens in the normalizer, and the source book is stored for provenance.
+- **Single-flight uses a lease row (`private.job_leases`) instead of an advisory lock.** PostgREST calls don't share a session.
+- **A new tournament makes its sport due immediately.** Otherwise newly added games could wait up to 3h for first prices.
+- **The catalog uses the free `/events` endpoint** (0 credits) instead of an h2h `/odds` call.
+- **The fake provider (`ODDS_PROVIDER=fake`) replaces recorded fixtures.** It returns responses in The Odds API v4 shape for events already in the DB, deterministically, with drift every 10 minutes. The production normalize/ingest path therefore runs locally and in tests.
+- **Blind RLS on wagers/legs landed in Phase 2, not Phase 3.** CLAUDE.md rule 1 requires it the moment wagers exist.
+- **Money columns moved to bigint, and parlay payouts are capped at 1000-to-1.** The cap is enforced identically in SQL and `src/lib/core/odds.ts`.
+- **`events.commence_time` moving earlier pulls `lock_time` forward** (trigger), which keeps "lock ≤ first kickoff" true.
+
+**Deferred:**
+- **Player props → Phase 4**, alongside host grading. Props are ungradeable before that, so taking prop bets now would create bets that can't be settled. The data model, normalizer and slip already handle `participant_name`.
+- **No edit UI for placed bets yet.** `replace_wager` (atomic cancel + re-place) exists and is tested; the UI offers cancel and re-add.
+- **`min_total_wager` isn't enforced** (no lock-time rule yet), and the slip doesn't survive a page refresh.

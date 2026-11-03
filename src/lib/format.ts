@@ -73,3 +73,50 @@ export function formatCountdown(ms: number): string {
 export function matchupLabel(e: { away_team: string; home_team: string }): string {
   return `${e.away_team} @ ${e.home_team}`;
 }
+
+/** "Boston Celtics" → "Celtics"; "San Francisco 49ers" → "49ers". */
+export function shortTeam(name: string): string {
+  return name.split(" ").pop() ?? name;
+}
+
+export function formatAmerican(price: number): string {
+  return price > 0 ? `+${price}` : String(price);
+}
+
+/** Spread line: -3.5, +7, PK. */
+export function formatSpread(point: number | null): string {
+  if (point === null) return "";
+  if (point === 0) return "PK";
+  return point > 0 ? `+${trimPoint(point)}` : trimPoint(point);
+}
+
+function trimPoint(point: number): string {
+  return String(Number(point.toFixed(2)));
+}
+
+export const MARKET_LABELS: Record<string, string> = {
+  h2h: "Moneyline",
+  spreads: "Spread",
+  totals: "Total",
+};
+
+/** Human label for a pick: "Celtics -7", "Knicks ML", "Over 230.5". */
+export function selectionLabel(sel: {
+  marketKey: string;
+  outcomeName: string;
+  point: number | null;
+  participantName?: string;
+}): string {
+  switch (sel.marketKey) {
+    case "h2h":
+      return `${shortTeam(sel.outcomeName)} ML`;
+    case "spreads":
+      return `${shortTeam(sel.outcomeName)} ${formatSpread(sel.point)}`;
+    case "totals":
+      return `${sel.outcomeName} ${sel.point === null ? "" : trimPoint(sel.point)}`.trim();
+    default:
+      return [sel.participantName, sel.outcomeName, sel.point === null ? "" : trimPoint(sel.point)]
+        .filter(Boolean)
+        .join(" ");
+  }
+}

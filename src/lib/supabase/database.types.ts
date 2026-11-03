@@ -278,8 +278,9 @@ export type Database = {
           title: string;
           updated_at: string;
           is_locked: boolean | null;
+          server_now: string | null;
         };
-        ComputedFields: "is_locked";
+        ComputedFields: "is_locked" | "server_now";
         Insert: {
           allowed_bet_types?: NonNullable<Json>;
           code: string;
@@ -568,6 +569,7 @@ export type Database = {
         Returns: boolean;
       };
       join_tournament: { Args: { p_code: string }; Returns: string };
+      lock_tournament_now: { Args: { p_tournament_id: string }; Returns: undefined };
       odds_sync_claim: { Args: { p_lease_seconds?: number }; Returns: Json };
       odds_sync_ingest: {
         Args: {
@@ -606,6 +608,10 @@ export type Database = {
           isSetofReturn: true;
         };
       };
+      remove_participant: {
+        Args: { p_tournament_id: string; p_user_id: string };
+        Returns: undefined;
+      };
       replace_wager: {
         Args: { p_slip: Json; p_wager_id: string };
         Returns: {
@@ -630,6 +636,16 @@ export type Database = {
           isSetofReturn: true;
         };
       };
+      server_now: {
+        Args: {
+          t: Omit<
+            Database["public"]["Tables"]["tournaments"]["Row"],
+            Database["public"]["Tables"]["tournaments"]["ComputedFields"]
+          >;
+        };
+        Returns: string;
+      };
+      update_tournament: { Args: { p_changes: Json; p_tournament_id: string }; Returns: undefined };
     };
     Enums: {
       leg_status: "pending" | "hit" | "miss" | "push" | "void";

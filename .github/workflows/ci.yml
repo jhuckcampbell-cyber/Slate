@@ -31,3 +31,12 @@ jobs:
       - run: npm ci
       - run: npx supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor
       - run: npx supabase test db
+      - name: Integration tests (parallel RPCs against the local stack)
+        run: |
+          eval "$(npx supabase status -o env | grep -E '^(API_URL|PUBLISHABLE_KEY|SECRET_KEY)=')"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY"
+            echo "SUPABASE_SECRET_KEY=$SECRET_KEY"
+          } > .env.local
+          npm run test:integration

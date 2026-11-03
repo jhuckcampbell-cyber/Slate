@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Deno Edge Function entrypoints (pure helpers in supabase/functions/_shared ARE linted).
+    "supabase/functions/*/index.ts",
   ]),
 ]);
 

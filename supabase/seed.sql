@@ -9,3 +9,8 @@ insert into public.events (id, sport_key, sport_title, home_team, away_team, com
   ('seed-nba-1',    'basketball_nba',       'NBA', 'Boston Celtics',       'New York Knicks',      date_trunc('hour', now()) + interval '1 day'),
   ('seed-nba-2',    'basketball_nba',       'NBA', 'Denver Nuggets',       'Los Angeles Lakers',   date_trunc('hour', now()) + interval '1 day 2 hours')
 on conflict (id) do nothing;
+
+-- Local odds-sync wiring for pg_cron → Edge Function (see private.trigger_odds_sync).
+-- host.docker.internal reaches the API gateway from inside the DB container (Docker Desktop).
+select vault.create_secret('http://host.docker.internal:54321/functions/v1/odds-sync', 'odds_sync_url');
+select vault.create_secret('local-dev-sync-secret', 'odds_sync_secret');

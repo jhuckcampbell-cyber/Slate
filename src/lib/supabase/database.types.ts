@@ -66,6 +66,93 @@ export type Database = {
         };
         Relationships: [];
       };
+      odds_cache: {
+        Row: {
+          bookmaker: string;
+          event_id: string;
+          id: number;
+          is_live: boolean;
+          locked_at: string | null;
+          market_key: string;
+          outcome_name: string;
+          participant_name: string;
+          point: number | null;
+          price_american: number;
+          price_decimal: number | null;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          bookmaker: string;
+          event_id: string;
+          id?: never;
+          is_live?: boolean;
+          locked_at?: string | null;
+          market_key: string;
+          outcome_name: string;
+          participant_name?: string;
+          point?: number | null;
+          price_american: number;
+          price_decimal?: never;
+          updated_at?: string;
+        };
+        Update: {
+          bookmaker?: string;
+          event_id?: string;
+          id?: never;
+          is_live?: boolean;
+          locked_at?: string | null;
+          market_key?: string;
+          outcome_name?: string;
+          participant_name?: string;
+          point?: number | null;
+          price_american?: number;
+          price_decimal?: never;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "odds_cache_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      odds_markets: {
+        Row: {
+          bookmaker: string;
+          event_id: string;
+          is_live: boolean;
+          last_seen_at: string;
+          market_key: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          bookmaker: string;
+          event_id: string;
+          is_live?: boolean;
+          last_seen_at: string;
+          market_key: string;
+        };
+        Update: {
+          bookmaker?: string;
+          event_id?: string;
+          is_live?: boolean;
+          last_seen_at?: string;
+          market_key?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "odds_markets_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           avatar_url: string | null;
@@ -190,8 +277,9 @@ export type Database = {
           status: Database["public"]["Enums"]["tournament_status"];
           title: string;
           updated_at: string;
+          is_locked: boolean | null;
         };
-        ComputedFields: never;
+        ComputedFields: "is_locked";
         Insert: {
           allowed_bet_types?: NonNullable<Json>;
           code: string;
@@ -234,11 +322,198 @@ export type Database = {
           },
         ];
       };
+      wager_legs: {
+        Row: {
+          event_id: string;
+          id: string;
+          line: number | null;
+          market_key: string;
+          odds_american: number;
+          odds_decimal: number;
+          odds_id: number | null;
+          participant_id: string;
+          participant_name: string;
+          selection: string;
+          settled_at: string | null;
+          status: Database["public"]["Enums"]["leg_status"];
+          tournament_id: string;
+          wager_id: string;
+          win_probability: number | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          event_id: string;
+          id?: string;
+          line?: number | null;
+          market_key: string;
+          odds_american: number;
+          odds_decimal: number;
+          odds_id?: number | null;
+          participant_id: string;
+          participant_name?: string;
+          selection: string;
+          settled_at?: string | null;
+          status?: Database["public"]["Enums"]["leg_status"];
+          tournament_id: string;
+          wager_id: string;
+          win_probability?: number | null;
+        };
+        Update: {
+          event_id?: string;
+          id?: string;
+          line?: number | null;
+          market_key?: string;
+          odds_american?: number;
+          odds_decimal?: number;
+          odds_id?: number | null;
+          participant_id?: string;
+          participant_name?: string;
+          selection?: string;
+          settled_at?: string | null;
+          status?: Database["public"]["Enums"]["leg_status"];
+          tournament_id?: string;
+          wager_id?: string;
+          win_probability?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "wager_legs_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "wager_legs_odds_id_fkey";
+            columns: ["odds_id"];
+            isOneToOne: false;
+            referencedRelation: "odds_board";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "wager_legs_odds_id_fkey";
+            columns: ["odds_id"];
+            isOneToOne: false;
+            referencedRelation: "odds_cache";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "wager_legs_participant_id_fkey";
+            columns: ["participant_id"];
+            isOneToOne: false;
+            referencedRelation: "tournament_participants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "wager_legs_tournament_id_fkey";
+            columns: ["tournament_id"];
+            isOneToOne: false;
+            referencedRelation: "tournaments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "wager_legs_wager_id_fkey";
+            columns: ["wager_id"];
+            isOneToOne: false;
+            referencedRelation: "wagers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      wagers: {
+        Row: {
+          amount_cents: number;
+          created_at: string;
+          id: string;
+          is_locked: boolean;
+          odds_american: number;
+          odds_decimal: number;
+          participant_id: string;
+          potential_payout_cents: number;
+          settled_at: string | null;
+          status: Database["public"]["Enums"]["wager_status"];
+          tournament_id: string;
+          wager_type: Database["public"]["Enums"]["wager_type"];
+          win_probability: number | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          amount_cents: number;
+          created_at?: string;
+          id?: string;
+          is_locked?: boolean;
+          odds_american: number;
+          odds_decimal: number;
+          participant_id: string;
+          potential_payout_cents: number;
+          settled_at?: string | null;
+          status?: Database["public"]["Enums"]["wager_status"];
+          tournament_id: string;
+          wager_type: Database["public"]["Enums"]["wager_type"];
+          win_probability?: number | null;
+        };
+        Update: {
+          amount_cents?: number;
+          created_at?: string;
+          id?: string;
+          is_locked?: boolean;
+          odds_american?: number;
+          odds_decimal?: number;
+          participant_id?: string;
+          potential_payout_cents?: number;
+          settled_at?: string | null;
+          status?: Database["public"]["Enums"]["wager_status"];
+          tournament_id?: string;
+          wager_type?: Database["public"]["Enums"]["wager_type"];
+          win_probability?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "wagers_participant_id_fkey";
+            columns: ["participant_id"];
+            isOneToOne: false;
+            referencedRelation: "tournament_participants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "wagers_tournament_id_fkey";
+            columns: ["tournament_id"];
+            isOneToOne: false;
+            referencedRelation: "tournaments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
-      [_ in never]: never;
+      odds_board: {
+        Row: {
+          event_id: string;
+          id: number;
+          is_stale: boolean | null;
+          last_seen_at: string | null;
+          market_key: string;
+          outcome_name: string;
+          participant_name: string;
+          point: number | null;
+          price_american: number;
+          price_decimal: number | null;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Relationships: [
+          {
+            foreignKeyName: "odds_cache_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Functions: {
+      cancel_wager: { Args: { p_wager_id: string }; Returns: undefined };
       create_tournament: {
         Args: {
           p_allowed_bet_types?: Json;
@@ -260,6 +535,7 @@ export type Database = {
         Returns: {
           avatar_url: string;
           display_name: string;
+          has_submitted: boolean;
           is_host: boolean;
           joined_at: string;
           user_id: string;
@@ -282,10 +558,84 @@ export type Database = {
           title: string;
         }[];
       };
+      is_locked: {
+        Args: {
+          t: Omit<
+            Database["public"]["Tables"]["tournaments"]["Row"],
+            Database["public"]["Tables"]["tournaments"]["ComputedFields"]
+          >;
+        };
+        Returns: boolean;
+      };
       join_tournament: { Args: { p_code: string }; Returns: string };
+      odds_sync_claim: { Args: { p_lease_seconds?: number }; Returns: Json };
+      odds_sync_ingest: {
+        Args: {
+          p_events?: Json;
+          p_fetched_at: string;
+          p_kind: string;
+          p_markets?: Json;
+          p_outcomes?: Json;
+          p_sport_key: string;
+          p_usage?: Json;
+        };
+        Returns: Json;
+      };
+      odds_sync_release: { Args: { p_holder: string }; Returns: undefined };
+      place_wagers: {
+        Args: { p_slip: Json; p_tournament_id: string };
+        Returns: {
+          amount_cents: number;
+          created_at: string;
+          id: string;
+          is_locked: boolean;
+          odds_american: number;
+          odds_decimal: number;
+          participant_id: string;
+          potential_payout_cents: number;
+          settled_at: string | null;
+          status: Database["public"]["Enums"]["wager_status"];
+          tournament_id: string;
+          wager_type: Database["public"]["Enums"]["wager_type"];
+          win_probability: number | null;
+        }[];
+        SetofOptions: {
+          from: "*";
+          to: "wagers";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
+      replace_wager: {
+        Args: { p_slip: Json; p_wager_id: string };
+        Returns: {
+          amount_cents: number;
+          created_at: string;
+          id: string;
+          is_locked: boolean;
+          odds_american: number;
+          odds_decimal: number;
+          participant_id: string;
+          potential_payout_cents: number;
+          settled_at: string | null;
+          status: Database["public"]["Enums"]["wager_status"];
+          tournament_id: string;
+          wager_type: Database["public"]["Enums"]["wager_type"];
+          win_probability: number | null;
+        }[];
+        SetofOptions: {
+          from: "*";
+          to: "wagers";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
     };
     Enums: {
+      leg_status: "pending" | "hit" | "miss" | "push" | "void";
       tournament_status: "draft" | "open" | "locked" | "live" | "settled";
+      wager_status: "pending" | "won" | "lost" | "pushed" | "void";
+      wager_type: "single" | "parlay";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -400,7 +750,10 @@ export const Constants = {
   },
   public: {
     Enums: {
+      leg_status: ["pending", "hit", "miss", "push", "void"],
       tournament_status: ["draft", "open", "locked", "live", "settled"],
+      wager_status: ["pending", "won", "lost", "pushed", "void"],
+      wager_type: ["single", "parlay"],
     },
   },
 } as const;

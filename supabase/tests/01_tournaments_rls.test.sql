@@ -34,7 +34,7 @@ select matches((select code from t_created), '^TNF-[2-9A-HJ-KMNP-TV-Z]{4}$', 'co
 select is((select lock_time from public.tournaments where id = (select id from t_created)),
   now() + interval '2 days', 'lock_time defaults to first kickoff');
 select is((select remaining_bankroll_cents from public.tournament_participants
-           where tournament_id = (select id from t_created)), 10000, 'host auto-joined with $100');
+           where tournament_id = (select id from t_created)), 10000::bigint, 'host auto-joined with $100');
 select is((select count(*)::int from public.tournament_events where tournament_id = (select id from t_created)),
   2, 'events attached');
 

@@ -27,7 +27,7 @@ function isStandalone() {
   );
 }
 
-/** "Put SquadBets on your home screen": iPhone gets Share-sheet instructions, Chrome/Android a button. */
+/** "Put Slate on your home screen": iPhone gets Share-sheet instructions, Chrome/Android a button. */
 export function InstallHint({ className }: { className?: string }) {
   const onClient = useSyncExternalStore(noopSubscribe, () => true, () => false);
   const [prompt, setPrompt] = useState<InstallPromptEvent | null>(null);
@@ -62,7 +62,7 @@ export function InstallHint({ className }: { className?: string }) {
 
   return (
     <aside
-      aria-label="Install SquadBets"
+      aria-label="Install Slate"
       className={cn("flex items-center gap-3 rounded-2xl bg-card p-3 ring-1 ring-border", className)}
     >
       <LogoMark className="size-9 shrink-0" />

@@ -1,14 +1,14 @@
 import type { MetadataRoute } from "next";
 
 /**
- * Installable web app: "Add to Home Screen" opens SquadBets full-screen with its own icon.
+ * Installable web app: "Add to Home Screen" opens Slate full-screen with its own icon.
  * Icons come from scripts/make-icons.mjs. Colors match layout.tsx's themeColor.
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "SquadBets",
-    short_name: "SquadBets",
+    name: "Slate",
+    short_name: "Slate",
     description: "Play-money betting tournaments with your friends. Blind picks, live sweat.",
     start_url: "/",
     scope: "/",

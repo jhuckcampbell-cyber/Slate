@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * SquadBets design tokens ("Night game"). See docs/DESIGN.md.
+ * Slate design tokens ("Night game"). See docs/DESIGN.md.
  * Components use these names (bg-brand, text-win, text-warn, bg-surface-2…), never raw palette
  * colors like emerald-400. The app is dark-only: :root and .dark share one palette.
  */

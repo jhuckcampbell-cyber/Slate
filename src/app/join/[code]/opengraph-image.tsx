@@ -3,7 +3,7 @@ import { normalizeCode } from "@/lib/core/codes";
 import { formatCents, formatKickoff, sportEmoji, sportLabel } from "@/lib/format";
 import { getTournamentPreview } from "@/lib/supabase/public";
 
-export const alt = "SquadBets tournament invite";
+export const alt = "Slate tournament invite";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -12,7 +12,7 @@ export default async function Image({ params }: { params: Promise<{ code: string
   const code = normalizeCode((await params).code);
   const t = await getTournamentPreview(code);
 
-  const title = t?.title ?? "SquadBets";
+  const title = t?.title ?? "Slate";
   const events = t?.events.slice(0, 3) ?? [];
   const more = (t?.events.length ?? 0) - events.length;
 
@@ -31,7 +31,7 @@ export default async function Image({ params }: { params: Promise<{ code: string
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 28, color: "#34d399" }}>
-          <span style={{ fontWeight: 800, letterSpacing: 4 }}>SQUADBETS</span>
+          <span style={{ fontWeight: 800, letterSpacing: 4 }}>SLATE</span>
           {t && <span style={{ color: "#a3a3a3" }}>· {sportLabel(t.sport_key)}</span>}
         </div>
 

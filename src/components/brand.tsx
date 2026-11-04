@@ -24,7 +24,7 @@ export function Wordmark({ className }: { className?: string }) {
     <span className={cn("inline-flex items-center gap-2", className)}>
       <LogoMark />
       <span className="font-display text-xl font-extrabold tracking-wide uppercase italic">
-        Squad<span className="text-brand">Bets</span>
+        Slate<span className="text-brand">.</span>
       </span>
     </span>
   );
@@ -34,7 +34,7 @@ export function Wordmark({ className }: { className?: string }) {
 export function AppBar({ children, className }: { children?: React.ReactNode; className?: string }) {
   return (
     <div className={cn("flex h-11 items-center justify-between gap-3", className)}>
-      <Link href="/" aria-label="SquadBets home" className="-ml-1 rounded-lg px-1 py-1">
+      <Link href="/" aria-label="Slate home" className="-ml-1 rounded-lg px-1 py-1">
         <Wordmark />
       </Link>
       {children && <div className="flex min-w-0 items-center gap-2">{children}</div>}

@@ -1,4 +1,4 @@
-/** When to suggest installing SquadBets to the home screen. Pure: the component feeds it browser facts. */
+/** When to suggest installing Slate to the home screen. Pure: the component feeds it browser facts. */
 export type InstallMode = "none" | "ios" | "prompt";
 
 export function installMode(env: {

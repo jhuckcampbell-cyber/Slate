@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import manifest from "./manifest";
 
-describe("web app manifest (installable SquadBets)", () => {
+describe("web app manifest (installable Slate)", () => {
   const m = manifest();
 
   it("opens full-screen like an app, at the home screen", () => {
     expect(m.display).toBe("standalone");
     expect(m.start_url).toBe("/");
     expect(m.scope).toBe("/");
-    expect(m.name).toBe("SquadBets");
-    expect(m.short_name).toBe("SquadBets");
+    expect(m.name).toBe("Slate");
+    expect(m.short_name).toBe("Slate");
   });
 
   it("matches the app's dark theme so launch has no white flash", () => {

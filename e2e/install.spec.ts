@@ -17,11 +17,11 @@ test("installable: manifest, icons, and a dismissible home-screen tip", async ({
   await expect(page.locator('link[rel="manifest"]')).toHaveAttribute("href", "/manifest.webmanifest");
   await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", /apple-touch-icon\.png/);
 
-  const tip = page.getByRole("complementary", { name: "Install SquadBets" });
+  const tip = page.getByRole("complementary", { name: "Install Slate" });
   await expect(tip).toContainText("Add to Home Screen");
   await tip.getByRole("button", { name: "Dismiss" }).click();
   await expect(tip).toBeHidden();
   await page.reload();
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.getByRole("complementary", { name: "Install SquadBets" })).toHaveCount(0);
+  await expect(page.getByRole("complementary", { name: "Install Slate" })).toHaveCount(0);
 });

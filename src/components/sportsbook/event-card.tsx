@@ -19,6 +19,10 @@ export type SportsbookEvent = {
   home_team: string;
   away_team: string;
   commence_time: string;
+  /** Post-lock only (scores sync). */
+  status?: string | null;
+  home_score?: number | null;
+  away_score?: number | null;
 };
 
 const COLUMN_ORDER = ["spreads", "totals", "h2h"] as const;

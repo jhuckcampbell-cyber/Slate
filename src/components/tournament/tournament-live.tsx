@@ -10,17 +10,21 @@ type Props = {
   viewerUserId: string;
   /** tournaments.updated_at as rendered; bumped by every lock/rules/status change. */
   renderedVersion: string;
+  /** Games are under way: win chances drift with the clock, so re-render every minute. */
+  sweating?: boolean;
 };
 
 type RosterSignal = { change?: string; user_id?: string };
 
 const POLL_MS = 20_000;
+const SWEAT_REFRESH_MS = 60_000;
 const AUTH_WAIT_MS = 3_000;
 
 /**
  * Keeps an open lobby in sync with the database. The private Realtime channel "tournament:<id>"
  * (participants only, see migration 0006) carries bare signals, never picks:
  *   tournament → lock time / rules / status changed   roster → someone joined, left, or submitted
+ *   scores → a game's score changed (bets may have been graded)
  * Each one re-renders the server components (RLS decides what's visible).
  * Sockets aren't guaranteed (phones background tabs, joins race the first render), so:
  *   - every (re)join of the channel triggers one catch-up refresh,
@@ -28,7 +32,7 @@ const AUTH_WAIT_MS = 3_000;
  *   - a cheap poll of tournaments.updated_at refreshes within ~20s if a signal was missed.
  * The lock countdown separately refreshes at the lock moment.
  */
-export function TournamentLive({ tournamentId, code, viewerUserId, renderedVersion }: Props) {
+export function TournamentLive({ tournamentId, code, viewerUserId, renderedVersion, sweating = false }: Props) {
   const router = useRouter();
   // The poll compares against the latest render without re-joining the channel on every refresh.
   const version = useRef(renderedVersion);
@@ -48,6 +52,7 @@ export function TournamentLive({ tournamentId, code, viewerUserId, renderedVersi
     const channel = supabase
       .channel(`tournament:${tournamentId}`, { config: { private: true } })
       .on("broadcast", { event: "tournament" }, refresh)
+      .on("broadcast", { event: "scores" }, refresh)
       .on("broadcast", { event: "roster" }, ({ payload }: { payload: RosterSignal }) => {
         if (payload.change === "left" && payload.user_id === viewerUserId) {
           router.replace(`/join/${code}?removed=1`);
@@ -85,6 +90,14 @@ export function TournamentLive({ tournamentId, code, viewerUserId, renderedVersi
       void supabase.removeChannel(channel);
     };
   }, [tournamentId, code, viewerUserId, router]);
+
+  useEffect(() => {
+    if (!sweating) return;
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") router.refresh();
+    }, SWEAT_REFRESH_MS);
+    return () => clearInterval(id);
+  }, [sweating, router]);
 
   return null;
 }

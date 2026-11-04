@@ -340,8 +340,9 @@ export type Database = {
           tournament_id: string;
           wager_id: string;
           win_probability: number | null;
+          live_probability: number | null;
         };
-        ComputedFields: never;
+        ComputedFields: "live_probability";
         Insert: {
           event_id: string;
           id?: string;
@@ -402,6 +403,13 @@ export type Database = {
             foreignKeyName: "wager_legs_participant_id_fkey";
             columns: ["participant_id"];
             isOneToOne: false;
+            referencedRelation: "leaderboard";
+            referencedColumns: ["participant_id"];
+          },
+          {
+            foreignKeyName: "wager_legs_participant_id_fkey";
+            columns: ["participant_id"];
+            isOneToOne: false;
             referencedRelation: "tournament_participants";
             referencedColumns: ["id"];
           },
@@ -430,14 +438,17 @@ export type Database = {
           odds_american: number;
           odds_decimal: number;
           participant_id: string;
+          payout_cents: number | null;
           potential_payout_cents: number;
           settled_at: string | null;
           status: Database["public"]["Enums"]["wager_status"];
           tournament_id: string;
           wager_type: Database["public"]["Enums"]["wager_type"];
           win_probability: number | null;
+          current_payout: number | null;
+          live_probability: number | null;
         };
-        ComputedFields: never;
+        ComputedFields: "current_payout" | "live_probability";
         Insert: {
           amount_cents: number;
           created_at?: string;
@@ -446,6 +457,7 @@ export type Database = {
           odds_american: number;
           odds_decimal: number;
           participant_id: string;
+          payout_cents?: number | null;
           potential_payout_cents: number;
           settled_at?: string | null;
           status?: Database["public"]["Enums"]["wager_status"];
@@ -461,6 +473,7 @@ export type Database = {
           odds_american?: number;
           odds_decimal?: number;
           participant_id?: string;
+          payout_cents?: number | null;
           potential_payout_cents?: number;
           settled_at?: string | null;
           status?: Database["public"]["Enums"]["wager_status"];
@@ -469,6 +482,13 @@ export type Database = {
           win_probability?: number | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "wagers_participant_id_fkey";
+            columns: ["participant_id"];
+            isOneToOne: false;
+            referencedRelation: "leaderboard";
+            referencedColumns: ["participant_id"];
+          },
           {
             foreignKeyName: "wagers_participant_id_fkey";
             columns: ["participant_id"];
@@ -487,6 +507,36 @@ export type Database = {
       };
     };
     Views: {
+      leaderboard: {
+        Row: {
+          cash_cents: number;
+          display_name: string;
+          ev_cents: number | null;
+          max_cents: number | null;
+          participant_id: string;
+          rank: number | null;
+          standing: string | null;
+          tournament_id: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Relationships: [
+          {
+            foreignKeyName: "tournament_participants_tournament_id_fkey";
+            columns: ["tournament_id"];
+            isOneToOne: false;
+            referencedRelation: "tournaments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tournament_participants_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       odds_board: {
         Row: {
           event_id: string;
@@ -531,6 +581,15 @@ export type Database = {
           id: string;
         }[];
       };
+      current_payout: {
+        Args: {
+          w: Omit<
+            Database["public"]["Tables"]["wagers"]["Row"],
+            Database["public"]["Tables"]["wagers"]["ComputedFields"]
+          >;
+        };
+        Returns: number;
+      };
       get_roster: {
         Args: { p_tournament_id: string };
         Returns: {
@@ -569,6 +628,25 @@ export type Database = {
         Returns: boolean;
       };
       join_tournament: { Args: { p_code: string }; Returns: string };
+      live_probability:
+        | {
+            Args: {
+              l: Omit<
+                Database["public"]["Tables"]["wager_legs"]["Row"],
+                Database["public"]["Tables"]["wager_legs"]["ComputedFields"]
+              >;
+            };
+            Returns: number;
+          }
+        | {
+            Args: {
+              w: Omit<
+                Database["public"]["Tables"]["wagers"]["Row"],
+                Database["public"]["Tables"]["wagers"]["ComputedFields"]
+              >;
+            };
+            Returns: number;
+          };
       lock_tournament_now: { Args: { p_tournament_id: string }; Returns: undefined };
       odds_budget_reserve: {
         Args: { p_cost: number; p_endpoint: string; p_sport_key: string };
@@ -604,6 +682,7 @@ export type Database = {
           odds_american: number;
           odds_decimal: number;
           participant_id: string;
+          payout_cents: number | null;
           potential_payout_cents: number;
           settled_at: string | null;
           status: Database["public"]["Enums"]["wager_status"];
@@ -632,6 +711,7 @@ export type Database = {
           odds_american: number;
           odds_decimal: number;
           participant_id: string;
+          payout_cents: number | null;
           potential_payout_cents: number;
           settled_at: string | null;
           status: Database["public"]["Enums"]["wager_status"];
@@ -645,6 +725,10 @@ export type Database = {
           isOneToOne: false;
           isSetofReturn: true;
         };
+      };
+      scores_ingest: {
+        Args: { p_fetched_at: string; p_scores: Json; p_sport_key: string };
+        Returns: Json;
       };
       server_now: {
         Args: {

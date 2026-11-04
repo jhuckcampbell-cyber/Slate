@@ -48,13 +48,21 @@ odds_sync_claim() [lease + due jobs] → provider → normalize (_shared) → od
 ## Lock & reveal (Phase 3)
 - Lock guards are TRIGGERS (migration 0006): after lock nothing can add/edit/delete a pick, move the lock,
   change the rules, or add a player, even code that bypasses the RPCs. Grading may only touch outcome
-  columns (status, settled_at, win_probability, is_locked). If Phase 5 grading needs another column, widen
-  the guard on purpose.
+  columns (status, settled_at, win_probability, is_locked, payout_cents). Widen the guard on purpose if
+  grading ever needs another column.
 - pg_cron runs private.advance_statuses() every 10s: open → locked → live → settled.
 - Realtime: private channel `tournament:<id>` (participants only; RLS on realtime.messages) carries
   SIGNALS, never data: `tournament` {status, lock_time}, `roster` {change, user_id}. Clients re-render
   via router.refresh() so RLS stays the only gate. Never put picks or bankrolls in a payload.
 - Host RPC errors must never depend on hidden picks (the host could probe them through errors).
+
+## Grading & sweat (Phase 5)
+- Scores: odds-sync job kind `scores` → `scores_ingest` (service role). A final grades legs and settles wagers
+  in the same transaction (`grade_event` → `settle_wager`, which credits bankrolls). Finals are final: never
+  re-grade, never pay twice. No final 12h after kickoff → legs void (refund). Signal: `scores` {}.
+- Payout math must mirror place_wagers: product of live leg decimals, round 4dp, cap 1001, floor(stake × dec);
+  pushed/void legs drop out. Win probability is computed ON READ (`live_probability` computed fields,
+  `private.leg_probability`); the `leaderboard` view is security invoker, so it is blind before lock.
 - Next 16 keeps visited routes mounted but hidden: in e2e, scope locators (e.g. getByRole("dialog")) when a
   label also exists on a previously visited page.
 
@@ -86,7 +94,8 @@ supabase/functions/          Deno Edge Functions. Entrypoints (*/index.ts) are e
 supabase/functions/_shared/  PURE TS shared by functions (import with .ts extensions); Vitest-tested
 src/components/sportsbook/   board (event cards), slip store + drawer, my picks
 src/components/tournament/   lobby pieces: countdown, live channel, squad list, host tools
-src/components/reveal/       post-lock reveal (consensus by game, slips by player)
+src/components/reveal/       post-lock reveal (consensus by game, slips by player) + sweat outcomes
+src/components/leaderboard/  live/final standings (from the leaderboard view)
 tests/integration/           Vitest against the local stack (concurrency, Realtime channel auth)
 supabase/tests/              pgTAP: every RLS policy and RPC has tests
 

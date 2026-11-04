@@ -48,13 +48,29 @@ export async function waitForOdds(page: Page) {
   await expect(page.locator('article button[aria-pressed="false"]').first()).toBeEnabled({ timeout: 90_000 });
 }
 
+/**
+ * Press "Place bet" and wait for the confirmation. The fake provider moves prices every 10 minutes,
+ * so a bet can straddle a move: the slip then asks to accept the new odds (by design), and we do.
+ */
+export async function placeBet(page: Page, dollars: number) {
+  const place = page.getByRole("button", { name: `Place bet · $${dollars}` });
+  const accept = page.getByRole("button", { name: "Accept new odds" });
+  const placed = page.getByText("Bet placed");
+  await place.click();
+  await expect(placed.or(accept).first()).toBeVisible();
+  if (await accept.isVisible()) {
+    await accept.click();
+    await place.click();
+  }
+  await expect(placed).toBeVisible();
+}
+
 /** Tap an odds button and place it as a single. */
 export async function placeSingle(page: Page, pick: ReturnType<Page["locator"]>, dollars: number) {
   await pick.click();
   await page.getByRole("button", { name: /Bet slip/ }).click();
   await page.getByLabel(/^Stake on/).fill(String(dollars));
-  await page.getByRole("button", { name: `Place bet · $${dollars}` }).click();
-  await expect(page.getByText("Bet placed")).toBeVisible();
+  await placeBet(page, dollars);
 }
 
 export async function tournamentId(code: string) {

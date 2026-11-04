@@ -524,3 +524,56 @@ Local dev and e2e stay on `ODDS_PROVIDER=fake`.
 **Known gaps:**
 - Our month is the UTC calendar month. If the provider resets on another day, the provider-counter guard keeps us safe, but the ledger may block a few days early.
 - Two environments sharing one key each keep their own ledger, so only the provider-counter guard spans both. Use a separate key per environment once paid.
+
+## Implementation notes: as built (Phase 5, 2026-11-03/04)
+Migration 0008 (`grading`).
+
+**Scores.** odds-sync has a third job kind, `scores`, due every `scores_refresh` (15 min) per sport while a game in a locked or live tournament is under way. A game counts as under way from kickoff until 12h after it, unless it's already final. Real calls use `/scores?daysFrom=1`, which costs 2 credits and includes games that just finished, and they go through the same `odds_budget_reserve`/`settle` path. The fake provider (`_shared/scores.ts`) reveals a hashed final score linearly over the sport's game length. `scores_ingest` writes events (`live`, then `final`). A final is final: re-sends and later corrections are ignored, so nothing can pay twice. Changed games send a `scores` signal on each sweating tournament's channel.
+
+**Grading.**
+- In the same transaction as the final, `grade_event` grades pending legs. Push rules: moneyline pushes on a tie, and spreads and totals push on an exact line.
+- `settle_wager` then settles every wager it decides:
+  - any miss → lost;
+  - all legs push or void → pushed (stake refunded);
+  - otherwise won at the stake × the product of the live legs, rounded the same way as `place_wagers` (4dp, capped at 1001, floor).
+- It credits `remaining_bankroll_cents`, and `wagers.payout_cents` records the credited return.
+- The lock guard was widened on purpose to allow `payout_cents`.
+- `advance_statuses` voids legs on games with no final 12h after kickoff, or that are postponed or canceled. It settles a tournament when no wager is pending and every game is final, void or stale.
+
+**Win probability** (on read, no credits, no cron), from `private.leg_probability`:
+- **Before a score exists:** moneyline uses the de-vigged closing price. Spreads and totals use a normal model centred on the closing line.
+- **Live:** final margin ~ N(current margin + μ·r, σ²·r), where r is the share of the game left by wall clock.
+  - Game length and σ: NFL 190 min and 13.5; NBA 150 min and 12. Totals use σ_T of 13 (NFL) or 17 (NBA).
+  - μ comes from the closing spread, or from the moneyline via the logistic approximation of the probit (1.702).
+- A parlay's chance is the product of its legs' chances.
+- Exposed as PostgREST computed fields `live_probability` on `wagers` and `wager_legs`, plus `current_payout(wagers)`.
+
+**Leaderboard.** The view `public.leaderboard` (security invoker, so it is as blind before lock as the tables under it) has:
+- cash (`remaining_bankroll_cents`);
+- max = cash + current returns of pending wagers;
+- EV = cash + Σ P × return;
+- rank by EV, then cash;
+- standing: `busted` (max = 0), `eliminated` (max < the best cash), otherwise `alive`.
+
+`tournament_participants.expected_value_cents` and `rank` are unused; the view replaced them.
+
+**Sweat UI.**
+- Lobby after lock: leaderboard (projected while live; "Final standings" plus a winner card when settled).
+- Game cards: score and a Live/Final pill.
+- By-player view: per-bet won/lost/push or a "% to cash" bar, and per-leg ✓/✗/percent.
+- `TournamentLive` refreshes on `scores` signals and every 60s while live, since chances drift with the clock.
+- "Unbet" is the starting bankroll minus stakes, because the live bankroll includes winnings.
+
+**Tests.**
+- `06_grading.test.sql` (44) replays a three-player tournament with hand-computed payouts (12242 / 14154 / 0), a push-repriced parlay, probabilities (Φ, de-vig, halftime model: 0.6719 / 0.1535), blindness before lock, idempotent finals and auto-void.
+- Mutation-checked: counting pushed legs in the price fails 7 tests; a wrong Φ constant fails 5.
+- `_shared/scores.test.ts`, `src/lib/sweat.test.ts`.
+- `e2e/sweat.spec.ts`: lock, live score, leaderboard, final, graded bets, credited bankroll, winner.
+- e2e `placeBet` accepts a fake-odds drift (an expected "Accept new odds") instead of flaking.
+
+**Deferred (not built):** chat/feed and reactions, host grading of player props (props aren't offered yet), the shareable final-standings OG image, and live in-game odds (too costly for the free tier).
+
+**Known gaps:**
+- Stat corrections after a final are ignored.
+- "Live" before the cron flips the status shows the tournament status as "Locked" for up to 10s.
+- Wall-clock game length is a rough proxy for game time; the scores endpoint doesn't give the clock.

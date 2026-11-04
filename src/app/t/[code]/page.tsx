@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { EyeOff, UserRound } from "lucide-react";
 import { AppBar, DisplayTitle, Eyebrow } from "@/components/brand";
 import { PageSkeleton } from "@/components/page-skeleton";
+import { Leaderboard, type LeaderRow } from "@/components/leaderboard/leaderboard";
 import { Reveal, type RevealPlayer } from "@/components/reveal/reveal";
 import { Sportsbook } from "@/components/sportsbook/sportsbook";
 import type { SportsbookEvent } from "@/components/sportsbook/event-card";
@@ -73,7 +74,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
   const [{ data: eventLinks }, { data: roster }, { data: me }] = await Promise.all([
     supabase
       .from("tournament_events")
-      .select("events(id, home_team, away_team, commence_time, status)")
+      .select("events(id, home_team, away_team, commence_time, status, home_score, away_score)")
       .eq("tournament_id", t.id),
     supabase.rpc("get_roster", { p_tournament_id: t.id }),
     supabase
@@ -104,7 +105,13 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
 
   return (
     <main className="mx-auto w-full max-w-md flex-1 px-4 pt-[max(env(safe-area-inset-top),12px)] pb-10">
-      <TournamentLive tournamentId={t.id} code={t.code} viewerUserId={viewer.userId} renderedVersion={t.updated_at} />
+      <TournamentLive
+        tournamentId={t.id}
+        code={t.code}
+        viewerUserId={viewer.userId}
+        renderedVersion={t.updated_at}
+        sweating={t.status === "live"}
+      />
 
       <header>
         <AppBar>
@@ -137,6 +144,8 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
           events={events}
           squad={squad}
           viewerUserId={viewer.userId}
+          settled={t.status === "settled"}
+          startingBankrollCents={Number(t.starting_bankroll_cents)}
         />
       ) : (
         <>
@@ -259,20 +268,44 @@ async function RevealSection({
   events,
   squad,
   viewerUserId,
+  settled,
+  startingBankrollCents,
 }: {
   supabase: Supabase;
   tournamentId: string;
   events: SportsbookEvent[];
   squad: SquadMember[];
   viewerUserId: string;
+  settled: boolean;
+  startingBankrollCents: number;
 }) {
-  const [{ data: wagerRows }, { data: participants }] = await Promise.all([
+  const [{ data: wagerRows }, { data: participants }, { data: board }] = await Promise.all([
     supabase.from("wagers").select(REVEAL_WAGER_SELECT).eq("tournament_id", tournamentId).order("created_at"),
     supabase
       .from("tournament_participants")
       .select("id, user_id, remaining_bankroll_cents")
       .eq("tournament_id", tournamentId),
+    supabase
+      .from("leaderboard")
+      .select("participant_id, user_id, display_name, cash_cents, ev_cents, max_cents, rank, standing")
+      .eq("tournament_id", tournamentId),
   ]);
+
+  const leaders: LeaderRow[] = (board ?? []).map((r) => ({
+    participantId: String(r.participant_id),
+    name: r.display_name ?? "Player",
+    isYou: r.user_id === viewerUserId,
+    cashCents: Number(r.cash_cents),
+    evCents: Number(r.ev_cents),
+    maxCents: Number(r.max_cents),
+    rank: Number(r.rank),
+    standing: (r.standing ?? "alive") as LeaderRow["standing"],
+  }));
+
+  const wagers = (wagerRows ?? []).map(toRevealedWager);
+  // Unbet = starting bankroll minus stakes (the live bankroll also includes winnings once graded).
+  const staked = new Map<string, number>();
+  for (const w of wagers) staked.set(w.participantId, (staked.get(w.participantId) ?? 0) + w.amountCents);
 
   // You first, then everyone in join order (get_roster's order).
   const members = new Map(squad.map((m, joinOrder) => [m.user_id, { ...m, joinOrder }]));
@@ -286,7 +319,7 @@ async function RevealSection({
           name: member?.display_name ?? "Player",
           isHost: member?.is_host ?? false,
           isYou: p.user_id === viewerUserId,
-          holdingCents: Number(p.remaining_bankroll_cents),
+          holdingCents: Math.max(0, startingBankrollCents - (staked.get(p.id) ?? 0)),
         },
       };
     })
@@ -294,12 +327,15 @@ async function RevealSection({
     .map((x) => x.player);
 
   return (
-    <Reveal
-      tournamentId={tournamentId}
-      events={events}
-      players={players}
-      wagers={(wagerRows ?? []).map(toRevealedWager)}
-    />
+    <>
+      <Leaderboard rows={leaders} settled={settled} />
+      <Reveal
+        tournamentId={tournamentId}
+        events={events}
+        players={players}
+        wagers={wagers}
+      />
+    </>
   );
 }
 

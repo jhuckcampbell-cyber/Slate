@@ -47,9 +47,18 @@ export type WagerRow = Omit<MyWager, "legs" | "optimistic"> & { wager_legs: Wage
 
 /** Everyone's wagers, for the post-lock reveal (RLS only returns them once picks are locked). */
 export const REVEAL_WAGER_SELECT =
-  "id, participant_id, wager_type, amount_cents, odds_american, potential_payout_cents, wager_legs(event_id, market_key, selection, participant_name, line, odds_american)";
+  "id, participant_id, wager_type, amount_cents, odds_american, potential_payout_cents, status, payout_cents, live_probability, wager_legs(event_id, market_key, selection, participant_name, line, odds_american, status, live_probability)";
 
-export type RevealedWager = RevealWager & { oddsAmerican: number };
+/** Graded outcome + live chance, for the sweat view. */
+export type LegOutcome = { status: string; winProbability: number | null };
+
+export type RevealedWager = Omit<RevealWager, "legs"> & {
+  oddsAmerican: number;
+  status: string;
+  payoutCents: number | null;
+  winProbability: number | null;
+  legs: (RevealWager["legs"][number] & LegOutcome)[];
+};
 
 type RevealWagerRow = {
   id: string;
@@ -58,6 +67,9 @@ type RevealWagerRow = {
   amount_cents: number;
   odds_american: number;
   potential_payout_cents: number;
+  status: string;
+  payout_cents: number | null;
+  live_probability: number | null;
   wager_legs:
     | {
         event_id: string;
@@ -66,6 +78,8 @@ type RevealWagerRow = {
         participant_name: string;
         line: number | null;
         odds_american: number;
+        status: string;
+        live_probability: number | null;
       }[]
     | null;
 };
@@ -78,6 +92,9 @@ export function toRevealedWager(row: RevealWagerRow): RevealedWager {
     amountCents: Number(row.amount_cents),
     oddsAmerican: row.odds_american,
     potentialPayoutCents: Number(row.potential_payout_cents),
+    status: row.status,
+    payoutCents: row.payout_cents === null ? null : Number(row.payout_cents),
+    winProbability: row.live_probability === null ? null : Number(row.live_probability),
     legs: (row.wager_legs ?? []).map((l) => ({
       eventId: l.event_id,
       marketKey: l.market_key,
@@ -85,6 +102,8 @@ export function toRevealedWager(row: RevealWagerRow): RevealedWager {
       participantName: l.participant_name,
       line: l.line === null ? null : Number(l.line),
       oddsAmerican: l.odds_american,
+      status: l.status,
+      winProbability: l.live_probability === null ? null : Number(l.live_probability),
     })),
   };
 }

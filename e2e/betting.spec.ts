@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { admin, createTournament, joinAs, newPage, waitForOdds } from "./helpers";
+import { admin, createTournament, joinAs, newPage, placeBet, waitForOdds } from "./helpers";
 
 test("blind slip: parlay, live odds change, cancel refund", async ({ browser }) => {
   test.setTimeout(180_000);
@@ -20,8 +20,7 @@ test("blind slip: parlay, live odds change, cancel refund", async ({ browser }) 
   await host.getByRole("button", { name: /Bet slip/ }).click();
   await host.getByRole("tab", { name: /Parlay \(2\)/ }).click();
   await host.getByLabel("Parlay stake").fill("10");
-  await host.getByRole("button", { name: "Place bet · $10" }).click();
-  await expect(host.getByText("Bet placed")).toBeVisible();
+  await placeBet(host, 10);
   await expect(host.getByText("$90").first()).toBeVisible(); // bankroll strip
 
   await host.getByRole("tab", { name: /My picks/ }).click();

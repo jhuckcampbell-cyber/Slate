@@ -1,6 +1,6 @@
 "use client";
 
-import { Crown, LockOpen, Ticket } from "lucide-react";
+import { Check, Crown, LockOpen, Ticket, X } from "lucide-react";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { SportsbookEvent } from "@/components/sportsbook/event-card";
 import { TabSwitch } from "@/components/tab-switch";
@@ -13,7 +13,8 @@ import {
   type GameConsensus,
 } from "@/lib/core/consensus";
 import { MARKET_LABELS, formatAmerican, formatCents, formatKickoff, selectionLabel, shortTeam } from "@/lib/format";
-import type { RevealedWager } from "@/lib/queries/selects";
+import type { LegOutcome, RevealedWager } from "@/lib/queries/selects";
+import { formatChance, scoreLine, wagerOutcome, type Tone } from "@/lib/sweat";
 import { cn } from "@/lib/utils";
 
 export type RevealPlayer = {
@@ -189,12 +190,15 @@ function GameCard({
 }) {
   const anim = stagger(index);
   const matchup = event ? `${shortTeam(event.away_team)} @ ${shortTeam(event.home_team)}` : game.eventId;
+  const score = event ? scoreLine(event) : null;
   return (
     <article aria-label={matchup} className={cn("rounded-2xl bg-card p-4 ring-1 ring-border", anim.className)} style={anim.style}>
       <header className="flex items-baseline justify-between gap-2">
         <h3 className="font-display text-xl leading-none font-bold uppercase">{matchup}</h3>
-        {event && <span className="text-xs text-muted-foreground">{formatKickoff(event.commence_time)}</span>}
+        {event && !score && <span className="text-xs text-muted-foreground">{formatKickoff(event.commence_time)}</span>}
+        {score && <StatePill state={score.state} />}
       </header>
+      {score && <p className="num mt-1 text-2xl font-bold">{score.text}</p>}
 
       {game.markets.length === 0 ? (
         <p className="mt-2 text-sm text-muted-foreground">Nobody touched this one.</p>
@@ -321,11 +325,13 @@ function PlayerCard({
                   {formatCents(w.amountCents)} → <span className="text-brand">{formatCents(w.potentialPayoutCents)}</span>
                 </span>
               </div>
+              <Outcome wager={w} />
               <ul className="mt-1 space-y-0.5">
                 {w.legs.map((leg, i) => {
                   const ev = eventsById.get(leg.eventId);
                   return (
-                    <li key={i} className="text-sm">
+                    <li key={i} className="flex items-baseline gap-1.5 text-sm">
+                      <LegMark leg={leg} />
                       <span className="font-medium">
                         {selectionLabel({
                           marketKey: leg.marketKey,
@@ -351,5 +357,61 @@ function PlayerCard({
         </ul>
       )}
     </article>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sweat: live chances and graded results.
+// ---------------------------------------------------------------------------
+const TONE_TEXT: Record<Tone, string> = {
+  win: "text-win",
+  loss: "text-loss",
+  muted: "text-muted-foreground",
+  live: "text-foreground",
+};
+
+function Outcome({ wager }: { wager: RevealedWager }) {
+  const out = wagerOutcome(wager);
+  const pending = wager.status === "pending";
+  return (
+    <div className="mt-1.5 flex items-center gap-2">
+      {pending && (
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted" aria-hidden>
+          <div
+            className="h-full rounded-full bg-brand transition-[width] duration-700"
+            style={{ width: `${Math.round((wager.winProbability ?? 0) * 100)}%` }}
+          />
+        </div>
+      )}
+      <span className={cn("text-xs font-semibold", TONE_TEXT[out.tone], !pending && "ml-auto")}>{out.label}</span>
+    </div>
+  );
+}
+
+function LegMark({ leg }: { leg: LegOutcome }) {
+  switch (leg.status) {
+    case "hit":
+      return <Check className="size-3.5 shrink-0 self-center text-win" aria-label="Hit" />;
+    case "miss":
+      return <X className="size-3.5 shrink-0 self-center text-loss" aria-label="Missed" />;
+    case "push":
+    case "void":
+      return <span className="text-[10px] font-semibold text-muted-foreground uppercase">Push</span>;
+    default:
+      return (
+        <span className="num w-8 shrink-0 text-xs text-muted-foreground" aria-label="Chance to hit">
+          {formatChance(leg.winProbability)}
+        </span>
+      );
+  }
+}
+
+function StatePill({ state }: { state: "Final" | "Live" }) {
+  return state === "Live" ? (
+    <span className="inline-flex items-center gap-1 rounded-full bg-hype/15 px-2 py-0.5 text-[11px] font-semibold text-hype uppercase">
+      <span className="size-1.5 rounded-full bg-hype motion-safe:animate-pulse" /> Live
+    </span>
+  ) : (
+    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground uppercase">Final</span>
   );
 }

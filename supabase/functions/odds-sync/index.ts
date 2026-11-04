@@ -17,9 +17,11 @@ import { fakeOddsResponse } from "../_shared/fake-provider.ts";
 import { normalizeOddsResponse } from "../_shared/normalize.ts";
 import type { ApiEvent } from "../_shared/odds-api.ts";
 import { oddsCallCost, usageFromHeaders, type Usage as HeaderUsage } from "../_shared/budget.ts";
+import { fakeScoresResponse, normalizeScores, SCORES_CALL_COST, type ApiScoreEvent } from "../_shared/scores.ts";
 
 type Job =
   | { kind: "odds"; sport_key: string; markets: string[]; event_ids: string[] }
+  | { kind: "scores"; sport_key: string; event_ids: string[] }
   | { kind: "catalog"; sport_key: string };
 
 type Usage = { endpoint: string; credits_used: number | null; credits_remaining: number | null };
@@ -65,6 +67,14 @@ Deno.serve(async (req) => {
       const plan = (claim.jobs as Job[]).map((job) =>
         job.kind === "catalog"
           ? { kind: job.kind, sport_key: job.sport_key, endpoint: `/sports/${job.sport_key}/events`, cost: 0 }
+          : job.kind === "scores"
+          ? {
+              kind: job.kind,
+              sport_key: job.sport_key,
+              endpoint: `/sports/${job.sport_key}/scores`,
+              events: job.event_ids.length,
+              cost: provider === "fake" ? 0 : SCORES_CALL_COST,
+            }
           : {
               kind: job.kind,
               sport_key: job.sport_key,
@@ -84,7 +94,11 @@ Deno.serve(async (req) => {
   try {
     for (const job of claim.jobs as Job[]) {
       try {
-        results.push(await runJob(supabase, job, provider, bookmakers));
+        results.push(
+          job.kind === "scores"
+            ? await runScoresJob(supabase, job, provider)
+            : await runJob(supabase, job, provider, bookmakers),
+        );
       } catch (e) {
         // One sport failing must not block the others; its state isn't advanced, so it retries.
         console.error(`[odds-sync] ${job.kind}/${job.sport_key} failed:`, e);
@@ -100,7 +114,7 @@ Deno.serve(async (req) => {
 
 async function runJob(
   supabase: SupabaseClient,
-  job: Job,
+  job: Exclude<Job, { kind: "scores" }>,
   provider: "fake" | "the-odds-api",
   bookmakers: string[],
 ) {
@@ -128,44 +142,17 @@ async function runJob(
     if (error) throw error;
     apiEvents = fakeOddsResponse(data ?? [], job.markets, { nowMs: Date.now(), bookmaker: bookmakers[0] });
   } else {
-    // PAID. Reserve first; the DB is the only thing that can say yes.
-    const path = `/sports/${job.sport_key}/odds`;
-    const cost = oddsCallCost(job.markets, bookmakers);
-    const { data: reserve, error: reserveErr } = await supabase.rpc("odds_budget_reserve", {
-      p_sport_key: job.sport_key,
-      p_endpoint: path,
-      p_cost: cost,
-    });
-    if (reserveErr) throw new Error(`reserve failed: ${reserveErr.message}`);
-    const r = reserve as Reserve;
-    if (!r.ok) return { kind: job.kind, sport_key: job.sport_key, blocked: r.reason, budget: r.budget };
-
-    let headerUsage: HeaderUsage = { creditsUsed: null, creditsRemaining: null };
-    try {
-      // Cost = markets × regions either way; eventIds only trims the payload.
-      const res = await oddsApi(path, {
+    // PAID. Cost = markets × regions either way; eventIds only trims the payload.
+    const res = await paidCall<ApiEvent[]>(supabase, job.sport_key, `/sports/${job.sport_key}/odds`,
+      oddsCallCost(job.markets, bookmakers), {
         markets: job.markets.join(","),
         oddsFormat: "american",
         dateFormat: "iso",
         bookmakers: bookmakers.join(","),
         eventIds: job.event_ids.join(","),
       });
-      apiEvents = res.body;
-      headerUsage = res.headerUsage;
-    } catch (e) {
-      headerUsage = (e as { headerUsage?: HeaderUsage }).headerUsage ?? headerUsage;
-      throw e;
-    } finally {
-      // Always settle. A null cost (network error, no headers) keeps the estimate charged.
-      await supabase.rpc("odds_budget_settle", {
-        p_reservation_id: r.reservation_id!,
-        p_credits_used: headerUsage.creditsUsed ?? undefined,
-        p_credits_remaining: headerUsage.creditsRemaining ?? undefined,
-      });
-      if (headerUsage.creditsUsed !== null && headerUsage.creditsUsed > cost) {
-        console.warn(`[odds-sync] ${path} cost ${headerUsage.creditsUsed} > reserved ${cost}`);
-      }
-    }
+    if ("blocked" in res) return { kind: job.kind, sport_key: job.sport_key, ...res };
+    apiEvents = res.body;
   }
 
   const n = normalizeOddsResponse(apiEvents, {
@@ -187,10 +174,79 @@ async function runJob(
   return { kind: job.kind, sport_key: job.sport_key, skipped_markets: n.skippedMarkets, ...data };
 }
 
-async function oddsApi(
+async function runScoresJob(
+  supabase: SupabaseClient,
+  job: Extract<Job, { kind: "scores" }>,
+  provider: "fake" | "the-odds-api",
+) {
+  const fetchedAt = new Date().toISOString();
+  let apiScores: ApiScoreEvent[];
+  if (provider === "fake") {
+    const { data, error } = await supabase
+      .from("events")
+      .select("id, sport_key, sport_title, home_team, away_team, commence_time")
+      .in("id", job.event_ids);
+    if (error) throw error;
+    apiScores = fakeScoresResponse(data ?? [], { nowMs: Date.now() });
+  } else {
+    // daysFrom=1 so games that just finished are included (2 credits instead of 1).
+    const res = await paidCall<ApiScoreEvent[]>(supabase, job.sport_key, `/sports/${job.sport_key}/scores`,
+      SCORES_CALL_COST, { daysFrom: "1", dateFormat: "iso", eventIds: job.event_ids.join(",") });
+    if ("blocked" in res) return { kind: job.kind, sport_key: job.sport_key, ...res };
+    apiScores = res.body;
+  }
+
+  const { data, error } = await supabase.rpc("scores_ingest", {
+    p_sport_key: job.sport_key,
+    p_fetched_at: fetchedAt,
+    p_scores: normalizeScores(apiScores, job.event_ids),
+  });
+  if (error) throw new Error(`scores ingest failed: ${error.message}`);
+  return { kind: job.kind, sport_key: job.sport_key, ...data };
+}
+
+/** Every PAID call: reserve in the DB first (it can say no), call, then settle with the real cost. */
+async function paidCall<T>(
+  supabase: SupabaseClient,
+  sportKey: string,
+  path: string,
+  cost: number,
+  params: Record<string, string>,
+): Promise<{ body: T } | { blocked: string | undefined; budget: unknown }> {
+  const { data: reserve, error: reserveErr } = await supabase.rpc("odds_budget_reserve", {
+    p_sport_key: sportKey,
+    p_endpoint: path,
+    p_cost: cost,
+  });
+  if (reserveErr) throw new Error(`reserve failed: ${reserveErr.message}`);
+  const r = reserve as Reserve;
+  if (!r.ok) return { blocked: r.reason, budget: r.budget };
+
+  let headerUsage: HeaderUsage = { creditsUsed: null, creditsRemaining: null };
+  try {
+    const res = await oddsApi<T>(path, params);
+    headerUsage = res.headerUsage;
+    return { body: res.body };
+  } catch (e) {
+    headerUsage = (e as { headerUsage?: HeaderUsage }).headerUsage ?? headerUsage;
+    throw e;
+  } finally {
+    // Always settle. A null cost (network error, no headers) keeps the estimate charged.
+    await supabase.rpc("odds_budget_settle", {
+      p_reservation_id: r.reservation_id!,
+      p_credits_used: headerUsage.creditsUsed ?? undefined,
+      p_credits_remaining: headerUsage.creditsRemaining ?? undefined,
+    });
+    if (headerUsage.creditsUsed !== null && headerUsage.creditsUsed > cost) {
+      console.warn(`[odds-sync] ${path} cost ${headerUsage.creditsUsed} > reserved ${cost}`);
+    }
+  }
+}
+
+async function oddsApi<T = ApiEvent[]>(
   path: string,
   params: Record<string, string>,
-): Promise<{ body: ApiEvent[]; headerUsage: HeaderUsage }> {
+): Promise<{ body: T; headerUsage: HeaderUsage }> {
   const key = Deno.env.get("ODDS_API_KEY")!;
   const url = new URL(ODDS_API + path);
   url.searchParams.set("apiKey", key);
@@ -204,7 +260,7 @@ async function oddsApi(
     err.headerUsage = headerUsage;
     throw err;
   }
-  return { body: (await res.json()) as ApiEvent[], headerUsage };
+  return { body: (await res.json()) as T, headerUsage };
 }
 
 function json(body: unknown, status = 200) {

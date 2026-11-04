@@ -4,7 +4,7 @@ import { createContext, useContext, useMemo, useReducer, type Dispatch, type Rea
 import { MAX_SLIP_SELECTIONS, type Selection, type SlipMode } from "@/lib/core/slip";
 
 /** A pick in the slip: the accepted price/line plus display context. */
-export type SlipEntry = Selection & { matchup: string };
+export type SlipEntry = Selection & { matchup: string; participantTeam?: string | null };
 
 type State = {
   entries: SlipEntry[];

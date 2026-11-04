@@ -157,6 +157,7 @@ function sideLabel(marketKey: string, side: ConsensusSide) {
     outcomeName: side.selection,
     point: side.line,
     participantName: side.participantName,
+    participantTeam: side.participantTeam,
   });
 }
 
@@ -339,6 +340,7 @@ function PlayerCard({
                           outcomeName: leg.selection,
                           point: leg.line,
                           participantName: leg.participantName,
+                          participantTeam: leg.participantTeam,
                         })}
                       </span>
                       {ev && (

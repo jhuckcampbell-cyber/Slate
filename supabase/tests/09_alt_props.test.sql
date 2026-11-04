@@ -28,7 +28,7 @@ create function pg_temp.slip(p_amount bigint, p_leg jsonb) returns jsonb languag
 $$;
 create function pg_temp.leg_status(p_market text, p_outcome text, p_player text) returns text language sql as $$
   select l.status::text from public.wager_legs l
-  where l.event_id = 'ap-g1' and l.market_key = p_market and l.selection = p_outcome and l.participant_name = p_player;
+  where l.event_id = 'ap-g1' and l.tournament_id = (select id from tp) and l.market_key = p_market and l.selection = p_outcome and l.participant_name = p_player;
 $$;
 create function pg_temp.ingest(p_outcomes text) returns jsonb language sql as $$
   select public.odds_sync_ingest('props', 'americanfootball_nfl', now(), '[]', p_outcomes::jsonb,
@@ -110,7 +110,8 @@ select lives_ok(format('select public.place_wagers(%L, %L)', (select id from tp)
   pg_temp.slip(1000, pg_temp.leg('player_rush_yds', 'Under', 'Derrick Henry', 84.5))), 'Ben bets Henry under 84.5');
 
 select is(round(public.live_probability((select w from public.wagers w join public.wager_legs l on l.wager_id = w.id
-  where l.market_key = 'player_anytime_td' and l.participant_name = 'Derrick Henry'))::numeric, 4), 0.4545,
+  where l.market_key = 'player_anytime_td' and l.participant_name = 'Derrick Henry'
+    and w.tournament_id = (select id from tp)))::numeric, 4), 0.4545,
   'a one-sided prop''s chance is its own implied price (+120)');
 
 -- ---------- grading ----------

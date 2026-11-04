@@ -42,6 +42,17 @@ describe("prop labels", () => {
       selectionLabel({ marketKey: "player_rush_yds_alternate", outcomeName: "Over", point: 99.5, participantName: "Derrick Henry" }),
     ).toBe("Derrick Henry 100+ Rush Yds");
   });
+  it("names the player's team when known, so it's clear who plays for whom", () => {
+    expect(
+      selectionLabel({ marketKey: "player_rush_yds_alternate", outcomeName: "Over", point: 49.5, participantName: "Derrick Henry", participantTeam: "Baltimore Ravens" }),
+    ).toBe("Derrick Henry (Ravens) 50+ Rush Yds");
+    expect(
+      selectionLabel({ marketKey: "player_anytime_td", outcomeName: "Yes", point: null, participantName: "Derrick Henry", participantTeam: "Baltimore Ravens" }),
+    ).toBe("Derrick Henry (Ravens) Anytime TD");
+    expect(
+      selectionLabel({ marketKey: "player_points", outcomeName: "Over", point: 27.5, participantName: "Jayson Tatum", participantTeam: null }),
+    ).toBe("Jayson Tatum Over 27.5 Pts");
+  });
   it("anytime TD and passing TDs", () => {
     expect(
       selectionLabel({ marketKey: "player_anytime_td", outcomeName: "Yes", point: null, participantName: "Derrick Henry" }),

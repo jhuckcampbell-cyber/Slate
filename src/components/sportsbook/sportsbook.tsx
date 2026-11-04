@@ -69,6 +69,7 @@ function SportsbookInner({
         marketKey: row.marketKey,
         outcomeName: row.outcomeName,
         participantName: row.participantName,
+        participantTeam: row.participantTeam,
         priceAmerican: row.priceAmerican,
         point: row.point,
         matchup: `${shortTeam(ev.away_team)} @ ${shortTeam(ev.home_team)}`,

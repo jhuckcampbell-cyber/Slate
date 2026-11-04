@@ -46,7 +46,8 @@ test("football: team-grouped props, alternate yards and anytime TD, graded by th
   await host.getByRole("button", { name: /^Player props/ }).click();
   await host.getByRole("button", { name: "Alt rushing yards" }).click();
   const rb = fakePlayer(AWAY, 0);
-  const milestone = host.getByRole("button", { name: new RegExp(`^${rb} \\d+\\+ Rush Yds`) }).first();
+  // Labels name the team too ("Malik Reed (Foxes) 57+ Rush Yds"), here and in the slip, My picks, reveal.
+  const milestone = host.getByRole("button", { name: new RegExp(`^${rb} \\(Foxes\\) \\d+\\+ Rush Yds`) }).first();
   await expect(milestone).toBeEnabled({ timeout: 60_000 });
   const props = host.getByRole("list").filter({ has: milestone });
   await expect(props.getByRole("listitem").filter({ hasText: /^Foxes$/ })).toBeVisible();
@@ -59,17 +60,19 @@ test("football: team-grouped props, alternate yards and anytime TD, graded by th
   await gina.getByRole("button", { name: /^Player props/ }).click();
   await gina.getByRole("button", { name: "Anytime TD" }).click();
   const scorer = fakePlayer(HOME, 1);
-  await placeSingle(gina, gina.getByRole("button", { name: new RegExp(`^${scorer} Anytime TD`) }), 20);
+  const td = new RegExp(`^${scorer} \\(Hawks\\) Anytime TD`);
+  await placeSingle(gina, gina.getByRole("button", { name: td }), 20);
 
   // Same-game parlay (on by default): Foxes moneyline + the same scorer, both from this one game.
   await gina.getByRole("button", { name: /^Foxes ML / }).click();
-  await gina.getByRole("button", { name: new RegExp(`^${scorer} Anytime TD`) }).click();
+  await gina.getByRole("button", { name: td }).click();
   await gina.getByRole("button", { name: /Bet slip/ }).click();
   await gina.getByRole("tab", { name: /Parlay \(2\)/ }).click();
   await gina.getByLabel("Parlay stake").fill("5");
   await placeBet(gina, 5);
   await gina.getByRole("tab", { name: /My picks/ }).click();
   await expect(gina.getByText("2-leg parlay")).toBeVisible();
+  await expect(gina.getByText(td).first()).toBeVisible(); // My picks names the team too
 
   await host.getByRole("button", { name: "Lock picks now" }).click();
   await host.getByRole("button", { name: "Lock & reveal" }).click();

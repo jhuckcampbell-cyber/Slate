@@ -58,12 +58,18 @@ export async function placeBet(page: Page, dollars: number) {
   const accept = page.getByRole("button", { name: "Accept new odds" });
   const placed = page.getByText("Bet placed");
   await place.click();
-  await expect(placed.or(accept).first()).toBeVisible();
+  // Done = the slip empties (its button goes away). An earlier "Bet placed" toast may still be on screen,
+  // so the toast alone doesn't prove THIS bet went through.
+  await expect(async () => {
+    if (await accept.isVisible()) return;
+    await expect(place).toBeHidden({ timeout: 500 });
+  }).toPass({ timeout: 15_000 });
   if (await accept.isVisible()) {
     await accept.click();
     await place.click();
+    await expect(place).toBeHidden();
   }
-  await expect(placed).toBeVisible();
+  await expect(placed.first()).toBeVisible();
 }
 
 /** Tap an odds button and place it as a single. */

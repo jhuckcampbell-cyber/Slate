@@ -10,7 +10,7 @@ export const BOARD_COLUMNS =
   "id, event_id, market_key, outcome_name, participant_name, point, price_american, updated_at, last_seen_at, is_stale, participant_team";
 
 export const WAGER_SELECT =
-  "id, wager_type, amount_cents, odds_american, potential_payout_cents, status, created_at, wager_legs(id, event_id, market_key, selection, participant_name, line, odds_american, status)";
+  "id, wager_type, amount_cents, odds_american, potential_payout_cents, status, created_at, wager_legs(id, event_id, market_key, selection, participant_name, participant_team, line, odds_american, status)";
 
 export type WagerLeg = {
   id: string;
@@ -18,6 +18,7 @@ export type WagerLeg = {
   market_key: string;
   selection: string;
   participant_name: string;
+  participant_team: string | null;
   line: number | null;
   odds_american: number;
   status: string;
@@ -47,7 +48,7 @@ export type WagerRow = Omit<MyWager, "legs" | "optimistic"> & { wager_legs: Wage
 
 /** Everyone's wagers, for the post-lock reveal (RLS only returns them once picks are locked). */
 export const REVEAL_WAGER_SELECT =
-  "id, participant_id, wager_type, amount_cents, odds_american, potential_payout_cents, status, payout_cents, live_probability, wager_legs(event_id, market_key, selection, participant_name, line, odds_american, status, live_probability)";
+  "id, participant_id, wager_type, amount_cents, odds_american, potential_payout_cents, status, payout_cents, live_probability, wager_legs(event_id, market_key, selection, participant_name, participant_team, line, odds_american, status, live_probability)";
 
 /** Graded outcome + live chance, for the sweat view. */
 export type LegOutcome = { status: string; winProbability: number | null };
@@ -76,6 +77,7 @@ type RevealWagerRow = {
         market_key: string;
         selection: string;
         participant_name: string;
+        participant_team?: string | null;
         line: number | null;
         odds_american: number;
         status: string;
@@ -100,6 +102,7 @@ export function toRevealedWager(row: RevealWagerRow): RevealedWager {
       marketKey: l.market_key,
       selection: l.selection,
       participantName: l.participant_name,
+      participantTeam: l.participant_team ?? null,
       line: l.line === null ? null : Number(l.line),
       oddsAmerican: l.odds_american,
       status: l.status,

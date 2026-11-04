@@ -83,6 +83,7 @@ export function MyPicks({ participantId, wagers, eventsById, locked }: Props) {
                             outcomeName: leg.selection,
                             point: leg.line,
                             participantName: leg.participant_name,
+                            participantTeam: leg.participant_team,
                           })}
                         </span>
                         {ev && (

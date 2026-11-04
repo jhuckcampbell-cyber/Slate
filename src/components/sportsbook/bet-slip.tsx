@@ -106,6 +106,7 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, boa
         market_key: l.marketKey,
         selection: l.outcomeName,
         participant_name: l.participantName,
+        participant_team: (l as SlipEntry).participantTeam ?? null,
         line: l.point,
         odds_american: l.priceAmerican,
         status: "pending",

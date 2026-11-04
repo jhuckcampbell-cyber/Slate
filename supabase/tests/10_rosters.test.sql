@@ -2,7 +2,7 @@
 -- each player is on. Only the service role writes them; everyone reads the team through odds_board.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(17);
 
 delete from private.roster_sync_state;  -- independent of any local sync
 
@@ -14,6 +14,8 @@ insert into public.odds_cache (event_id, market_key, outcome_name, participant_n
   ('rt-g1', 'player_anytime_td', 'Yes', 'Baltimore Ravens D/ST', null, 600, 'dk', now()),
   ('rt-g1', 'player_anytime_td', 'Yes', 'Josh Allen', null, 300, 'dk', now()),
   ('rt-g1', 'player_anytime_td', 'Yes', 'Nobody Known', null, 900, 'dk', now()),
+  ('rt-g1', 'player_anytime_td', 'Yes', 'Matthew Hibner', null, 2500, 'dk', now()),
+  ('rt-g1', 'player_anytime_td', 'Yes', 'Michael Smith', null, 2500, 'dk', now()),
   ('rt-g1', 'h2h', 'Baltimore Ravens', '', null, -150, 'dk', now());
 
 create function pg_temp.team(p_player text) returns text language sql stable as $$
@@ -35,7 +37,10 @@ select is(public.rosters_ingest('americanfootball_nfl', '[
   {"name":"Chris Rodriguez","team":"Washington Commanders"},
   {"name":"Chris Rodriguez","team":"Baltimore Ravens"},
   {"name":"Josh Allen","team":"Buffalo Bills"},
-  {"name":"Josh Allen","team":"Jacksonville Jaguars"}]') ->> 'players', '5', 'roster stored');
+  {"name":"Josh Allen","team":"Jacksonville Jaguars"},
+  {"name":"Matt Hibner","team":"Baltimore Ravens"},
+  {"name":"Mike Smith","team":"Baltimore Ravens"},
+  {"name":"Mark Smith","team":"Jacksonville Jaguars"}]') ->> 'players', '8', 'roster stored');
 select is(public.rosters_due('americanfootball_nfl'), false, 'synced: not due again for a day');
 
 -- ---------- the board says which side each player is on ----------
@@ -45,6 +50,16 @@ select is(pg_temp.team('Chris Rodriguez Jr.'), 'Baltimore Ravens',
 select is(pg_temp.team('Josh Allen'), 'Jacksonville Jaguars', 'same for any duplicate name');
 select is(pg_temp.team('Baltimore Ravens D/ST'), 'Baltimore Ravens', 'a team defense is matched by its name');
 select is(pg_temp.team('Nobody Known'), null, 'unknown player: no team, never a guess');
+select is(pg_temp.team('Matthew Hibner'), 'Baltimore Ravens',
+  'a nickname (Matt/Matthew) matches on first initial + last name when only one player in the game fits');
+select is(pg_temp.team('Michael Smith'), null, 'two players in the game fit the initial + last name: no guess');
+select is(private.initial_key('Chris Rodriguez Jr.'), 'crodriguez', 'initial key: first initial + last name, no suffix');
+
+-- Saved picks show the team too (computed field on wager_legs, same rules as the board).
+select is(public.participant_team(jsonb_populate_record(null::public.wager_legs,
+  '{"event_id":"rt-g1","participant_name":"Matthew Hibner"}')), 'Baltimore Ravens', 'a saved prop pick knows its player''s team');
+select is(public.participant_team(jsonb_populate_record(null::public.wager_legs,
+  '{"event_id":"rt-g1","participant_name":""}')), null, 'game-line picks have no player team');
 
 -- A re-sync replaces the roster (trades, cuts).
 select public.rosters_ingest('americanfootball_nfl', '[{"name":"Derrick Henry","team":"Jacksonville Jaguars"}]');

@@ -242,7 +242,10 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
         {!isLocked && (
           <p className="mt-3 flex gap-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
             <EyeOff className="mt-0.5 size-4 shrink-0" />
-            Picks stay hidden from everyone until <LocalTime iso={t.lock_time} />, then they&apos;re all revealed at once.
+            <span>
+              Picks stay hidden from everyone until <LocalTime iso={t.lock_time} />, then they&apos;re all revealed at
+              once.
+            </span>
           </p>
         )}
       </section>

@@ -645,3 +645,12 @@ Migration 0010 (`player_props`).
 - Known approximation: legs in one game are correlated (Henry 100+ yds and Henry TD), but pricing multiplies
   them like independent legs (sportsbooks shave SGP prices) and live P(cash) multiplies too. Fine for play
   money; revisit (e.g. an SGP haircut) if competitive play or money ever enters.
+
+## Real-data pass (2026-11-05, TNF props copied locally)
+- Nicknames: Odds API "Matthew Hibner" vs Sleeper "Matt Hibner". `private.initial_key` (first initial + last name)
+  is a fallback used only when exactly ONE rostered player of the game's two teams fits (migration 0014).
+- `private.player_team(event_id, name)` is the single source (migration 0015): `odds_board.participant_team` and the
+  `wager_legs.participant_team` computed field. `selectionLabel` prints "Derrick Henry (Ravens) 50+ Rush Yds" on the
+  board, slip, My picks and reveal.
+- Props tabs wrap (short names, full aria-labels) instead of a hidden sideways scroll; ladders show lines priced
+  within ±500 by default with "Show all N lines".

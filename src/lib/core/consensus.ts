@@ -9,6 +9,8 @@ export type RevealLeg = {
   selection: string;
   /** Player name for props; "" for game lines. */
   participantName: string;
+  /** Props: the player's team in this game (null if unknown or a game line). */
+  participantTeam?: string | null;
   line: number | null;
   oddsAmerican: number;
 };
@@ -37,6 +39,7 @@ export type Backer = {
 export type ConsensusSide = {
   selection: string;
   participantName: string;
+  participantTeam?: string | null;
   /** The most common line among this side's picks (earliest wins a tie). */
   line: number | null;
   backers: Backer[];
@@ -79,6 +82,7 @@ function marketRank(key: string): number {
 type SideAcc = {
   selection: string;
   participantName: string;
+  participantTeam?: string | null;
   backers: Map<string, Backer>;
   lineCounts: Map<string, { line: number | null; count: number }>;
   stakeCents: number;
@@ -109,6 +113,7 @@ export function buildConsensus(wagers: readonly RevealWager[], eventIds: readonl
         side = {
           selection: leg.selection,
           participantName: leg.participantName,
+          ...(leg.participantTeam ? { participantTeam: leg.participantTeam } : {}),
           backers: new Map(),
           lineCounts: new Map(),
           stakeCents: 0,
@@ -153,6 +158,7 @@ export function buildConsensus(wagers: readonly RevealWager[], eventIds: readonl
           return {
             selection: s.selection,
             participantName: s.participantName,
+            ...(s.participantTeam ? { participantTeam: s.participantTeam } : {}),
             line: modeLine(s.lineCounts),
             backers: [...s.backers.values()],
             playerCount: s.backers.size,

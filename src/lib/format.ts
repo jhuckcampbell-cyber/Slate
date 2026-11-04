@@ -125,6 +125,18 @@ export const MARKET_LABELS: Record<string, string> = {
   player_anytime_td: "Anytime TD",
 };
 
+/** Short names for the props tabs (all tabs fit on screen, no hidden sideways scroll). */
+export const PROP_TAB_LABELS: Record<string, string> = {
+  player_pass_yds: "Pass yds",
+  player_rush_yds: "Rush yds",
+  player_reception_yds: "Rec yds",
+  player_pass_yds_alternate: "Alt pass",
+  player_rush_yds_alternate: "Alt rush",
+  player_reception_yds_alternate: "Alt rec",
+  player_pass_tds: "Pass TDs",
+  player_anytime_td: "Anytime TD",
+};
+
 /** Short stat suffix for prop selections ("Over 27.5 Pts"). */
 export const PROP_STAT_LABELS: Record<string, string> = {
   player_points: "Pts",
@@ -145,7 +157,10 @@ export function selectionLabel(sel: {
   outcomeName: string;
   point: number | null;
   participantName?: string;
+  /** Props: the player's team in this game, shown as "Derrick Henry (Ravens)". */
+  participantTeam?: string | null;
 }): string {
+  const who = sel.participantName && sel.participantTeam ? `${sel.participantName} (${shortTeam(sel.participantTeam)})` : sel.participantName;
   switch (sel.marketKey) {
     case "h2h":
       return `${shortTeam(sel.outcomeName)} ML`;
@@ -154,16 +169,16 @@ export function selectionLabel(sel: {
     case "totals":
       return `${sel.outcomeName} ${sel.point === null ? "" : trimPoint(sel.point)}`.trim();
     case "player_anytime_td":
-      return [sel.participantName, "Anytime TD"].filter(Boolean).join(" ");
+      return [who, "Anytime TD"].filter(Boolean).join(" ");
     default:
       if (sel.marketKey.endsWith("_alternate") && sel.outcomeName === "Over" && sel.point !== null) {
         // Ladders are milestones: Over 99.5 yards = "100+".
-        return [sel.participantName, `${Math.ceil(sel.point)}+`, PROP_STAT_LABELS[sel.marketKey] ?? ""]
+        return [who, `${Math.ceil(sel.point)}+`, PROP_STAT_LABELS[sel.marketKey] ?? ""]
           .filter(Boolean)
           .join(" ");
       }
       return [
-        sel.participantName,
+        who,
         sel.outcomeName,
         sel.point === null ? "" : trimPoint(sel.point),
         PROP_STAT_LABELS[sel.marketKey] ?? "",

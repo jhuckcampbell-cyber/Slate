@@ -8,6 +8,7 @@ import { oldestCheck, type BoardRow } from "@/lib/core/board";
 import { useServerNow } from "@/lib/hooks/use-server-now";
 import {
   MARKET_LABELS,
+  PROP_TAB_LABELS,
   formatAmerican,
   formatCheckedAgo,
   formatSpread,
@@ -152,19 +153,21 @@ function PropsPanel({
       </button>
       {open && (
         <div className="pb-1">
-          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2">
+          {/* Wraps instead of scrolling sideways: every prop type is visible at once. */}
+          <div className="flex flex-wrap gap-1.5 pb-2">
             {propKeys.map((k) => (
               <button
                 key={k}
                 type="button"
                 aria-pressed={k === market}
+                aria-label={MARKET_LABELS[k] ?? k}
                 onClick={() => setMarket(k)}
                 className={cn(
-                  "h-9 shrink-0 rounded-full px-3 text-xs font-semibold",
+                  "h-9 rounded-full px-3 text-xs font-semibold",
                   k === market ? "bg-foreground text-background" : "bg-surface-2 text-muted-foreground",
                 )}
               >
-                {MARKET_LABELS[k] ?? k}
+                {PROP_TAB_LABELS[k] ?? MARKET_LABELS[k] ?? k}
               </button>
             ))}
           </div>
@@ -191,15 +194,14 @@ function PropsPanel({
                       />
                     );
                     if (isAlternateMarket(market)) {
-                      // Ladder: one milestone button per line ("50+", "75+", "100+"), lowest first.
-                      const ladder = [...own].sort((a, b) => (a.point ?? 0) - (b.point ?? 0));
                       return (
-                        <li key={player} className="py-1.5">
-                          <span className="block truncate text-sm font-medium" title={player}>
-                            {player}
-                          </span>
-                          <div className="mt-1 grid grid-cols-4 gap-1.5">{ladder.map((r) => button(r, String(r.id)))}</div>
-                        </li>
+                        <Ladder
+                          key={player}
+                          player={player}
+                          rows={own}
+                          selected={selected}
+                          render={(r) => button(r, String(r.id))}
+                        />
                       );
                     }
                     const sides = market === "player_anytime_td" ? ["Yes"] : ["Over", "Under"];
@@ -225,6 +227,41 @@ function PropsPanel({
         </div>
       )}
     </div>
+  );
+}
+
+/** Ladder lines outside this price band (near-locks and long shots) start hidden behind "Show all". */
+const LADDER_BAND = 500;
+
+/** One player's alternate ladder: milestone buttons ("50+", "75+", "100+"), lowest first. */
+function Ladder({
+  player,
+  rows,
+  selected,
+  render,
+}: {
+  player: string;
+  rows: BoardRow[];
+  selected: ReadonlySet<number>;
+  render: (row: BoardRow) => React.ReactNode;
+}) {
+  const [all, setAll] = useState(false);
+  const ladder = [...rows].sort((a, b) => (a.point ?? 0) - (b.point ?? 0));
+  const inBand = ladder.filter((r) => Math.abs(r.priceAmerican) <= LADDER_BAND || selected.has(r.id));
+  const trimmed = inBand.length > 0 && inBand.length < ladder.length;
+  const shown = all || !trimmed ? ladder : inBand;
+  return (
+    <li className="py-1.5">
+      <span className="block truncate text-sm font-medium" title={player}>
+        {player}
+      </span>
+      <div className="mt-1 grid grid-cols-4 gap-1.5">{shown.map(render)}</div>
+      {trimmed && (
+        <button type="button" onClick={() => setAll((v) => !v)} className="mt-1 h-9 text-xs font-medium text-brand">
+          {all ? "Fewer lines" : `Show all ${ladder.length} lines`}
+        </button>
+      )}
+    </li>
   );
 }
 

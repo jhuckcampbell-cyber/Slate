@@ -158,6 +158,7 @@ export type Database = {
       };
       player_teams: {
         Row: {
+          initial_key: string | null;
           name_key: string;
           player_name: string;
           sport_key: string;
@@ -165,12 +166,14 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          initial_key?: never;
           name_key: string;
           player_name: string;
           sport_key: string;
           team: string;
         };
         Update: {
+          initial_key?: never;
           name_key?: string;
           player_name?: string;
           sport_key?: string;
@@ -419,8 +422,9 @@ export type Database = {
           wager_id: string;
           win_probability: number | null;
           live_probability: number | null;
+          participant_team: string | null;
         };
-        ComputedFields: "live_probability";
+        ComputedFields: "live_probability" | "participant_team";
         Insert: {
           event_id: string;
           id?: string;
@@ -762,6 +766,15 @@ export type Database = {
         Returns: Json;
       };
       odds_sync_release: { Args: { p_holder: string }; Returns: undefined };
+      participant_team: {
+        Args: {
+          l: Omit<
+            Database["public"]["Tables"]["wager_legs"]["Row"],
+            Database["public"]["Tables"]["wager_legs"]["ComputedFields"]
+          >;
+        };
+        Returns: string;
+      };
       place_wagers: {
         Args: { p_slip: Json; p_tournament_id: string };
         Returns: {

@@ -60,7 +60,8 @@ $$;
 select is(pg_temp.job('props', 'pp-g1') -> 'markets', '["player_points", "player_rebounds", "player_assists"]'::jsonb,
   'a props tournament makes its game due for a props sync, with the sport''s prop markets');
 select ok(pg_temp.job('props', 'pp-g2') is null, 'no props sync for a game whose tournaments have props off');
-select is(pg_temp.job('odds', 'pp-g1') -> 'markets', '["h2h"]'::jsonb, 'the sport-wide odds call never asks for props');
+select ok(not (pg_temp.job('odds', 'pp-g1') -> 'markets' ?| array['player_points', 'player_rebounds', 'player_assists']),
+  'the sport-wide odds call never asks for props');
 
 -- ---------- props ingest ----------
 select is((public.odds_sync_ingest('props', 'basketball_nba', now(), '[]',

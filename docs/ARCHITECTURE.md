@@ -636,3 +636,12 @@ Migration 0010 (`player_props`).
   `public.player_teams`; `odds_board.participant_team` resolves each player to the home/away team OF THAT GAME
   (`private.name_key` ignores case/punctuation/Jr.), NULL if neither — never a guess. Board groups props by team.
   **Sleeper's API is free for NON-COMMERCIAL use only: swap in a licensed roster feed before monetizing.**
+
+## Implementation notes: as built (same-game parlays, 2026-11-05)
+- Migration 0013: `allowed_bet_types.same_game_parlays` (create/update keep it; absent = ON, so existing
+  tournaments got SGPs). `place_wagers` gives each leg a slot (`event|market` for game lines,
+  `event|stat|player` for props, ladders mapped to their stat) and raises `CONFLICTING_LEGS` on a repeat;
+  with the switch off it still raises `SAME_EVENT_PARLAY`. Client mirror: `legSlot` / `parlayEligibility`.
+- Known approximation: legs in one game are correlated (Henry 100+ yds and Henry TD), but pricing multiplies
+  them like independent legs (sportsbooks shave SGP prices) and live P(cash) multiplies too. Fine for play
+  money; revisit (e.g. an SGP haircut) if competitive play or money ever enters.

@@ -259,10 +259,20 @@ function EditRulesForm({
           <div className="flex min-h-10 items-center justify-between gap-3">
             <label htmlFor="edit-parlays" className="flex-1">
               <span className="block text-sm font-medium">Parlays</span>
-              <span className="text-xs text-muted-foreground">One pick per game</span>
+              <span className="text-xs text-muted-foreground">
+                {draft.sameGameParlays ? "Several picks from one game allowed" : "One pick per game"}
+              </span>
             </label>
             <Switch id="edit-parlays" checked={draft.parlays} onCheckedChange={(v) => set("parlays", v)} />
           </div>
+          {draft.parlays && (
+            <div className="mt-3 flex min-h-10 items-center justify-between gap-3">
+              <label htmlFor="edit-sgp" className="flex-1 text-sm">
+                Same-game parlays
+              </label>
+              <Switch id="edit-sgp" checked={draft.sameGameParlays} onCheckedChange={(v) => set("sameGameParlays", v)} />
+            </div>
+          )}
           {draft.parlays && (
             <select
               aria-label="Max parlay legs"

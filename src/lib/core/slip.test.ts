@@ -14,6 +14,7 @@ const rules: Rules = {
   parlays: true,
   maxParlayLegs: 3,
   maxBetCents: null,
+  sameGameParlays: false,
 };
 
 function sel(oddsId: number, eventId: string, priceAmerican = -110, marketKey = "spreads"): Selection {
@@ -40,6 +41,24 @@ describe("parlayEligibility", () => {
       ok: false,
       reason: "SAME_EVENT_PARLAY",
     });
+  });
+  it("same-game parlays (host switch on): different bets on one game are fine", () => {
+    const sgp = { ...rules, sameGameParlays: true, markets: [...rules.markets, "player_rush_yds", "player_rush_yds_alternate", "player_anytime_td"] };
+    const prop = (id: number, market: string, outcome: string, player: string, point: number | null = null): Selection => ({
+      oddsId: id, eventId: "a", marketKey: market, outcomeName: outcome, participantName: player, priceAmerican: 120, point,
+    });
+    expect(parlayEligibility([sel(1, "a", -110, "h2h"), sel(2, "a", -110, "totals"), prop(3, "player_anytime_td", "Yes", "Derrick Henry")], sgp))
+      .toEqual({ ok: true });
+    // Overlapping picks: two on one game line, or two on one player's stat (a ladder counts as that stat).
+    expect(parlayEligibility([sel(1, "a", -110, "totals"), sel(2, "a", -110, "totals")], sgp))
+      .toEqual({ ok: false, reason: "CONFLICTING_LEGS" });
+    expect(parlayEligibility([prop(1, "player_rush_yds_alternate", "Over", "Derrick Henry", 49.5), prop(2, "player_rush_yds_alternate", "Over", "Derrick Henry", 99.5)], sgp))
+      .toEqual({ ok: false, reason: "CONFLICTING_LEGS" });
+    expect(parlayEligibility([prop(1, "player_rush_yds", "Under", "Derrick Henry", 84.5), prop(2, "player_rush_yds_alternate", "Over", "Derrick Henry", 99.5)], sgp))
+      .toEqual({ ok: false, reason: "CONFLICTING_LEGS" });
+    // Different players' stats on one game are separate bets.
+    expect(parlayEligibility([prop(1, "player_rush_yds", "Over", "Derrick Henry", 84.5), prop(2, "player_rush_yds", "Over", "Travis Etienne", 60.5)], sgp))
+      .toEqual({ ok: true });
   });
   it("respects the host's leg limit and parlay switch", () => {
     const four = [sel(1, "a"), sel(2, "b"), sel(3, "c"), sel(4, "d")];

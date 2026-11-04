@@ -51,6 +51,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
   const [maxBet, setMaxBet] = useState("");
   const [markets, setMarkets] = useState<string[]>(MARKETS.map((m) => m.key));
   const [parlays, setParlays] = useState(true);
+  const [sameGame, setSameGame] = useState(true);
   const [playerProps, setPlayerProps] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const propsAvailable = propMarkets(sport).length > 0;
@@ -96,6 +97,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
             parlays,
             max_parlay_legs: 6,
             player_props: propsAvailable && playerProps,
+            same_game_parlays: parlays && sameGame,
           },
         })
         .single();
@@ -280,10 +282,20 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
           <label className="flex min-h-12 items-center justify-between rounded-xl border border-border p-3">
             <span>
               <span className="block text-sm font-medium">Parlays</span>
-              <span className="text-xs text-muted-foreground">Up to 6 legs, one per game</span>
+              <span className="text-xs text-muted-foreground">Up to 6 legs</span>
             </span>
             <Switch checked={parlays} onCheckedChange={setParlays} />
           </label>
+
+          {parlays && (
+            <label className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border p-3">
+              <span>
+                <span className="block text-sm font-medium">Same-game parlays</span>
+                <span className="text-xs text-muted-foreground">Stack picks from one game, like Ravens ML + Henry TD</span>
+              </span>
+              <Switch aria-label="Same-game parlays" checked={sameGame} onCheckedChange={setSameGame} />
+            </label>
+          )}
 
           {propsAvailable && (
             <label className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border p-3">

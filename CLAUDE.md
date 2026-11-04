@@ -132,7 +132,9 @@ supabase/tests/              pgTAP: every RLS policy and RPC has tests
 - Player props are opt-in per tournament (NFL adds alternate yards ladders, passing TDs, anytime TD; players grouped by
   team via Sleeper rosters, non-commercial only) and graded by the HOST entering each stat once (grade_prop; results are
   public in prop_results; ungraded props refund 48h after kickoff). Odds API has no player stats.
-- One leg per event in a parlay (keeps win-probability independence assumption valid).
+- Same-game parlays: host switch (allowed_bet_types.same_game_parlays, ON unless false). Each leg takes a slot:
+  one per game line, one per player stat (ladder = its main stat); a repeat is CONFLICTING_LEGS. Payout = product
+  of legs (no correlation haircut) and live P(cash) multiplies legs as if independent: approximate for SGPs.
 - Min stake $1; parlay payout capped at 1000-to-1 (decimal 1001); money columns are bigint cents.
 - Unwagered bankroll counts toward final score; host may set min_total_wager.
 

@@ -11,6 +11,7 @@ const current: EditableRules = {
   parlays: true,
   maxParlayLegs: 6,
   playerProps: false,
+  sameGameParlays: true,
 };
 
 describe("rulesChanges", () => {
@@ -39,7 +40,7 @@ describe("rulesChanges", () => {
     expect(rulesChanges(current, draft)).toEqual({
       ok: true,
       changes: {
-        allowed_bet_types: { markets: ["h2h", "totals"], parlays: true, max_parlay_legs: 3, player_props: false },
+        allowed_bet_types: { markets: ["h2h", "totals"], parlays: true, max_parlay_legs: 3, player_props: false, same_game_parlays: true },
       },
     });
   });
@@ -48,7 +49,16 @@ describe("rulesChanges", () => {
     expect(rulesChanges(current, { ...draftFromRules(current), playerProps: true })).toEqual({
       ok: true,
       changes: {
-        allowed_bet_types: { markets: ["h2h", "spreads", "totals"], parlays: true, max_parlay_legs: 6, player_props: true },
+        allowed_bet_types: { markets: ["h2h", "spreads", "totals"], parlays: true, max_parlay_legs: 6, player_props: true, same_game_parlays: true },
+      },
+    });
+  });
+
+  it("turning same-game parlays off is a bet-type change", () => {
+    expect(rulesChanges(current, { ...draftFromRules(current), sameGameParlays: false })).toEqual({
+      ok: true,
+      changes: {
+        allowed_bet_types: { markets: ["h2h", "spreads", "totals"], parlays: true, max_parlay_legs: 6, player_props: false, same_game_parlays: false },
       },
     });
   });

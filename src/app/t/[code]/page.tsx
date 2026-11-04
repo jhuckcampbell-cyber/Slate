@@ -43,6 +43,7 @@ type AllowedBetTypes = {
   parlays?: boolean;
   max_parlay_legs?: number;
   player_props?: boolean;
+  same_game_parlays?: boolean;
 };
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
@@ -104,6 +105,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
     parlays: Boolean(allowed.parlays),
     maxParlayLegs: allowed.max_parlay_legs ?? 6,
     maxBetCents: t.max_bet_cents === null ? null : Number(t.max_bet_cents),
+    sameGameParlays: allowed.same_game_parlays ?? true, // mirrors place_wagers' default
   };
   const isLocked = Boolean(t.is_locked);
   const isHost = t.host_id === viewer.userId;
@@ -178,6 +180,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
                 parlays: rules.parlays,
                 maxParlayLegs: rules.maxParlayLegs,
                 playerProps,
+                sameGameParlays: rules.sameGameParlays,
               }}
               firstKickoff={events[0]?.commence_time ?? t.lock_time}
               canEditBankroll={squad.length === 1 && Number(me.total_potential_payout_cents) === 0}
@@ -227,7 +230,14 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
               gameMarkets.map((m) => MARKET_LABELS[m] ?? m).join(", ") + (playerProps ? " + player props" : "")
             }
           />
-          <Rule label="Parlays" value={rules.parlays ? `Up to ${rules.maxParlayLegs} legs` : "Off"} />
+          <Rule
+            label="Parlays"
+            value={
+              rules.parlays
+                ? `Up to ${rules.maxParlayLegs} legs${rules.sameGameParlays ? ", same-game OK" : ", one per game"}`
+                : "Off"
+            }
+          />
         </dl>
         {!isLocked && (
           <p className="mt-3 flex gap-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">

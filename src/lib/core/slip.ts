@@ -4,6 +4,7 @@
  * Issue codes match the SQL error codes, so src/lib/errors.ts covers both.
  */
 import { americanToDecimalE4, decimalE4ToAmerican, parlayDecimalE4, payoutCents } from "./odds";
+import { isPropMarket, statMarket } from "./props";
 
 export const MIN_WAGER_CENTS = 100;
 export const MAX_SLIP_SELECTIONS = 20;
@@ -13,6 +14,8 @@ export type Rules = {
   parlays: boolean;
   maxParlayLegs: number;
   maxBetCents: number | null;
+  /** Host switch: several picks from one game in a parlay (never two on the same line or player stat). */
+  sameGameParlays: boolean;
 };
 
 export type Selection = {
@@ -39,7 +42,8 @@ export type SlipIssueCode =
   | "PARLAYS_DISABLED"
   | "TOO_FEW_LEGS"
   | "TOO_MANY_LEGS"
-  | "SAME_EVENT_PARLAY";
+  | "SAME_EVENT_PARLAY"
+  | "CONFLICTING_LEGS";
 
 export type SlipIssue = { code: SlipIssueCode; oddsId?: number };
 
@@ -50,10 +54,20 @@ export function parlayEligibility(
   if (!rules.parlays) return { ok: false, reason: "PARLAYS_DISABLED" };
   if (selections.length < 2) return { ok: false, reason: "TOO_FEW_LEGS" };
   if (selections.length > rules.maxParlayLegs) return { ok: false, reason: "TOO_MANY_LEGS" };
-  if (new Set(selections.map((s) => s.eventId)).size !== selections.length) {
+  if (!rules.sameGameParlays && new Set(selections.map((s) => s.eventId)).size !== selections.length) {
     return { ok: false, reason: "SAME_EVENT_PARLAY" };
   }
+  if (new Set(selections.map(legSlot)).size !== selections.length) return { ok: false, reason: "CONFLICTING_LEGS" };
   return { ok: true };
+}
+
+/**
+ * What a parlay leg occupies (mirrors place_wagers): one pick per game line (moneyline, spread, total) and one per
+ * player stat per game. An alternate ladder is the same stat as its main line, so "50+" and "100+" on one player
+ * (or Over/Under) can't be stacked.
+ */
+export function legSlot(s: Pick<Selection, "eventId" | "marketKey" | "participantName">): string {
+  return isPropMarket(s.marketKey) ? `${s.eventId}|${statMarket(s.marketKey)}|${s.participantName}` : `${s.eventId}|${s.marketKey}`;
 }
 
 export function buildWagers(

@@ -106,7 +106,7 @@ select lives_ok(format('select public.update_tournament(%L, %L)', (select id fro
 select is((select title from public.tournaments where id = (select id from t1)), 'Sunday Sweat', 'title trimmed and saved');
 select is((select max_bet_cents from public.tournaments where id = (select id from t1)), 2500, 'max bet saved');
 select is((select allowed_bet_types from public.tournaments where id = (select id from t1)),
-  '{"markets":["h2h","totals"],"parlays":false,"max_parlay_legs":6,"player_props":false}'::jsonb,
+  '{"markets":["h2h","totals"],"parlays":false,"max_parlay_legs":6,"player_props":false,"same_game_parlays":true}'::jsonb,
   'bet types merge over the current rules and unknown markets are dropped');
 reset role;
 select is(pg_temp.signals((select id from t1), 'tournament') - (select n from marks where k = 'edit'), 1,

@@ -68,7 +68,7 @@ select is((select price_decimal from public.odds_cache where event_id = 'tw-ev1'
 select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-0000-0000-00000000000a","role":"authenticated"}', true);
 create temp table t_created as
   select * from public.create_tournament('Wager Tests', array['tw-ev1', 'tw-ev2'], 'WT', null, 10000, 5000,
-    '{"markets":["h2h","spreads"],"parlays":true,"max_parlay_legs":2}'::jsonb);
+    '{"markets":["h2h","spreads"],"parlays":true,"max_parlay_legs":2,"same_game_parlays":false}'::jsonb);
 grant select on t_created to anon, authenticated;
 
 set local role authenticated;
@@ -126,7 +126,7 @@ select throws_ok($$ select public.place_wagers((select id from t_created), jsonb
 select throws_ok($$ select public.place_wagers((select id from t_created), jsonb_build_array(
     pg_temp.wager(1000, pg_temp.leg('tw-ev1', 'h2h', 'Buffalo Bills'),
                         pg_temp.leg('tw-ev1', 'spreads', 'Buffalo Bills')))) $$,
-  'SAME_EVENT_PARLAY', 'one leg per game in a parlay');
+  'SAME_EVENT_PARLAY', 'one leg per game in a parlay when the host turned same-game parlays off');
 select throws_ok($$ select public.place_wagers((select id from t_created), jsonb_build_array(
     pg_temp.wager(1000, pg_temp.leg('tw-ev1', 'h2h', 'Buffalo Bills'),
                         pg_temp.leg('tw-ev2', 'h2h', 'Dallas Cowboys'),

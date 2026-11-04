@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { fakePlayer } from "../supabase/functions/_shared/fake-provider";
-import { admin, joinAs, newPage, placeSingle, waitForOdds } from "./helpers";
+import { admin, joinAs, newPage, placeBet, placeSingle, waitForOdds } from "./helpers";
 
 // Football props: players grouped under their team, an alternate-yards milestone and an anytime TD are
-// bet, then ONE yards entry grades the ladder and a touchdowns entry grades the TD pick.
+// bet (plus a same-game parlay), then ONE yards entry grades the ladder and a touchdowns entry grades the TD.
 const eventId = `e2e-fbprops-${Date.now()}`;
 const HOME = "Gridiron Hawks";
 const AWAY = "Endzone Foxes";
@@ -60,6 +60,16 @@ test("football: team-grouped props, alternate yards and anytime TD, graded by th
   await gina.getByRole("button", { name: "Anytime TD" }).click();
   const scorer = fakePlayer(HOME, 1);
   await placeSingle(gina, gina.getByRole("button", { name: new RegExp(`^${scorer} Anytime TD`) }), 20);
+
+  // Same-game parlay (on by default): Foxes moneyline + the same scorer, both from this one game.
+  await gina.getByRole("button", { name: /^Foxes ML / }).click();
+  await gina.getByRole("button", { name: new RegExp(`^${scorer} Anytime TD`) }).click();
+  await gina.getByRole("button", { name: /Bet slip/ }).click();
+  await gina.getByRole("tab", { name: /Parlay \(2\)/ }).click();
+  await gina.getByLabel("Parlay stake").fill("5");
+  await placeBet(gina, 5);
+  await gina.getByRole("tab", { name: /My picks/ }).click();
+  await expect(gina.getByText("2-leg parlay")).toBeVisible();
 
   await host.getByRole("button", { name: "Lock picks now" }).click();
   await host.getByRole("button", { name: "Lock & reveal" }).click();

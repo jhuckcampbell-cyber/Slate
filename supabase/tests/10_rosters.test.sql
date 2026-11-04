@@ -4,6 +4,8 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(12);
 
+delete from private.roster_sync_state;  -- independent of any local sync
+
 insert into public.events (id, sport_key, home_team, away_team, commence_time) values
   ('rt-g1', 'americanfootball_nfl', 'Baltimore Ravens', 'Jacksonville Jaguars', now() + interval '2 days');
 insert into public.odds_cache (event_id, market_key, outcome_name, participant_name, point, price_american, bookmaker, updated_at) values

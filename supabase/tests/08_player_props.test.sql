@@ -40,8 +40,8 @@ $$;
 -- ---------- catalog ----------
 select is(private.prop_markets('basketball_nba'), array['player_points', 'player_rebounds', 'player_assists'],
   'NBA props: points, rebounds, assists');
-select is(private.prop_markets('americanfootball_nfl'), array['player_pass_yds', 'player_rush_yds', 'player_reception_yds'],
-  'NFL props: passing, rushing, receiving yards');
+select ok(private.prop_markets('americanfootball_nfl') @> array['player_pass_yds', 'player_rush_yds', 'player_reception_yds'],
+  'NFL props include passing, rushing, receiving yards (alternates + TDs: 09_alt_props)');
 select is(private.prop_markets('icehockey_nhl'), '{}'::text[], 'no props for other sports');
 
 -- ---------- tournaments: props on (pp-g1) and off (pp-g2) ----------

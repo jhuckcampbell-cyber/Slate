@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyOddsChange, indexBoard, movementFor, oldestCheck, toBoardRow, type BoardRow } from "./board";
+import { applyOddsChange, indexBoard, movementFor, needsTeamRefetch, oldestCheck, toBoardRow, type BoardRow } from "./board";
 
 const rawBase = {
   id: 1,
@@ -93,5 +93,59 @@ describe("market freshness (checkedAt)", () => {
     expect(oldestCheck([a, b])).toBe("2026-11-03T11:30:00Z");
     expect(oldestCheck([{ ...base, checkedAt: null }])).toBeNull();
     expect(oldestCheck([])).toBeNull();
+  });
+});
+
+describe("player teams (props board)", () => {
+  const prop = toBoardRow({
+    ...rawBase,
+    id: 7,
+    market_key: "player_anytime_td",
+    outcome_name: "Yes",
+    participant_name: "Derrick Henry",
+    point: null,
+    price_american: 120,
+    participant_team: "Baltimore Ravens",
+  });
+
+  it("carries the player's team from the view (null when unknown)", () => {
+    expect(prop.participantTeam).toBe("Baltimore Ravens");
+    expect(base.participantTeam).toBeNull();
+  });
+
+  it("a live price move keeps the team (Realtime rows don't carry it)", () => {
+    const moved = applyOddsChange([prop], {
+      eventType: "UPDATE",
+      new: { ...update({}).new, id: 7, market_key: "player_anytime_td", outcome_name: "Yes", participant_name: "Derrick Henry", point: null, price_american: 130 },
+    });
+    expect(moved[0]!.participantTeam).toBe("Baltimore Ravens");
+  });
+
+  it("a new line for a known player inherits his team", () => {
+    const added = applyOddsChange([prop], {
+      eventType: "INSERT",
+      new: { ...update({}).new, id: 8, market_key: "player_rush_yds_alternate", outcome_name: "Over", participant_name: "Derrick Henry", point: 99.5, price_american: 250 },
+    });
+    expect(added.find((r) => r.id === 8)!.participantTeam).toBe("Baltimore Ravens");
+  });
+});
+
+describe("needsTeamRefetch", () => {
+  const insert = (participant_name: string) => ({
+    eventType: "INSERT" as const,
+    new: { ...update({}).new, id: 99, market_key: participant_name ? "player_anytime_td" : "h2h", outcome_name: "Yes", participant_name, point: null },
+  });
+  const known = toBoardRow({ ...rawBase, id: 5, market_key: "player_anytime_td", outcome_name: "Yes", participant_name: "Derrick Henry", point: null, participant_team: "Baltimore Ravens" });
+
+  it("asks for a refetch when props for an unknown player arrive live (only the view knows teams)", () => {
+    expect(needsTeamRefetch([base], insert("Malik Reed"))).toBe(true);
+  });
+  it("not for a player whose team the board already knows", () => {
+    expect(needsTeamRefetch([known], insert("Derrick Henry"))).toBe(false);
+  });
+  it("not for game lines, updates or deletes", () => {
+    expect(needsTeamRefetch([base], insert(""))).toBe(false);
+    expect(needsTeamRefetch([base], update({ price_american: -120 }))).toBe(false);
+    expect(needsTeamRefetch([base], { eventType: "DELETE", old: { id: 1 } })).toBe(false);
   });
 });

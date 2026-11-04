@@ -2,8 +2,8 @@
 
 import { LocalTime } from "@/components/local-time";
 import { ChevronDown, Clock } from "lucide-react";
-import { useState } from "react";
-import { isPropMarket } from "@/lib/core/props";
+import { Fragment, useState } from "react";
+import { isAlternateMarket, isPropMarket } from "@/lib/core/props";
 import { oldestCheck, type BoardRow } from "@/lib/core/board";
 import { useServerNow } from "@/lib/hooks/use-server-now";
 import {
@@ -130,6 +130,12 @@ function PropsPanel({
   const [market, setMarket] = useState(propKeys[0]!);
   const rows = markets?.get(market) ?? [];
   const players = [...new Set(rows.map((r) => r.participantName))];
+  // Group by team (away, home, then unknown) so it's clear who plays for whom. No headings if no team is known.
+  const teamOf = (player: string) => rows.find((r) => r.participantName === player)?.participantTeam ?? null;
+  const groups = [event.away_team, event.home_team, null]
+    .map((team) => ({ team, players: players.filter((p) => teamOf(p) === team) }))
+    .filter((g) => g.players.length > 0);
+  const showTeams = groups.some((g) => g.team !== null);
   const matchup = `${shortTeam(event.away_team)} @ ${shortTeam(event.home_team)}`;
 
   return (
@@ -166,28 +172,54 @@ function PropsPanel({
             <p className="py-2 text-center text-xs text-muted-foreground">Props post shortly…</p>
           ) : (
             <ul>
-              {players.map((player) => {
-                const side = (name: string) => rows.find((r) => r.participantName === player && r.outcomeName === name);
-                return (
-                  <li key={player} className="grid grid-cols-[1fr_4.25rem_4.25rem] items-center gap-1.5 py-1">
-                    <span className="truncate text-sm font-medium" title={player}>
-                      {player}
-                    </span>
-                    {["Over", "Under"].map((name) => {
-                      const row = side(name);
+              {groups.map((g) => (
+                <Fragment key={g.team ?? "other"}>
+                  {showTeams && (
+                    <li className="pt-2 pb-0.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                      {g.team ? shortTeam(g.team) : "Other"}
+                    </li>
+                  )}
+                  {g.players.map((player) => {
+                    const own = rows.filter((r) => r.participantName === player);
+                    const button = (row: BoardRow | undefined, key: string) => (
+                      <OddsButton
+                        key={key}
+                        row={row}
+                        selected={row ? selected.has(row.id) : false}
+                        disabled={locked || !row || row.isStale}
+                        onClick={() => row && onToggle(row)}
+                      />
+                    );
+                    if (isAlternateMarket(market)) {
+                      // Ladder: one milestone button per line ("50+", "75+", "100+"), lowest first.
+                      const ladder = [...own].sort((a, b) => (a.point ?? 0) - (b.point ?? 0));
                       return (
-                        <OddsButton
-                          key={name}
-                          row={row}
-                          selected={row ? selected.has(row.id) : false}
-                          disabled={locked || !row || row.isStale}
-                          onClick={() => row && onToggle(row)}
-                        />
+                        <li key={player} className="py-1.5">
+                          <span className="block truncate text-sm font-medium" title={player}>
+                            {player}
+                          </span>
+                          <div className="mt-1 grid grid-cols-4 gap-1.5">{ladder.map((r) => button(r, String(r.id)))}</div>
+                        </li>
                       );
-                    })}
-                  </li>
-                );
-              })}
+                    }
+                    const sides = market === "player_anytime_td" ? ["Yes"] : ["Over", "Under"];
+                    return (
+                      <li
+                        key={player}
+                        className={cn(
+                          "grid items-center gap-1.5 py-1",
+                          sides.length === 1 ? "grid-cols-[1fr_4.25rem]" : "grid-cols-[1fr_4.25rem_4.25rem]",
+                        )}
+                      >
+                        <span className="truncate text-sm font-medium" title={player}>
+                          {player}
+                        </span>
+                        {sides.map((name) => button(own.find((r) => r.outcomeName === name), name))}
+                      </li>
+                    );
+                  })}
+                </Fragment>
+              ))}
             </ul>
           )}
         </div>
@@ -228,15 +260,18 @@ function OddsButton({
     );
   }
 
-  const overUnder = row.marketKey === "totals" || isPropMarket(row.marketKey);
+  const ladder = isAlternateMarket(row.marketKey) && row.point !== null;
+  const overUnder = !ladder && (row.marketKey === "totals" || isPropMarket(row.marketKey));
   const line =
     row.marketKey === "spreads"
       ? formatSpread(row.point)
-      : overUnder
-        ? row.point === null
-          ? null
-          : String(row.point)
-        : null;
+      : ladder
+        ? `${Math.ceil(row.point!)}+`
+        : overUnder
+          ? row.point === null
+            ? null
+            : String(row.point)
+          : null;
 
   return (
     <button

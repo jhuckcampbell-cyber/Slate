@@ -116,26 +116,41 @@ const PROP_LINES: Record<string, [number, number]> = {
   player_pass_yds: [205, 290],
   player_rush_yds: [35, 95],
   player_reception_yds: [35, 85],
+  player_pass_tds: [0, 2],
 };
 const FIRST = ["Marcus", "Devin", "Tyler", "Jalen", "Chris", "Andre", "Malik", "Derek", "Isaiah", "Caleb"];
 const LAST = ["Hayes", "Brooks", "Carter", "Ellis", "Grant", "Mitchell", "Porter", "Reed", "Sutton", "Wade"];
 
 /** Fake roster: stable made-up names per team and slot (never real players). */
-function fakePlayer(team: string, slot: number): string {
+export function fakePlayer(team: string, slot: number): string {
   const h = hash(`${team}#${slot}`);
   return `${FIRST[h % FIRST.length]} ${LAST[(h >>> 8) % LAST.length]}`;
 }
 
 function fakePropMarket(ev: FakeEventInput, key: string, drift: number, lastUpdate: string): ApiMarket {
-  const [lo, hi] = PROP_LINES[key] ?? [5, 20];
-  const perTeam = key === "player_pass_yds" ? 1 : 2; // one quarterback per team
+  const base = key.replace(/_alternate$/, "");
+  const [lo, hi] = PROP_LINES[base] ?? [5, 20];
+  const quarterbacks = base === "player_pass_yds" || base === "player_pass_tds";
+  const perTeam = quarterbacks ? 1 : key === "player_anytime_td" ? 3 : 2;
   const outcomes: ApiMarket["outcomes"] = [];
   for (const team of [ev.away_team, ev.home_team]) {
     for (let slot = 0; slot < perTeam; slot++) {
       const player = fakePlayer(team, slot);
-      const h = hash(`${ev.id}:${key}:${player}`);
-      const point = lo + (h % (hi - lo + 1)) + 0.5;
+      const h = hash(`${ev.id}:${base}:${player}`);
       const lean = (drift ^ h) % 3; // a little juice variety
+      if (key === "player_anytime_td") {
+        // Like the real API: one "Yes" price per player, no line.
+        outcomes.push({ name: "Yes", description: player, price: 110 + (h % 9) * 25 + lean * 5 });
+        continue;
+      }
+      const point = lo + (h % (hi - lo + 1)) + 0.5;
+      if (key !== base) {
+        // Like the real API: an Over-only ladder around the main line, longer odds as it climbs.
+        const step = Math.max(5, Math.round((hi - lo) / 4 / 5) * 5);
+        const ladder: [number, number][] = [[-2, -400], [-1, -190], [0, -110 - lean * 5], [1, 160], [2, 300]];
+        for (const [k, price] of ladder) outcomes.push({ name: "Over", description: player, price, point: point + k * step });
+        continue;
+      }
       const [over, under] = lean === 0 ? [-115, -105] : lean === 1 ? [-105, -115] : [-110, -110];
       outcomes.push(
         { name: "Over", description: player, price: over, point },

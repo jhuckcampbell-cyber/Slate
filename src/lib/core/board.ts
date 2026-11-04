@@ -20,6 +20,8 @@ export type BoardRow = {
   isStale: boolean;
   /** Direction of the last change, from the bettor's point of view (drives the flash). */
   movement: Movement;
+  /** Props: the team the player is on in this game (odds_board resolves it), null if unknown. */
+  participantTeam: string | null;
 };
 
 /** Row shape from the odds_board view (PostgREST types views as all-nullable). */
@@ -34,6 +36,7 @@ export type OddsBoardRecord = {
   updated_at: string | null;
   last_seen_at?: string | null;
   is_stale: boolean | null;
+  participant_team?: string | null;
 };
 
 export function toBoardRow(r: OddsBoardRecord): BoardRow {
@@ -49,6 +52,7 @@ export function toBoardRow(r: OddsBoardRecord): BoardRow {
     checkedAt: r.last_seen_at ?? null,
     isStale: r.is_stale ?? true,
     movement: null,
+    participantTeam: r.participant_team ?? null,
   };
 }
 
@@ -89,6 +93,10 @@ export function applyOddsChange(rows: readonly BoardRow[], change: OddsChange): 
     checkedAt: rec.updated_at, // a Realtime write means this market was just synced
     isStale: false,
     movement: null,
+    // Realtime rows don't carry the team: keep what the board already knows about this player.
+    participantTeam:
+      rows.find((r) => r.eventId === rec.event_id && r.participantName && r.participantName === rec.participant_name)
+        ?.participantTeam ?? null,
   };
 
   const i = rows.findIndex((r) => r.id === next.id);
@@ -137,4 +145,15 @@ export function indexBoard(rows: readonly BoardRow[]): Map<string, Map<string, B
     byEvent.set(r.eventId, markets);
   }
   return byEvent;
+}
+
+/**
+ * Realtime rows don't carry a player's team (odds_board resolves it on read). When props for a player
+ * the board has no team for arrive live, the caller should refetch the board (debounced).
+ */
+export function needsTeamRefetch(rows: readonly BoardRow[], change: OddsChange): boolean {
+  if (change.eventType !== "INSERT" || change.new.is_live || !change.new.participant_name) return false;
+  return !rows.some(
+    (r) => r.eventId === change.new.event_id && r.participantName === change.new.participant_name && r.participantTeam,
+  );
 }

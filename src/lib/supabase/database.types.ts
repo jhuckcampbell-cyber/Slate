@@ -68,6 +68,7 @@ export type Database = {
       };
       odds_cache: {
         Row: {
+          alt_point: number | null;
           bookmaker: string;
           event_id: string;
           id: number;
@@ -83,6 +84,7 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          alt_point?: never;
           bookmaker: string;
           event_id: string;
           id?: never;
@@ -97,6 +99,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          alt_point?: never;
           bookmaker?: string;
           event_id?: string;
           id?: never;
@@ -152,6 +155,28 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      player_teams: {
+        Row: {
+          name_key: string;
+          player_name: string;
+          sport_key: string;
+          team: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          name_key: string;
+          player_name: string;
+          sport_key: string;
+          team: string;
+        };
+        Update: {
+          name_key?: string;
+          player_name?: string;
+          sport_key?: string;
+          team?: string;
+        };
+        Relationships: [];
       };
       profiles: {
         Row: {
@@ -599,6 +624,7 @@ export type Database = {
           market_key: string;
           outcome_name: string;
           participant_name: string;
+          participant_team: string | null;
           point: number | null;
           price_american: number;
           price_decimal: number | null;
@@ -790,6 +816,8 @@ export type Database = {
           isSetofReturn: true;
         };
       };
+      rosters_due: { Args: { p_sport_key: string }; Returns: boolean };
+      rosters_ingest: { Args: { p_players: Json; p_sport_key: string }; Returns: Json };
       scores_ingest: {
         Args: { p_fetched_at: string; p_scores: Json; p_sport_key: string };
         Returns: Json;

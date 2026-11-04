@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { applyOddsChange, toBoardRow, type BoardRow, type OddsChange } from "@/lib/core/board";
+import { applyOddsChange, needsTeamRefetch, toBoardRow, type BoardRow, type OddsChange } from "@/lib/core/board";
 import { createClient } from "@/lib/supabase/client";
 import { queryKeys } from "./keys";
 import { BOARD_COLUMNS } from "./selects";
@@ -36,19 +36,26 @@ export function useBoard(tournamentId: string, eventIds: readonly string[], init
     if (!eventFilter) return;
     const supabase = createClient();
     const key = queryKeys.board(tournamentId);
+    let teamRefetch: ReturnType<typeof setTimeout> | undefined;
     const channel = supabase
       .channel(`odds:${tournamentId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "odds_cache", filter: `event_id=in.(${eventFilter})` },
         (payload) => {
-          queryClient.setQueryData<BoardRow[]>(key, (rows) =>
-            rows ? applyOddsChange(rows, payload as unknown as OddsChange) : rows,
-          );
+          const change = payload as unknown as OddsChange;
+          const before = queryClient.getQueryData<BoardRow[]>(key);
+          queryClient.setQueryData<BoardRow[]>(key, (rows) => (rows ? applyOddsChange(rows, change) : rows));
+          // New props for a player whose team we don't know: refetch once the burst settles (the view knows).
+          if (before && needsTeamRefetch(before, change)) {
+            clearTimeout(teamRefetch);
+            teamRefetch = setTimeout(() => void queryClient.invalidateQueries({ queryKey: key }), 1500);
+          }
         },
       )
       .subscribe();
     return () => {
+      clearTimeout(teamRefetch);
       void supabase.removeChannel(channel);
     };
   }, [tournamentId, eventFilter, queryClient]);

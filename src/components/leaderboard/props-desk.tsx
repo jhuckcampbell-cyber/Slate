@@ -11,6 +11,11 @@ import { MARKET_LABELS } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 
 export type PropLine = { eventId: string; marketKey: string; player: string; matchup: string };
+
+/** What the host types in: anytime TD is graded on touchdowns scored (1+ wins). */
+function statName(marketKey: string) {
+  return marketKey === "player_anytime_td" ? "Touchdowns scored" : (MARKET_LABELS[marketKey] ?? marketKey);
+}
 export type PropResult = PropLine & { stat: number };
 
 /**
@@ -80,7 +85,7 @@ function LineLabel({ line }: { line: PropLine }) {
   return (
     <span className="min-w-0">
       <span className="font-medium">{line.player}</span>
-      <span className="text-muted-foreground"> · {MARKET_LABELS[line.marketKey] ?? line.marketKey}</span>
+      <span className="text-muted-foreground"> · {statName(line.marketKey)}</span>
       <span className="block text-xs text-muted-foreground">{line.matchup}</span>
     </span>
   );
@@ -89,7 +94,7 @@ function LineLabel({ line }: { line: PropLine }) {
 function GradeRow({ tournamentId, line }: { tournamentId: string; line: PropLine }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
-  const label = `${line.player} ${MARKET_LABELS[line.marketKey] ?? line.marketKey}`;
+  const label = `${line.player} ${statName(line.marketKey)}`;
 
   async function submit(form: FormData) {
     const raw = String(form.get("stat") ?? "").trim();

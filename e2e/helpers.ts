@@ -8,10 +8,11 @@ export const admin = createClient(SUPABASE_URL, process.env.SUPABASE_SECRET_KEY!
 });
 
 /** Host flow: pick the first `games` games, create, land in the lobby. Returns the invite code. */
-export async function createTournament(page: Page, games: number, hostName = "Hank") {
+export async function createTournament(page: Page, games: number, hostName = "Hank", onlyTeam?: string) {
   await page.goto("/create");
   await page.waitForLoadState("networkidle");
-  const cards = page.getByRole("button").filter({ hasText: "@" });
+  // onlyTeam: pick that team's game instead of trusting it to be the earliest card (seed games move).
+  const cards = page.getByRole("button").filter({ hasText: onlyTeam ?? "@" });
   for (let i = 0; i < games; i++) {
     await cards.nth(i).click();
     await expect(page.getByRole("button", { name: new RegExp(`Continue with ${i + 1} game`) })).toBeVisible();

@@ -26,7 +26,7 @@ test.afterAll(async () => {
 test("live scores move the leaderboard, a final grades bets and crowns a winner", async ({ browser }) => {
   test.setTimeout(180_000);
 
-  // The earliest upcoming game, so it's the create wizard's first card.
+  // Picked by team name in the create wizard (other upcoming games may start sooner).
   const { error } = await admin.from("events").insert({
     id: eventId,
     sport_key: "basketball_nba",
@@ -38,7 +38,7 @@ test("live scores move the leaderboard, a final grades bets and crowns a winner"
   expect(error).toBeNull();
 
   const host = await newPage(browser);
-  const code = await createTournament(host, 1);
+  const code = await createTournament(host, 1, "Hank", AWAY);
   await waitForOdds(host);
   const gina = await newPage(browser);
   await joinAs(gina, code, "Gina");

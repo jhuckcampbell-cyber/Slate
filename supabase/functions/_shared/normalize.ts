@@ -80,7 +80,7 @@ function pickBook(
     : books;
   for (const book of ordered) {
     const found = book.markets.find((m) => m.key === marketKey);
-    const market = found && isPropMarket(marketKey) ? completePropPairs(found) : found;
+    const market = found && isPropMarket(marketKey) ? cleanProp(marketKey, found) : found;
     if (market && isUsableMarket(marketKey, market)) return { book: book.key, market };
   }
   return null;
@@ -90,8 +90,35 @@ function isPropMarket(marketKey: string): boolean {
   return marketKey.startsWith("player_");
 }
 
-/** Props: keep only players priced on BOTH sides at the SAME line (a lone side can't be graded fairly). */
-function completePropPairs(market: ApiMarket): ApiMarket {
+/** Alternate ladders ("…_alternate"): an Over-only list of lines per player, one row per line. */
+export function isAlternateMarket(marketKey: string): boolean {
+  return marketKey.endsWith("_alternate");
+}
+
+/** One-sided "Yes" props with no line (anytime TD scorer). */
+export function isYesMarket(marketKey: string): boolean {
+  return marketKey === "player_anytime_td";
+}
+
+/** Props, by shape:
+ * - over/under: keep only players priced on BOTH sides at the SAME line (a lone side can't be graded fairly);
+ * - alternates: keep each Over line once per player (the book never offers the Under);
+ * - yes props: keep the "Yes" prices (there is no line).
+ */
+function cleanProp(marketKey: string, market: ApiMarket): ApiMarket {
+  if (isYesMarket(marketKey)) {
+    return { ...market, outcomes: market.outcomes.filter((o) => o.name === "Yes" && o.point === undefined) };
+  }
+  if (isAlternateMarket(marketKey)) {
+    const seen = new Set<string>();
+    const outcomes = market.outcomes.filter((o) => {
+      const key = `${o.description ?? ""}|${o.point}`;
+      if (o.name !== "Over" || !Number.isFinite(o.point) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return { ...market, outcomes };
+  }
   const byPlayer = new Map<string, ApiMarket["outcomes"]>();
   for (const o of market.outcomes) {
     const key = o.description ?? "";
@@ -106,13 +133,17 @@ function completePropPairs(market: ApiMarket): ApiMarket {
 }
 
 export function isUsableMarket(marketKey: string, market: ApiMarket): boolean {
-  if (market.outcomes.length < 2) return false;
+  const oneSided = isAlternateMarket(marketKey) || isYesMarket(marketKey);
+  if (market.outcomes.length < (oneSided ? 1 : 2)) return false;
   const names = new Set<string>();
   for (const o of market.outcomes) {
-    if (!o.name || names.has(`${o.name}|${o.description ?? ""}`)) return false;
-    names.add(`${o.name}|${o.description ?? ""}`);
+    // Alternates repeat (Over, player) once per line, so the line is part of the identity.
+    const id = `${o.name}|${o.description ?? ""}${isAlternateMarket(marketKey) ? `|${o.point}` : ""}`;
+    if (!o.name || names.has(id)) return false;
+    names.add(id);
     if (!Number.isInteger(o.price) || Math.abs(o.price) < 100) return false;
-    if ((LINE_MARKETS.has(marketKey) || isPropMarket(marketKey)) && !Number.isFinite(o.point)) return false;
+    const needsLine = LINE_MARKETS.has(marketKey) || (isPropMarket(marketKey) && !isYesMarket(marketKey));
+    if (needsLine && !Number.isFinite(o.point)) return false;
   }
   return true;
 }

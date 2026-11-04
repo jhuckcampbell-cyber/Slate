@@ -621,3 +621,18 @@ Migration 0010 (`player_props`).
   (standalone) or dismissed (localStorage `squadbets:install-dismissed`). Decision logic is pure:
   `src/lib/install.ts` (unit-tested). e2e: `e2e/install.spec.ts`.
 - No service worker / offline yet: odds and picks must be live, so offline adds little for v1.
+
+## Implementation notes: as built (football alternates, touchdowns, player teams, 2026-11-05)
+- Catalog (migration 0011): NFL/NCAAF props add `player_{pass,rush,reception}_yds_alternate`, `player_pass_tds`,
+  `player_anytime_td`. Shapes verified against a real TNF response: alternates are an Over-only ladder (many lines
+  per player); anytime TD is one "Yes" price per player, no line (includes "Team D/ST").
+- odds_cache key now includes `alt_point` (= point for `_alternate` markets only): ladders get one row per line,
+  main markets stay one row per side (a moved line replaces the old price). Ladder lines the book drops are deleted
+  on that market's next sync (wager_legs.odds_id → null; bets keep their own copy).
+- Grading: one stat per (player, stat): `grade_prop` maps `_alternate` → main market, grades both, stores the main
+  key. "Yes" hits when stat (touchdowns) ≥ 1. One-sided props' chance = their own implied price (no pair to de-vig).
+- Player teams (migration 0012): the Odds API has no player→team, so odds-sync stores NFL rosters from Sleeper's
+  public player list (`_shared/rosters.ts`, once/day via `rosters_due`, only during props syncs, 0 credits) in
+  `public.player_teams`; `odds_board.participant_team` resolves each player to the home/away team OF THAT GAME
+  (`private.name_key` ignores case/punctuation/Jr.), NULL if neither — never a guess. Board groups props by team.
+  **Sleeper's API is free for NON-COMMERCIAL use only: swap in a licensed roster feed before monetizing.**

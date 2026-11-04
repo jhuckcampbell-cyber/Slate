@@ -18,6 +18,7 @@ import { normalizeOddsResponse } from "../_shared/normalize.ts";
 import type { ApiEvent } from "../_shared/odds-api.ts";
 import { oddsCallCost, usageFromHeaders, type Usage as HeaderUsage } from "../_shared/budget.ts";
 import { fakeScoresResponse, normalizeScores, SCORES_CALL_COST, type ApiScoreEvent } from "../_shared/scores.ts";
+import { SLEEPER_NFL_PLAYERS_URL, sleeperToRoster } from "../_shared/rosters.ts";
 
 type Job =
   | { kind: "odds"; sport_key: string; markets: string[]; event_ids: string[] }
@@ -162,7 +163,29 @@ async function runPropsJob(
     p_usage: null,
   });
   if (error) throw new Error(`props ingest failed: ${error.message}`);
-  return { kind: job.kind, sport_key: job.sport_key, event_id: job.event_id, skipped_markets: n.skippedMarkets, ...data };
+  const rosters = provider === "fake" ? null : await syncRosters(supabase, job.sport_key);
+  return { kind: job.kind, sport_key: job.sport_key, event_id: job.event_id, skipped_markets: n.skippedMarkets, rosters, ...data };
+}
+
+/**
+ * Which team each prop player is on (the Odds API doesn't say). Sleeper's free player list, at most once
+ * a day per sport (rosters_due), only while props are being synced. Costs no Odds API credits. Never fails
+ * the props job: a missing roster just means the board can't label teams.
+ */
+async function syncRosters(supabase: SupabaseClient, sportKey: string) {
+  if (!sportKey.startsWith("americanfootball_nfl")) return null;
+  try {
+    const { data: due, error } = await supabase.rpc("rosters_due", { p_sport_key: sportKey });
+    if (error || !due) return null;
+    const res = await fetch(SLEEPER_NFL_PLAYERS_URL, { signal: AbortSignal.timeout(20_000) });
+    if (!res.ok) return { error: `sleeper ${res.status}` };
+    const players = sleeperToRoster(await res.json());
+    if (players.length < 500) return { error: `sleeper roster too small (${players.length})` }; // don't wipe on a bad reply
+    const { data, error: ingestError } = await supabase.rpc("rosters_ingest", { p_sport_key: sportKey, p_players: players });
+    return ingestError ? { error: ingestError.message } : data;
+  } catch (e) {
+    return { error: String(e) };
+  }
 }
 
 async function runJob(

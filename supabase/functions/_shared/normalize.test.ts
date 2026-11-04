@@ -233,6 +233,57 @@ describe("player props", () => {
     expect(n.markets).toHaveLength(1);
   });
 
+  // Shapes below are copied from a real Odds API response (TNF, 2026-11-04): alternates are an
+  // Over-only ladder per player; anytime TD is one "Yes" price per player with no line.
+  const nfl = (key: string, outcomes: ApiEvent["bookmakers"] extends (infer B)[] | undefined ? B extends { markets: (infer M)[] } ? M extends { outcomes: infer O } ? O : never : never : never): ApiEvent => ({
+    id: "tnf",
+    sport_key: "americanfootball_nfl",
+    commence_time: "2026-11-06T01:15:00Z",
+    home_team: "Baltimore Ravens",
+    away_team: "Jacksonville Jaguars",
+    bookmakers: [{ key: "draftkings", title: "DK", markets: [{ key, outcomes }] }],
+  });
+
+  it("keeps an alternate ladder: several Over lines per player, no Under needed", () => {
+    const n = normalizeOddsResponse(
+      [
+        nfl("player_rush_yds_alternate", [
+          { name: "Over", description: "Derrick Henry", price: -1840, point: 29.5 },
+          { name: "Over", description: "Derrick Henry", price: -321, point: 49.5 },
+          { name: "Over", description: "Derrick Henry", price: 250, point: 99.5 },
+          { name: "Over", description: "Travis Etienne", price: 114, point: 64.5 },
+          { name: "Over", description: "Travis Etienne", price: 400, point: 64.5 }, // same line twice: dropped
+          { name: "Over", description: "Travis Etienne", price: 300 }, // no line: dropped
+        ]),
+      ],
+      { markets: ["player_rush_yds_alternate"], bookmakers: ["draftkings"] },
+    );
+    expect(n.outcomes.map((o) => `${o.participant_name} ${o.outcome_name} ${o.point} ${o.price_american}`)).toEqual([
+      "Derrick Henry Over 29.5 -1840",
+      "Derrick Henry Over 49.5 -321",
+      "Derrick Henry Over 99.5 250",
+      "Travis Etienne Over 64.5 114",
+    ]);
+    expect(n.markets).toHaveLength(1);
+  });
+
+  it("keeps anytime-TD Yes prices without a line", () => {
+    const n = normalizeOddsResponse(
+      [
+        nfl("player_anytime_td", [
+          { name: "Yes", description: "Derrick Henry", price: 120 },
+          { name: "Yes", description: "Baltimore Ravens D/ST", price: 600 },
+          { name: "No", description: "Derrick Henry", price: -160 }, // only Yes is offered
+        ]),
+      ],
+      { markets: ["player_anytime_td"], bookmakers: ["draftkings"] },
+    );
+    expect(n.outcomes.map((o) => `${o.participant_name} ${o.outcome_name} ${o.point}`)).toEqual([
+      "Derrick Henry Yes null",
+      "Baltimore Ravens D/ST Yes null",
+    ]);
+  });
+
   it("a prop without a line is unusable", () => {
     const n = normalizeOddsResponse(
       [
@@ -271,5 +322,19 @@ describe("fake props", () => {
 
   it("is deterministic", () => {
     expect(props()).toEqual(props());
+  });
+
+  it("prices football alternates, pass TDs and anytime TD the way the real API does", () => {
+    const markets = ["player_pass_yds_alternate", "player_rush_yds_alternate", "player_reception_yds_alternate", "player_pass_tds", "player_anytime_td"];
+    const nfl = { ...event, id: "seed-nfl-1", sport_key: "americanfootball_nfl", home_team: "Kansas City Chiefs", away_team: "Buffalo Bills" };
+    const n = normalizeOddsResponse(fakeOddsResponse([nfl], markets, { nowMs: 0 }), { markets, bookmakers: [] });
+    expect(new Set(n.markets.map((m) => m.market_key))).toEqual(new Set(markets));
+    const ladder = n.outcomes.filter((o) => o.market_key === "player_rush_yds_alternate");
+    expect(ladder.every((o) => o.outcome_name === "Over")).toBe(true);
+    expect(ladder.length).toBeGreaterThan(new Set(ladder.map((o) => o.participant_name)).size); // several lines each
+    const td = n.outcomes.filter((o) => o.market_key === "player_anytime_td");
+    expect(td.length).toBeGreaterThanOrEqual(4);
+    expect(td.every((o) => o.outcome_name === "Yes" && o.point === null)).toBe(true);
+    expect(n.outcomes.filter((o) => o.market_key === "player_pass_tds").length % 2).toBe(0);
   });
 });

@@ -33,5 +33,21 @@ describe("prop labels", () => {
   it("market labels for the board", () => {
     expect(MARKET_LABELS.player_points).toBe("Points");
     expect(MARKET_LABELS.player_pass_yds).toBe("Passing yards");
+    expect(MARKET_LABELS.player_rush_yds_alternate).toBe("Alt rushing yards");
+    expect(MARKET_LABELS.player_pass_tds).toBe("Passing TDs");
+    expect(MARKET_LABELS.player_anytime_td).toBe("Anytime TD");
+  });
+  it("an alternate line reads as a milestone (Over 99.5 = 100+)", () => {
+    expect(
+      selectionLabel({ marketKey: "player_rush_yds_alternate", outcomeName: "Over", point: 99.5, participantName: "Derrick Henry" }),
+    ).toBe("Derrick Henry 100+ Rush Yds");
+  });
+  it("anytime TD and passing TDs", () => {
+    expect(
+      selectionLabel({ marketKey: "player_anytime_td", outcomeName: "Yes", point: null, participantName: "Derrick Henry" }),
+    ).toBe("Derrick Henry Anytime TD");
+    expect(
+      selectionLabel({ marketKey: "player_pass_tds", outcomeName: "Over", point: 1.5, participantName: "Trevor Lawrence" }),
+    ).toBe("Trevor Lawrence Over 1.5 Pass TDs");
   });
 });

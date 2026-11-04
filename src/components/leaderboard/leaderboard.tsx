@@ -1,5 +1,7 @@
-import { Trophy } from "lucide-react";
+import Link from "next/link";
+import { RotateCcw, Trophy } from "lucide-react";
 import { Eyebrow } from "@/components/brand";
+import { buttonVariants } from "@/components/ui/button";
 import { formatCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -97,6 +99,12 @@ export function Leaderboard({ rows, settled }: { rows: LeaderRow[]; settled: boo
           );
         })}
       </ol>
+
+      {settled && (
+        <Link href="/create" className={cn(buttonVariants(), "mt-4 h-14 w-full text-base font-semibold")}>
+          <RotateCcw /> Run it back
+        </Link>
+      )}
     </section>
   );
 }

@@ -577,3 +577,12 @@ Migration 0008 (`grading`).
 - Stat corrections after a final are ignored.
 - "Live" before the cron flips the status shows the tournament status as "Locked" for up to 10s.
 - Wall-clock game length is a rough proxy for game time; the scores endpoint doesn't give the clock.
+
+## Beta prep (2026-11-04, while the beta itself waits on deploy + keys)
+- **Metric.** `public.beta_metrics()` (service role; `npm run metrics`) measures the feasibility test: **repeat rate**, the share of finished tournaments where 2+ of the same players appear in a tournament created after its lock. It also reports created and finished tournaments, distinct players, average players per tournament, and wagers. `07_beta_metrics.test.sql` covers it; lowering the threshold to 1 shared player fails the test.
+- **Nudge.** The final standings end with a "Run it back" CTA (→ `/create`), the screen's one volt button.
+- **Still blocked on the user:**
+  - Vercel project and public URL;
+  - Twilio (SMS OTP) and Turnstile keys;
+  - prod Supabase plus `supabase secrets set` for odds;
+  - 3–5 real friend groups.

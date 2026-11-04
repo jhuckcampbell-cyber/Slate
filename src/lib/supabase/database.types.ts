@@ -564,6 +564,7 @@ export type Database = {
       };
     };
     Functions: {
+      beta_metrics: { Args: Record<PropertyKey, never>; Returns: Json };
       cancel_wager: { Args: { p_wager_id: string }; Returns: undefined };
       create_tournament: {
         Args: {

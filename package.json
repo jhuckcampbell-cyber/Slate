@@ -15,7 +15,8 @@
     "e2e": "playwright test",
     "db:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts && prettier --write src/lib/supabase/database.types.ts",
     "test:integration": "vitest run --config vitest.integration.config.mts",
-    "odds": "node --env-file=.env.local scripts/odds.mjs"
+    "odds": "node --env-file=.env.local scripts/odds.mjs",
+    "metrics": "node --env-file=.env.local scripts/metrics.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

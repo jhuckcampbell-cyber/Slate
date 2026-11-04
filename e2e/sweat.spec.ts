@@ -86,6 +86,8 @@ test("live scores move the leaderboard, a final grades bets and crowns a winner"
     await gina.screenshot({ path: `${SHOTS}/15-final-standings.png`, fullPage: true });
   }
 
+  await expect(gina.getByRole("link", { name: "Run it back" })).toHaveAttribute("href", "/create");
+
   await host.reload();
   await expect(host.getByText("Gina wins")).toBeVisible();
   await expect(host.getByRole("listitem", { name: /^2\. Hank/ })).toContainText("$90");

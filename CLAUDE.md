@@ -25,6 +25,8 @@ npm run e2e                  # playwright vs a PRODUCTION build it starts itself
                              # Supabase + seed + functions serve; one-time: npx playwright install webkit)
 npx supabase functions serve --env-file supabase/functions/.env   # odds-sync (fake provider) for local dev
 npm run lint && npm run typecheck   # typecheck runs `next typegen` first (PageProps/LayoutProps)
+npm run odds -- status|dry-run|sync|enable|disable   # Odds API budget (never prints the key)
+npm run metrics              # beta numbers: repeat rate (groups that play again)
 
 Windows dev box: Docker Desktop must be running before `npx supabase start`. Stopping a
 background `npm run start` leaves `next start` orphaned on :3000 (and it may not appear in

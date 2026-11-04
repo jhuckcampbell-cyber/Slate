@@ -60,11 +60,15 @@ create function pg_temp.cash(p_name text, p_tid uuid default null) returns bigin
   join public.profiles pr on pr.id = p.user_id
   where pr.display_name = p_name and p.tournament_id = coalesce(p_tid, (select id from t1));
 $$;
-create function pg_temp.wager_of(p_name text, p_amount bigint) returns public.wagers language sql as $$
+-- Wagers placed in one transaction share created_at, so same-stake bets are told apart by pick.
+create function pg_temp.wager_of(p_name text, p_amount bigint, p_selection text default null)
+returns public.wagers language sql as $$
   select w.* from public.wagers w
   join public.tournament_participants p on p.id = w.participant_id
   join public.profiles pr on pr.id = p.user_id
   where pr.display_name = p_name and w.amount_cents = p_amount and w.tournament_id = (select id from t1)
+    and (p_selection is null
+         or exists (select 1 from public.wager_legs l where l.wager_id = w.id and l.selection = p_selection))
   order by w.created_at limit 1;
 $$;
 
@@ -141,13 +145,13 @@ select is((pg_temp.wager_of('Ben', 1000)).status::text, 'pending', 'a parlay wit
 select is(public.current_payout(pg_temp.wager_of('Ben', 1000)), 5154::bigint,
   'the pushed leg drops out of the price: floor(1000 × round(1.9091 × 2.7, 4))');
 
-select is((pg_temp.wager_of('Cy', 5000)).status::text, 'pending', 'Cy''s PHI -5.5 is still live');
+select is((pg_temp.wager_of('Cy', 5000, 'Philadelphia Eagles')).status::text, 'pending', 'Cy''s PHI -5.5 is still live');
 select is((select w.status::text from public.wagers w join public.wager_legs l on l.wager_id = w.id
            where l.selection = 'Green Bay Packers' and w.tournament_id = (select id from t1)), 'lost', 'GB ML loses');
 
 select is(round(public.live_probability(pg_temp.wager_of('Ben', 1000))::numeric, 4), 0.6719,
   'halftime, DAL up 7, PHI -5.5 line: P(DAL wins) = Φ(4.25 / 9.546)');
-select is(round(public.live_probability(pg_temp.wager_of('Cy', 5000))::numeric, 4), 0.1535,
+select is(round(public.live_probability(pg_temp.wager_of('Cy', 5000, 'Philadelphia Eagles'))::numeric, 4), 0.1535,
   'P(PHI covers -5.5) = Φ(-9.75 / 9.546)');
 select is((select round(public.live_probability(l)::numeric, 4) from public.wager_legs l where l.wager_id = (pg_temp.wager_of('Ben', 1000)).id
            and l.selection = 'Buffalo Bills'), 1.0000, 'a hit leg counts as certain');

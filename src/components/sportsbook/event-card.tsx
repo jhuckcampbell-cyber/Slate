@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalTime } from "@/components/local-time";
 import { ChevronDown, Clock } from "lucide-react";
 import { useState } from "react";
 import { isPropMarket } from "@/lib/core/props";
@@ -9,7 +10,6 @@ import {
   MARKET_LABELS,
   formatAmerican,
   formatCheckedAgo,
-  formatKickoff,
   formatSpread,
   selectionLabel,
   shortTeam,
@@ -61,7 +61,7 @@ export function EventCard({ event, markets, allowedMarkets, locked, selected, on
       <header className={cn("mb-1 grid items-end gap-1.5 text-[11px] text-muted-foreground", grid)}>
         <span className="flex items-center gap-1">
           <Clock className="size-3" />
-          {formatKickoff(event.commence_time)}
+          <LocalTime iso={event.commence_time} />
         </span>
         {columns.map((m) => (
           <span key={m} className="text-center">

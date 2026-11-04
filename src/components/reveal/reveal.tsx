@@ -12,7 +12,8 @@ import {
   type ConsensusSide,
   type GameConsensus,
 } from "@/lib/core/consensus";
-import { MARKET_LABELS, formatAmerican, formatCents, formatKickoff, selectionLabel, shortTeam } from "@/lib/format";
+import { MARKET_LABELS, formatAmerican, formatCents, selectionLabel, shortTeam } from "@/lib/format";
+import { LocalTime } from "@/components/local-time";
 import type { LegOutcome, RevealedWager } from "@/lib/queries/selects";
 import { formatChance, scoreLine, wagerOutcome, type Tone } from "@/lib/sweat";
 import { cn } from "@/lib/utils";
@@ -195,7 +196,7 @@ function GameCard({
     <article aria-label={matchup} className={cn("rounded-2xl bg-card p-4 ring-1 ring-border", anim.className)} style={anim.style}>
       <header className="flex items-baseline justify-between gap-2">
         <h3 className="font-display text-xl leading-none font-bold uppercase">{matchup}</h3>
-        {event && !score && <span className="text-xs text-muted-foreground">{formatKickoff(event.commence_time)}</span>}
+        {event && !score && <span className="text-xs text-muted-foreground"><LocalTime iso={event.commence_time} /></span>}
         {score && <StatePill state={score.state} />}
       </header>
       {score && <p className="num mt-1 text-2xl font-bold">{score.text}</p>}

@@ -7,7 +7,8 @@ import { EyeOff, Users, Wallet } from "lucide-react";
 import { AppBar, DisplayTitle, Eyebrow } from "@/components/brand";
 import { LockCountdown } from "@/components/tournament/lock-countdown";
 import { normalizeCode } from "@/lib/core/codes";
-import { formatCents, formatKickoff, sportEmoji, sportLabel } from "@/lib/format";
+import { formatCents, sportEmoji, sportLabel } from "@/lib/format";
+import { LocalTime } from "@/components/local-time";
 import { createClient } from "@/lib/supabase/server";
 import { getTournamentPreview } from "@/lib/supabase/public";
 import { getViewer } from "@/lib/supabase/queries";
@@ -80,7 +81,7 @@ async function Join({ params, searchParams }: PageProps<"/join/[code]">) {
               <span className="block truncate text-muted-foreground">@ {e.home_team}</span>
             </span>
             <span className="shrink-0 rounded-lg bg-surface-2 px-2.5 py-1 text-xs font-medium">
-              {formatKickoff(e.commence_time)}
+              <LocalTime iso={e.commence_time} />
             </span>
           </li>
         ))}

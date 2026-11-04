@@ -23,7 +23,8 @@ import { normalizeCode } from "@/lib/core/codes";
 import { propLinesToGrade, propMarkets, tournamentMarkets } from "@/lib/core/props";
 import type { Rules } from "@/lib/core/slip";
 import { publicEnv } from "@/lib/env";
-import { MARKET_LABELS, formatCents, formatKickoff, shortTeam, sportEmoji, sportLabel } from "@/lib/format";
+import { MARKET_LABELS, formatCents, shortTeam, sportEmoji, sportLabel } from "@/lib/format";
+import { LocalTime } from "@/components/local-time";
 import {
   BOARD_COLUMNS,
   REVEAL_WAGER_SELECT,
@@ -231,7 +232,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
         {!isLocked && (
           <p className="mt-3 flex gap-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
             <EyeOff className="mt-0.5 size-4 shrink-0" />
-            Picks stay hidden from everyone until {formatKickoff(t.lock_time)}, then they&apos;re all revealed at once.
+            Picks stay hidden from everyone until <LocalTime iso={t.lock_time} />, then they&apos;re all revealed at once.
           </p>
         )}
       </section>

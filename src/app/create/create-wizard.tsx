@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ensureSession } from "@/lib/auth/ensure-session";
 import { codePrefix } from "@/lib/core/codes";
+import { propMarkets } from "@/lib/core/props";
 import { friendlyError } from "@/lib/errors";
 import {
   dollarsToCents,
@@ -50,7 +51,9 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
   const [maxBet, setMaxBet] = useState("");
   const [markets, setMarkets] = useState<string[]>(MARKETS.map((m) => m.key));
   const [parlays, setParlays] = useState(true);
+  const [playerProps, setPlayerProps] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const propsAvailable = propMarkets(sport).length > 0;
 
   const sportEvents = events.filter((e) => e.sport_key === sport);
   const byDay = groupByDay(sportEvents);
@@ -88,7 +91,12 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
           p_code_prefix: codePrefix(finalTitle),
           p_starting_bankroll_cents: bankrollCents,
           p_max_bet_cents: maxBetCents ?? undefined,
-          p_allowed_bet_types: { markets, parlays, max_parlay_legs: 6, player_props: false },
+          p_allowed_bet_types: {
+            markets,
+            parlays,
+            max_parlay_legs: 6,
+            player_props: propsAvailable && playerProps,
+          },
         })
         .single();
       if (error) throw error;
@@ -276,6 +284,18 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
             </span>
             <Switch checked={parlays} onCheckedChange={setParlays} />
           </label>
+
+          {propsAvailable && (
+            <label className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border p-3">
+              <span>
+                <span className="block text-sm font-medium">Player props</span>
+                <span className="text-xs text-muted-foreground">
+                  Over/under on player stats. You enter the real stats after each game.
+                </span>
+              </span>
+              <Switch aria-label="Player props" checked={playerProps} onCheckedChange={setPlayerProps} />
+            </label>
+          )}
 
           {firstKickoff && (
             <p className="rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">

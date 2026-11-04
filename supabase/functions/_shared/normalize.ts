@@ -79,10 +79,30 @@ function pickBook(
     ? priority.flatMap((key) => books.filter((b) => b.key === key))
     : books;
   for (const book of ordered) {
-    const market = book.markets.find((m) => m.key === marketKey);
+    const found = book.markets.find((m) => m.key === marketKey);
+    const market = found && isPropMarket(marketKey) ? completePropPairs(found) : found;
     if (market && isUsableMarket(marketKey, market)) return { book: book.key, market };
   }
   return null;
+}
+
+function isPropMarket(marketKey: string): boolean {
+  return marketKey.startsWith("player_");
+}
+
+/** Props: keep only players priced on BOTH sides at the SAME line (a lone side can't be graded fairly). */
+function completePropPairs(market: ApiMarket): ApiMarket {
+  const byPlayer = new Map<string, ApiMarket["outcomes"]>();
+  for (const o of market.outcomes) {
+    const key = o.description ?? "";
+    byPlayer.set(key, [...(byPlayer.get(key) ?? []), o]);
+  }
+  const outcomes = [...byPlayer.values()].flatMap((os) => {
+    const over = os.find((o) => o.name === "Over");
+    const under = os.find((o) => o.name === "Under");
+    return os.length === 2 && over && under && over.point !== undefined && over.point === under.point ? [over, under] : [];
+  });
+  return { ...market, outcomes };
 }
 
 export function isUsableMarket(marketKey: string, market: ApiMarket): boolean {
@@ -92,7 +112,7 @@ export function isUsableMarket(marketKey: string, market: ApiMarket): boolean {
     if (!o.name || names.has(`${o.name}|${o.description ?? ""}`)) return false;
     names.add(`${o.name}|${o.description ?? ""}`);
     if (!Number.isInteger(o.price) || Math.abs(o.price) < 100) return false;
-    if (LINE_MARKETS.has(marketKey) && !Number.isFinite(o.point)) return false;
+    if ((LINE_MARKETS.has(marketKey) || isPropMarket(marketKey)) && !Number.isFinite(o.point)) return false;
   }
   return true;
 }

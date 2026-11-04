@@ -107,7 +107,7 @@ supabase/tests/              pgTAP: every RLS policy and RPC has tests
    co-participant cannot read it before lock_time.
 2. Clients never write wagers/participants directly. All mutations go through RPCs
    (create_tournament, join_tournament, place_wagers, cancel_wager, replace_wager, update_tournament,
-   lock_tournament_now, remove_participant). Players have
+   lock_tournament_now, remove_participant, grade_prop). Players have
    no INSERT/UPDATE/DELETE grants on those tables at all.
 3. Never trust client odds or amounts: place_wagers re-reads odds_cache server-side and rejects
    with ODDS_CHANGED (new prices in `details`) on any move; the slip shows "Accept new odds".
@@ -128,7 +128,8 @@ supabase/tests/              pgTAP: every RLS policy and RPC has tests
 
 ## v1 product defaults
 - Tournament-wide lock_time (defaults to earliest kickoff). Per-game locks are v2.
-- Player props are graded manually by the host in v1 (Odds API has no player stats).
+- Player props are opt-in per tournament and graded by the HOST entering each stat once (grade_prop; results are
+  public in prop_results; ungraded props refund 48h after kickoff). Odds API has no player stats.
 - One leg per event in a parlay (keeps win-probability independence assumption valid).
 - Min stake $1; parlay payout capped at 1000-to-1 (decimal 1001); money columns are bigint cents.
 - Unwagered bankroll counts toward final score; host may set min_total_wager.

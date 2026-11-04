@@ -22,6 +22,7 @@ import { fakeScoresResponse, normalizeScores, SCORES_CALL_COST, type ApiScoreEve
 type Job =
   | { kind: "odds"; sport_key: string; markets: string[]; event_ids: string[] }
   | { kind: "scores"; sport_key: string; event_ids: string[] }
+  | { kind: "props"; sport_key: string; event_id: string; markets: string[] }
   | { kind: "catalog"; sport_key: string };
 
 type Usage = { endpoint: string; credits_used: number | null; credits_remaining: number | null };
@@ -67,6 +68,14 @@ Deno.serve(async (req) => {
       const plan = (claim.jobs as Job[]).map((job) =>
         job.kind === "catalog"
           ? { kind: job.kind, sport_key: job.sport_key, endpoint: `/sports/${job.sport_key}/events`, cost: 0 }
+          : job.kind === "props"
+          ? {
+              kind: job.kind,
+              sport_key: job.sport_key,
+              endpoint: `/sports/${job.sport_key}/events/${job.event_id}/odds`,
+              markets: job.markets,
+              cost: provider === "fake" ? 0 : oddsCallCost(job.markets, bookmakers),
+            }
           : job.kind === "scores"
           ? {
               kind: job.kind,
@@ -97,6 +106,8 @@ Deno.serve(async (req) => {
         results.push(
           job.kind === "scores"
             ? await runScoresJob(supabase, job, provider)
+            : job.kind === "props"
+            ? await runPropsJob(supabase, job, provider, bookmakers)
             : await runJob(supabase, job, provider, bookmakers),
         );
       } catch (e) {
@@ -112,9 +123,51 @@ Deno.serve(async (req) => {
   return json({ provider, breaker_factor: claim.breaker_factor, results });
 });
 
+/** Player props: one game per call on the per-event endpoint (cost = prop markets × regions). */
+async function runPropsJob(
+  supabase: SupabaseClient,
+  job: Extract<Job, { kind: "props" }>,
+  provider: "fake" | "the-odds-api",
+  bookmakers: string[],
+) {
+  const fetchedAt = new Date().toISOString();
+  let apiEvents: ApiEvent[];
+  if (provider === "fake") {
+    const { data, error } = await supabase
+      .from("events")
+      .select("id, sport_key, sport_title, home_team, away_team, commence_time")
+      .eq("id", job.event_id);
+    if (error) throw error;
+    apiEvents = fakeOddsResponse(data ?? [], job.markets, { nowMs: Date.now(), bookmaker: bookmakers[0] });
+  } else {
+    const res = await paidCall<ApiEvent>(supabase, job.sport_key,
+      `/sports/${job.sport_key}/events/${job.event_id}/odds`, oddsCallCost(job.markets, bookmakers), {
+        markets: job.markets.join(","),
+        oddsFormat: "american",
+        dateFormat: "iso",
+        bookmakers: bookmakers.join(","),
+      });
+    if ("blocked" in res) return { kind: job.kind, sport_key: job.sport_key, event_id: job.event_id, ...res };
+    apiEvents = [res.body];
+  }
+
+  const n = normalizeOddsResponse(apiEvents, { markets: job.markets, bookmakers });
+  const { data, error } = await supabase.rpc("odds_sync_ingest", {
+    p_kind: "props",
+    p_sport_key: job.sport_key,
+    p_fetched_at: fetchedAt,
+    p_events: n.events,
+    p_outcomes: n.outcomes,
+    p_markets: n.markets,
+    p_usage: null,
+  });
+  if (error) throw new Error(`props ingest failed: ${error.message}`);
+  return { kind: job.kind, sport_key: job.sport_key, event_id: job.event_id, skipped_markets: n.skippedMarkets, ...data };
+}
+
 async function runJob(
   supabase: SupabaseClient,
-  job: Exclude<Job, { kind: "scores" }>,
+  job: Exclude<Job, { kind: "scores" | "props" }>,
   provider: "fake" | "the-odds-api",
   bookmakers: string[],
 ) {

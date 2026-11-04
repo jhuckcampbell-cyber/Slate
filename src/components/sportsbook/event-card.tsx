@@ -1,6 +1,8 @@
 "use client";
 
-import { Clock } from "lucide-react";
+import { ChevronDown, Clock } from "lucide-react";
+import { useState } from "react";
+import { isPropMarket } from "@/lib/core/props";
 import { oldestCheck, type BoardRow } from "@/lib/core/board";
 import { useServerNow } from "@/lib/hooks/use-server-now";
 import {
@@ -46,6 +48,7 @@ type Props = {
 /** Classic sportsbook card: away row over home row × Spread / Total / Moneyline. */
 export function EventCard({ event, markets, allowedMarkets, locked, selected, onToggle }: Props) {
   const columns = COLUMN_ORDER.filter((m) => allowedMarkets.includes(m));
+  const propKeys = allowedMarkets.filter(isPropMarket);
   const grid = GRID[columns.length] ?? GRID[3];
   const hasOdds = columns.some((m) => (markets?.get(m)?.length ?? 0) > 0);
   const sides = [
@@ -92,7 +95,104 @@ export function EventCard({ event, markets, allowedMarkets, locked, selected, on
       ) : (
         <p className="mt-1 text-center text-xs text-muted-foreground">Lines post shortly…</p>
       )}
+
+      {propKeys.length > 0 && (
+        <PropsPanel
+          event={event}
+          propKeys={propKeys}
+          markets={markets}
+          locked={locked}
+          selected={selected}
+          onToggle={onToggle}
+        />
+      )}
     </article>
+  );
+}
+
+/** Player props, folded away until asked for so the game lines stay scannable. */
+function PropsPanel({
+  event,
+  propKeys,
+  markets,
+  locked,
+  selected,
+  onToggle,
+}: {
+  event: SportsbookEvent;
+  propKeys: string[];
+  markets: Map<string, BoardRow[]> | undefined;
+  locked: boolean;
+  selected: ReadonlySet<number>;
+  onToggle: (row: BoardRow) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [market, setMarket] = useState(propKeys[0]!);
+  const rows = markets?.get(market) ?? [];
+  const players = [...new Set(rows.map((r) => r.participantName))];
+  const matchup = `${shortTeam(event.away_team)} @ ${shortTeam(event.home_team)}`;
+
+  return (
+    <div className="mt-2 border-t border-border pt-1">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-label={`Player props, ${matchup}`}
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-11 w-full items-center justify-between text-sm font-medium"
+      >
+        Player props
+        <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div className="pb-1">
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2">
+            {propKeys.map((k) => (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={k === market}
+                onClick={() => setMarket(k)}
+                className={cn(
+                  "h-9 shrink-0 rounded-full px-3 text-xs font-semibold",
+                  k === market ? "bg-foreground text-background" : "bg-surface-2 text-muted-foreground",
+                )}
+              >
+                {MARKET_LABELS[k] ?? k}
+              </button>
+            ))}
+          </div>
+          {players.length === 0 ? (
+            <p className="py-2 text-center text-xs text-muted-foreground">Props post shortly…</p>
+          ) : (
+            <ul>
+              {players.map((player) => {
+                const side = (name: string) => rows.find((r) => r.participantName === player && r.outcomeName === name);
+                return (
+                  <li key={player} className="grid grid-cols-[1fr_4.25rem_4.25rem] items-center gap-1.5 py-1">
+                    <span className="truncate text-sm font-medium" title={player}>
+                      {player}
+                    </span>
+                    {["Over", "Under"].map((name) => {
+                      const row = side(name);
+                      return (
+                        <OddsButton
+                          key={name}
+                          row={row}
+                          selected={row ? selected.has(row.id) : false}
+                          disabled={locked || !row || row.isStale}
+                          onClick={() => row && onToggle(row)}
+                        />
+                      );
+                    })}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -128,10 +228,11 @@ function OddsButton({
     );
   }
 
+  const overUnder = row.marketKey === "totals" || isPropMarket(row.marketKey);
   const line =
     row.marketKey === "spreads"
       ? formatSpread(row.point)
-      : row.marketKey === "totals"
+      : overUnder
         ? row.point === null
           ? null
           : String(row.point)
@@ -163,7 +264,7 @@ function OddsButton({
       >
         {line && (
           <span className="text-base leading-none font-bold">
-            {row.marketKey === "totals" && (
+            {overUnder && (
               // Body font: in the scoreboard face "O" is indistinguishable from zero.
               <span className="mr-0.5 font-sans text-[11px] font-semibold opacity-70">
                 {row.outcomeName === "Over" ? "O" : "U"}

@@ -181,6 +181,59 @@ export type Database = {
         };
         Relationships: [];
       };
+      prop_results: {
+        Row: {
+          event_id: string;
+          graded_at: string;
+          graded_by: string;
+          market_key: string;
+          participant_name: string;
+          stat: number;
+          tournament_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          event_id: string;
+          graded_at?: string;
+          graded_by: string;
+          market_key: string;
+          participant_name: string;
+          stat: number;
+          tournament_id: string;
+        };
+        Update: {
+          event_id?: string;
+          graded_at?: string;
+          graded_by?: string;
+          market_key?: string;
+          participant_name?: string;
+          stat?: number;
+          tournament_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "prop_results_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "prop_results_graded_by_fkey";
+            columns: ["graded_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "prop_results_tournament_id_fkey";
+            columns: ["tournament_id"];
+            isOneToOne: false;
+            referencedRelation: "tournaments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       tournament_events: {
         Row: {
           event_id: string;
@@ -618,6 +671,16 @@ export type Database = {
           status: Database["public"]["Enums"]["tournament_status"];
           title: string;
         }[];
+      };
+      grade_prop: {
+        Args: {
+          p_event_id: string;
+          p_market_key: string;
+          p_participant_name: string;
+          p_stat: number;
+          p_tournament_id: string;
+        };
+        Returns: Json;
       };
       is_locked: {
         Args: {

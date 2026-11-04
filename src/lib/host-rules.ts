@@ -13,6 +13,7 @@ export type EditableRules = {
   markets: readonly string[];
   parlays: boolean;
   maxParlayLegs: number;
+  playerProps: boolean;
 };
 
 /** Form state: strings as typed. maxBet "" = no limit; lockTime is a datetime-local value. */
@@ -24,6 +25,7 @@ export type RulesDraft = {
   markets: string[];
   parlays: boolean;
   maxParlayLegs: number;
+  playerProps: boolean;
 };
 
 export type TournamentChanges = {
@@ -31,7 +33,7 @@ export type TournamentChanges = {
   lock_time?: string;
   max_bet_cents?: number | null;
   starting_bankroll_cents?: number;
-  allowed_bet_types?: { markets: string[]; parlays: boolean; max_parlay_legs: number };
+  allowed_bet_types?: { markets: string[]; parlays: boolean; max_parlay_legs: number; player_props: boolean };
 };
 
 export type RulesChangesResult = { ok: true; changes: TournamentChanges } | { ok: false; error: string };
@@ -48,6 +50,7 @@ export function draftFromRules(r: EditableRules): RulesDraft {
     markets: [...r.markets],
     parlays: r.parlays,
     maxParlayLegs: r.maxParlayLegs,
+    playerProps: r.playerProps,
   };
 }
 
@@ -80,9 +83,15 @@ export function rulesChanges(r: EditableRules, d: RulesDraft): RulesChangesResul
   if (
     markets.join() !== sorted(r.markets).join() ||
     d.parlays !== r.parlays ||
-    d.maxParlayLegs !== r.maxParlayLegs
+    d.maxParlayLegs !== r.maxParlayLegs ||
+    d.playerProps !== r.playerProps
   ) {
-    changes.allowed_bet_types = { markets, parlays: d.parlays, max_parlay_legs: d.maxParlayLegs };
+    changes.allowed_bet_types = {
+      markets,
+      parlays: d.parlays,
+      max_parlay_legs: d.maxParlayLegs,
+      player_props: d.playerProps,
+    };
   }
 
   return { ok: true, changes };

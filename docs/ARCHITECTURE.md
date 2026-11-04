@@ -586,3 +586,27 @@ Migration 0008 (`grading`).
   - Twilio (SMS OTP) and Turnstile keys;
   - prod Supabase plus `supabase secrets set` for odds;
   - 3–5 real friend groups.
+
+## Implementation notes: as built (player props, 2026-11-04)
+Migration 0010 (`player_props`).
+- **Opt-in.** `allowed_bet_types.player_props` (a switch in the create wizard and in Edit rules, off by default).
+  - The catalog is `private.prop_markets(sport)`, mirrored by `src/lib/core/props.ts`:
+    - basketball: points, rebounds, assists;
+    - football: passing, rushing, receiving yards;
+    - other sports: none.
+  - `place_wagers` accepts those markets only when the flag is on.
+- **Odds.** One `props` job per game (props live on the per-event endpoint `/sports/{s}/events/{id}/odds`). It costs prop markets × regions (≈3 credits per refresh) and is reserved through the same budget. It runs on its own clock (`private.props_sync_state`), never the sport's game-line clock, with the same cadence tiers.
+  - The parser keeps only players priced on both sides at the same line.
+  - The fake provider prices made-up players (never real names) on .5 lines.
+- **Board.** A collapsible "Player props" panel per game, with market tabs and Over/Under buttons. Labels read like "Jayson Tatum Over 27.5 Pts".
+- **Grading** (the API has no player stats). After the final, the host calls `grade_prop(tournament, game, market, player, stat)`.
+  - The stat is entered once per line and grades every pending pick on it the same way: over/under/push on each pick's own line.
+  - It's stored in `public.prop_results`, which the squad can read, so the host can't quietly fudge a result.
+  - Errors: NOT_HOST, INVALID_STAT, GAME_NOT_FINAL, ALREADY_GRADED, NOTHING_TO_GRADE.
+  - Props nobody grades are voided (refunded) 48h after kickoff, so tournaments always finish.
+  - UI: `PropsDesk` gives the host stat inputs, shows players what's still waiting on the host, and lists entered results for everyone.
+- **Chance.** A pending prop uses the de-vigged current Over/Under pair at the bet's line, falling back to the bet's own price. There's no live model; stats aren't available.
+- **Tests:** `08_player_props.test.sql` (32), mutation-checked. Removing the props switch and dropping the 48h refund each fail tests. Normalizer/fake-props units, props catalog units, and `e2e/props.spec.ts`.
+- **Known gaps:**
+  - The host can mistype a stat; there's no correction flow, since a result is entered once.
+  - Prop availability depends on the book: some players or markets may be missing.

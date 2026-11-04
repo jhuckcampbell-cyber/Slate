@@ -10,6 +10,7 @@ const current: EditableRules = {
   markets: ["h2h", "spreads", "totals"],
   parlays: true,
   maxParlayLegs: 6,
+  playerProps: false,
 };
 
 describe("rulesChanges", () => {
@@ -37,7 +38,18 @@ describe("rulesChanges", () => {
     const draft = { ...draftFromRules(current), markets: ["totals", "h2h"], maxParlayLegs: 3 };
     expect(rulesChanges(current, draft)).toEqual({
       ok: true,
-      changes: { allowed_bet_types: { markets: ["h2h", "totals"], parlays: true, max_parlay_legs: 3 } },
+      changes: {
+        allowed_bet_types: { markets: ["h2h", "totals"], parlays: true, max_parlay_legs: 3, player_props: false },
+      },
+    });
+  });
+
+  it("turning player props on is a bet-type change", () => {
+    expect(rulesChanges(current, { ...draftFromRules(current), playerProps: true })).toEqual({
+      ok: true,
+      changes: {
+        allowed_bet_types: { markets: ["h2h", "spreads", "totals"], parlays: true, max_parlay_legs: 6, player_props: true },
+      },
     });
   });
 

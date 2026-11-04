@@ -7,6 +7,7 @@ import { EyeOff, UserRound } from "lucide-react";
 import { AppBar, DisplayTitle, Eyebrow } from "@/components/brand";
 import { PageSkeleton } from "@/components/page-skeleton";
 import { Leaderboard, type LeaderRow } from "@/components/leaderboard/leaderboard";
+import { PropsDesk, type PropLine, type PropResult } from "@/components/leaderboard/props-desk";
 import { Reveal, type RevealPlayer } from "@/components/reveal/reveal";
 import { Sportsbook } from "@/components/sportsbook/sportsbook";
 import type { SportsbookEvent } from "@/components/sportsbook/event-card";
@@ -18,9 +19,10 @@ import { TournamentLive } from "@/components/tournament/tournament-live";
 import { Badge } from "@/components/ui/badge";
 import { toBoardRow } from "@/lib/core/board";
 import { normalizeCode } from "@/lib/core/codes";
+import { propLinesToGrade, propMarkets, tournamentMarkets } from "@/lib/core/props";
 import type { Rules } from "@/lib/core/slip";
 import { publicEnv } from "@/lib/env";
-import { MARKET_LABELS, formatCents, formatKickoff, sportEmoji, sportLabel } from "@/lib/format";
+import { MARKET_LABELS, formatCents, formatKickoff, shortTeam, sportEmoji, sportLabel } from "@/lib/format";
 import {
   BOARD_COLUMNS,
   REVEAL_WAGER_SELECT,
@@ -38,6 +40,7 @@ type AllowedBetTypes = {
   markets?: string[];
   parlays?: boolean;
   max_parlay_legs?: number;
+  player_props?: boolean;
 };
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
@@ -91,8 +94,11 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
     .sort((a, b) => a.commence_time.localeCompare(b.commence_time));
 
   const allowed = (t.allowed_bet_types ?? {}) as AllowedBetTypes;
+  const gameMarkets = allowed.markets ?? [];
+  const playerProps = Boolean(allowed.player_props) && propMarkets(t.sport_key).length > 0;
   const rules: Rules = {
-    markets: allowed.markets ?? [],
+    // Everything bettable (mirrors place_wagers): game markets + the sport's props if enabled.
+    markets: tournamentMarkets(t.sport_key, gameMarkets, playerProps),
     parlays: Boolean(allowed.parlays),
     maxParlayLegs: allowed.max_parlay_legs ?? 6,
     maxBetCents: t.max_bet_cents === null ? null : Number(t.max_bet_cents),
@@ -166,13 +172,15 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
                 lockTime: t.lock_time,
                 maxBetCents: rules.maxBetCents,
                 startingBankrollCents: t.starting_bankroll_cents,
-                markets: rules.markets,
+                markets: gameMarkets,
                 parlays: rules.parlays,
                 maxParlayLegs: rules.maxParlayLegs,
+                playerProps,
               }}
               firstKickoff={events[0]?.commence_time ?? t.lock_time}
               canEditBankroll={squad.length === 1 && Number(me.total_potential_payout_cents) === 0}
               waitingOn={squad.filter((m) => !m.has_submitted && m.user_id !== viewer.userId).map((m) => m.display_name)}
+              propsAvailable={propMarkets(t.sport_key).length > 0}
             />
           )}
 
@@ -209,7 +217,12 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
         <dl className="grid grid-cols-2 gap-2 text-sm">
           <Rule label="Bankroll" value={bankroll} />
           <Rule label="Max bet" value={rules.maxBetCents ? formatCents(rules.maxBetCents) : "No limit"} />
-          <Rule label="Bets" value={rules.markets.map((m) => MARKET_LABELS[m] ?? m).join(", ")} />
+          <Rule
+            label="Bets"
+            value={
+              gameMarkets.map((m) => MARKET_LABELS[m] ?? m).join(", ") + (playerProps ? " + player props" : "")
+            }
+          />
           <Rule label="Parlays" value={rules.parlays ? `Up to ${rules.maxParlayLegs} legs` : "Off"} />
         </dl>
         {!isLocked && (
@@ -279,7 +292,7 @@ async function RevealSection({
   settled: boolean;
   startingBankrollCents: number;
 }) {
-  const [{ data: wagerRows }, { data: participants }, { data: board }] = await Promise.all([
+  const [{ data: wagerRows }, { data: participants }, { data: board }, { data: propRows }] = await Promise.all([
     supabase.from("wagers").select(REVEAL_WAGER_SELECT).eq("tournament_id", tournamentId).order("created_at"),
     supabase
       .from("tournament_participants")
@@ -289,6 +302,11 @@ async function RevealSection({
       .from("leaderboard")
       .select("participant_id, user_id, display_name, cash_cents, ev_cents, max_cents, rank, standing")
       .eq("tournament_id", tournamentId),
+    supabase
+      .from("prop_results")
+      .select("event_id, market_key, participant_name, stat")
+      .eq("tournament_id", tournamentId)
+      .order("graded_at"),
   ]);
 
   const leaders: LeaderRow[] = (board ?? []).map((r) => ({
@@ -303,6 +321,26 @@ async function RevealSection({
   }));
 
   const wagers = (wagerRows ?? []).map(toRevealedWager);
+
+  // Player props: what the host still has to grade, and what was entered (public to the squad).
+  const eventsById = new Map(events.map((e) => [e.id, e]));
+  const matchupOf = (id: string) => {
+    const e = eventsById.get(id);
+    return e ? `${shortTeam(e.away_team)} @ ${shortTeam(e.home_team)}` : "";
+  };
+  const finalIds = new Set(events.filter((e) => e.status === "final").map((e) => e.id));
+  const propsToGrade: PropLine[] = propLinesToGrade(
+    wagers.flatMap((w) => w.legs),
+    finalIds,
+  ).map((l) => ({ ...l, matchup: matchupOf(l.eventId) }));
+  const propResults: PropResult[] = (propRows ?? []).map((r) => ({
+    eventId: r.event_id,
+    marketKey: r.market_key,
+    player: r.participant_name,
+    stat: Number(r.stat),
+    matchup: matchupOf(r.event_id),
+  }));
+  const hostName = squad.find((m) => m.is_host)?.display_name ?? "the host";
   // Unbet = starting bankroll minus stakes (the live bankroll also includes winnings once graded).
   const staked = new Map<string, number>();
   for (const w of wagers) staked.set(w.participantId, (staked.get(w.participantId) ?? 0) + w.amountCents);
@@ -329,6 +367,13 @@ async function RevealSection({
   return (
     <>
       <Leaderboard rows={leaders} settled={settled} />
+      <PropsDesk
+        tournamentId={tournamentId}
+        isHost={squad.some((m) => m.is_host && m.user_id === viewerUserId)}
+        hostName={hostName}
+        pending={propsToGrade}
+        results={propResults}
+      />
       <Reveal
         tournamentId={tournamentId}
         events={events}

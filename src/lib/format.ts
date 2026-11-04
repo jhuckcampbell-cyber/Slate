@@ -112,6 +112,22 @@ export const MARKET_LABELS: Record<string, string> = {
   h2h: "Moneyline",
   spreads: "Spread",
   totals: "Total",
+  player_points: "Points",
+  player_rebounds: "Rebounds",
+  player_assists: "Assists",
+  player_pass_yds: "Passing yards",
+  player_rush_yds: "Rushing yards",
+  player_reception_yds: "Receiving yards",
+};
+
+/** Short stat suffix for prop selections ("Over 27.5 Pts"). */
+export const PROP_STAT_LABELS: Record<string, string> = {
+  player_points: "Pts",
+  player_rebounds: "Reb",
+  player_assists: "Ast",
+  player_pass_yds: "Pass Yds",
+  player_rush_yds: "Rush Yds",
+  player_reception_yds: "Rec Yds",
 };
 
 /** Human label for a pick: "Celtics -7", "Knicks ML", "Over 230.5". */
@@ -129,7 +145,12 @@ export function selectionLabel(sel: {
     case "totals":
       return `${sel.outcomeName} ${sel.point === null ? "" : trimPoint(sel.point)}`.trim();
     default:
-      return [sel.participantName, sel.outcomeName, sel.point === null ? "" : trimPoint(sel.point)]
+      return [
+        sel.participantName,
+        sel.outcomeName,
+        sel.point === null ? "" : trimPoint(sel.point),
+        PROP_STAT_LABELS[sel.marketKey] ?? "",
+      ]
         .filter(Boolean)
         .join(" ");
   }

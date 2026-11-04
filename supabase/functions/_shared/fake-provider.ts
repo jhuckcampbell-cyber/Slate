@@ -85,6 +85,10 @@ export function fakeOddsResponse(
       },
     };
 
+    for (const key of markets) {
+      if (key.startsWith("player_")) all[key] = fakePropMarket(ev, key, drift, lastUpdate);
+    }
+
     return {
       id: ev.id,
       sport_key: ev.sport_key,
@@ -102,6 +106,44 @@ export function fakeOddsResponse(
       ],
     };
   });
+}
+
+// Prop line ranges (low, high) per market; lines land on .5 so fake props never push.
+const PROP_LINES: Record<string, [number, number]> = {
+  player_points: [12, 31],
+  player_rebounds: [3, 12],
+  player_assists: [2, 10],
+  player_pass_yds: [205, 290],
+  player_rush_yds: [35, 95],
+  player_reception_yds: [35, 85],
+};
+const FIRST = ["Marcus", "Devin", "Tyler", "Jalen", "Chris", "Andre", "Malik", "Derek", "Isaiah", "Caleb"];
+const LAST = ["Hayes", "Brooks", "Carter", "Ellis", "Grant", "Mitchell", "Porter", "Reed", "Sutton", "Wade"];
+
+/** Fake roster: stable made-up names per team and slot (never real players). */
+function fakePlayer(team: string, slot: number): string {
+  const h = hash(`${team}#${slot}`);
+  return `${FIRST[h % FIRST.length]} ${LAST[(h >>> 8) % LAST.length]}`;
+}
+
+function fakePropMarket(ev: FakeEventInput, key: string, drift: number, lastUpdate: string): ApiMarket {
+  const [lo, hi] = PROP_LINES[key] ?? [5, 20];
+  const perTeam = key === "player_pass_yds" ? 1 : 2; // one quarterback per team
+  const outcomes: ApiMarket["outcomes"] = [];
+  for (const team of [ev.away_team, ev.home_team]) {
+    for (let slot = 0; slot < perTeam; slot++) {
+      const player = fakePlayer(team, slot);
+      const h = hash(`${ev.id}:${key}:${player}`);
+      const point = lo + (h % (hi - lo + 1)) + 0.5;
+      const lean = (drift ^ h) % 3; // a little juice variety
+      const [over, under] = lean === 0 ? [-115, -105] : lean === 1 ? [-105, -115] : [-110, -110];
+      outcomes.push(
+        { name: "Over", description: player, price: over, point },
+        { name: "Under", description: player, price: under, point },
+      );
+    }
+  }
+  return { key, last_update: lastUpdate, outcomes };
 }
 
 /** Probability (vig included) → American, rounded to the nearest 5 like a real book. */

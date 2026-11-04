@@ -14,6 +14,11 @@ const MESSAGES: Record<string, string> = {
   REMOVED_BY_HOST: "The host removed you from this tournament.",
   // host controls
   NOT_HOST: "Only the host can do that.",
+  // player props
+  GAME_NOT_FINAL: "Enter stats once the game is final.",
+  INVALID_STAT: "Enter the stat as a number, 0 or more.",
+  ALREADY_GRADED: "That stat was already entered.",
+  NOTHING_TO_GRADE: "Nobody has a pick on that line.",
   INVALID_CHANGES: "Those changes aren't allowed.",
   INVALID_TITLE: "Give the tournament a name (up to 60 characters).",
   INVALID_MAX_BET: "Max bet must be at least $1 and no more than the bankroll.",

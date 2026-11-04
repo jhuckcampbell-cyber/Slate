@@ -31,6 +31,8 @@ type Props = {
   canEditBankroll: boolean;
   /** Names of players with no picks yet, for the lock confirmation. */
   waitingOn: string[];
+  /** This sport has player props (NBA/NFL/college). */
+  propsAvailable: boolean;
 };
 
 const MARKETS = [
@@ -39,7 +41,7 @@ const MARKETS = [
   { key: "totals", label: "Over/Under" },
 ] as const;
 
-export function HostTools({ tournamentId, rules, firstKickoff, canEditBankroll, waitingOn }: Props) {
+export function HostTools({ tournamentId, rules, firstKickoff, canEditBankroll, waitingOn, propsAvailable }: Props) {
   const [lockOpen, setLockOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
@@ -65,6 +67,7 @@ export function HostTools({ tournamentId, rules, firstKickoff, canEditBankroll, 
               rules={rules}
               firstKickoff={firstKickoff}
               canEditBankroll={canEditBankroll}
+              propsAvailable={propsAvailable}
               onDone={() => setEditOpen(false)}
             />
           )}
@@ -132,12 +135,14 @@ function EditRulesForm({
   rules,
   firstKickoff,
   canEditBankroll,
+  propsAvailable,
   onDone,
 }: {
   tournamentId: string;
   rules: EditableRules;
   firstKickoff: string;
   canEditBankroll: boolean;
+  propsAvailable: boolean;
   onDone: () => void;
 }) {
   const router = useRouter();
@@ -273,6 +278,16 @@ function EditRulesForm({
             </select>
           )}
         </div>
+
+        {propsAvailable && (
+          <div className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border p-3">
+            <label htmlFor="edit-props" className="flex-1">
+              <span className="block text-sm font-medium">Player props</span>
+              <span className="text-xs text-muted-foreground">Over/under on player stats. You enter the stats after.</span>
+            </label>
+            <Switch id="edit-props" checked={draft.playerProps} onCheckedChange={(v) => set("playerProps", v)} />
+          </div>
+        )}
       </div>
 
       <DrawerFooter className="grid grid-cols-2 gap-2 border-t border-border pt-3 pb-[max(env(safe-area-inset-bottom),16px)]">

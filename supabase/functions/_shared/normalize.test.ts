@@ -202,3 +202,74 @@ describe("fake provider", () => {
     expect(Math.abs(probToAmerican(0.5))).toBe(100);
   });
 });
+
+describe("player props", () => {
+  const ev = (outcomes: ApiEvent["bookmakers"] extends (infer B)[] | undefined ? B extends { markets: (infer M)[] } ? M extends { outcomes: infer O } ? O : never : never : never): ApiEvent => ({
+    id: "p1",
+    sport_key: "basketball_nba",
+    commence_time: "2026-11-06T00:00:00Z",
+    home_team: "Boston Celtics",
+    away_team: "New York Knicks",
+    bookmakers: [{ key: "draftkings", title: "DK", markets: [{ key: "player_points", outcomes }] }],
+  });
+
+  it("keeps players with a complete Over/Under pair at one line", () => {
+    const n = normalizeOddsResponse(
+      [
+        ev([
+          { name: "Over", description: "Jayson Tatum", price: -115, point: 27.5 },
+          { name: "Under", description: "Jayson Tatum", price: -105, point: 27.5 },
+          { name: "Over", description: "Jaylen Brown", price: -110, point: 22.5 }, // no Under: dropped
+          { name: "Over", description: "Jalen Brunson", price: -110, point: 25.5 },
+          { name: "Under", description: "Jalen Brunson", price: -110, point: 26.5 }, // lines differ: dropped
+        ]),
+      ],
+      { markets: ["player_points"], bookmakers: ["draftkings"] },
+    );
+    expect(n.outcomes.map((o) => `${o.participant_name} ${o.outcome_name}`)).toEqual([
+      "Jayson Tatum Over",
+      "Jayson Tatum Under",
+    ]);
+    expect(n.markets).toHaveLength(1);
+  });
+
+  it("a prop without a line is unusable", () => {
+    const n = normalizeOddsResponse(
+      [
+        ev([
+          { name: "Over", description: "Jayson Tatum", price: -115 },
+          { name: "Under", description: "Jayson Tatum", price: -105 },
+        ]),
+      ],
+      { markets: ["player_points"], bookmakers: ["draftkings"] },
+    );
+    expect(n.outcomes).toEqual([]);
+  });
+});
+
+describe("fake props", () => {
+  const event = {
+    id: "seed-nba-1",
+    sport_key: "basketball_nba",
+    home_team: "Boston Celtics",
+    away_team: "New York Knicks",
+    commence_time: "2026-11-06T00:00:00Z",
+  };
+  const props = () =>
+    normalizeOddsResponse(fakeOddsResponse([event], ["player_points", "player_assists"], { nowMs: 0 }), {
+      markets: ["player_points", "player_assists"],
+      bookmakers: [],
+    });
+
+  it("prices complete Over/Under pairs for players on both teams", () => {
+    const n = props();
+    const players = new Set(n.outcomes.filter((o) => o.market_key === "player_points").map((o) => o.participant_name));
+    expect(players.size).toBeGreaterThanOrEqual(4);
+    expect(n.outcomes.filter((o) => o.market_key === "player_assists").length % 2).toBe(0);
+    for (const o of n.outcomes) expect(o.point! % 1).toBe(0.5);
+  });
+
+  it("is deterministic", () => {
+    expect(props()).toEqual(props());
+  });
+});

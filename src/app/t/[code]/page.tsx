@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { EyeOff, UserRound } from "lucide-react";
 import { AppBar, DisplayTitle, Eyebrow } from "@/components/brand";
+import { InstallHint } from "@/components/install-hint";
 import { PageSkeleton } from "@/components/page-skeleton";
 import { Leaderboard, type LeaderRow } from "@/components/leaderboard/leaderboard";
 import { PropsDesk, type PropLine, type PropResult } from "@/components/leaderboard/props-desk";
@@ -209,6 +210,8 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
           </SquadList>
         </>
       )}
+
+      <InstallHint className="mt-8" />
 
       <section className="mt-8" aria-labelledby="rules-heading">
         <h2 id="rules-heading" className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">

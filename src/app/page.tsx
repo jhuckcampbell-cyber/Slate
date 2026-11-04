@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { EyeOff, LockOpen, Plus, Trophy, Zap } from "lucide-react";
 import { AppBar, DisplayTitle, Eyebrow } from "@/components/brand";
+import { InstallHint } from "@/components/install-hint";
 import { JoinCodeForm } from "@/components/tournament/join-code-form";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -50,6 +51,8 @@ export default function Home() {
           <JoinCodeForm />
         </div>
       </div>
+
+      <InstallHint className="mt-8" />
     </main>
   );
 }

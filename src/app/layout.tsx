@@ -26,6 +26,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(publicEnv.siteUrl),
   title: { default: "SquadBets", template: "%s · SquadBets" },
   description: "Play-money betting tournaments with your friends. Blind picks, live sweat.",
+  // iPhone "Add to Home Screen": full-screen launch, our icon, status bar over the dark header
+  // (pages already pad for env(safe-area-inset-top)).
+  appleWebApp: { capable: true, title: "SquadBets", statusBarStyle: "black-translucent" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {

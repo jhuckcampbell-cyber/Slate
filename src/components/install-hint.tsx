@@ -1,0 +1,102 @@
+"use client";
+
+import { Download, Share, X } from "lucide-react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { LogoMark } from "@/components/brand";
+import { Button } from "@/components/ui/button";
+import { installMode } from "@/lib/install";
+import { cn } from "@/lib/utils";
+
+type InstallPromptEvent = Event & { prompt: () => Promise<void> };
+
+const KEY = "squadbets:install-dismissed";
+const noopSubscribe = () => () => {};
+
+function wasDismissed() {
+  try {
+    return localStorage.getItem(KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function isStandalone() {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
+}
+
+/** "Put SquadBets on your home screen": iPhone gets Share-sheet instructions, Chrome/Android a button. */
+export function InstallHint({ className }: { className?: string }) {
+  const onClient = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  const [prompt, setPrompt] = useState<InstallPromptEvent | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    const onPrompt = (e: Event) => {
+      e.preventDefault(); // keep the browser's mini-bar away; we show our own button
+      setPrompt(e as InstallPromptEvent);
+    };
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    return () => window.removeEventListener("beforeinstallprompt", onPrompt);
+  }, []);
+
+  if (!onClient) return null;
+  const mode = installMode({
+    userAgent: navigator.userAgent,
+    standalone: isStandalone(),
+    canPrompt: prompt !== null,
+    dismissed: dismissed || wasDismissed(),
+  });
+  if (mode === "none") return null;
+
+  const dismiss = () => {
+    try {
+      localStorage.setItem(KEY, "1");
+    } catch {
+      // storage blocked: it just shows again next visit
+    }
+    setDismissed(true);
+  };
+
+  return (
+    <aside
+      aria-label="Install SquadBets"
+      className={cn("flex items-center gap-3 rounded-2xl bg-card p-3 ring-1 ring-border", className)}
+    >
+      <LogoMark className="size-9 shrink-0" />
+      <div className="min-w-0 flex-1 text-sm">
+        <p className="font-semibold">Get the app</p>
+        {mode === "ios" ? (
+          <p className="text-muted-foreground">
+            Tap <Share className="inline size-4 align-text-bottom" aria-label="Share" /> then{" "}
+            <span className="text-foreground">Add to Home Screen</span>.
+          </p>
+        ) : (
+          <p className="text-muted-foreground">One tap to your home screen. No store needed.</p>
+        )}
+      </div>
+      {mode === "prompt" && (
+        <Button
+          variant="secondary"
+          className="h-11"
+          onClick={async () => {
+            await prompt?.prompt();
+            setPrompt(null);
+          }}
+        >
+          <Download /> Install
+        </Button>
+      )}
+      <button
+        type="button"
+        aria-label="Dismiss"
+        onClick={dismiss}
+        className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground"
+      >
+        <X className="size-4" />
+      </button>
+    </aside>
+  );
+}

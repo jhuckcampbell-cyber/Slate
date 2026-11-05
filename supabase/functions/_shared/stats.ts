@@ -18,9 +18,9 @@ export function gameRemaining(status: { state?: unknown; period?: unknown; displ
   if (status.state === "post") return 0;
   if (status.state === "pre") return 1;
   const period = Number(status.period);
-  const m = /^(\d+):(\d+(?:\.\d+)?)$/.exec(String(status.displayClock ?? ""));
+  const m = /^(?:(\d+):)?(\d+(?:\.\d+)?)$/.exec(String(status.displayClock ?? "")); // "8:21", or "45.3" under a minute
   if (!Number.isInteger(period) || period < 1 || !m) return null;
-  const clock = Number(m[1]) * 60 + Number(m[2]);
+  const clock = Number(m[1] ?? 0) * 60 + Number(m[2]);
   const left = period <= 4 ? (4 - period) * 720 + clock : clock;
   return Math.min(1, Math.max(0, left / REGULATION_SECONDS));
 }

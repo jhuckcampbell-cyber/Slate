@@ -19,6 +19,7 @@ import type { ApiEvent } from "../_shared/odds-api.ts";
 import { oddsCallCost, usageFromHeaders, type Usage as HeaderUsage } from "../_shared/budget.ts";
 import { fakeScoresResponse, normalizeScores, SCORES_CALL_COST, type ApiScoreEvent } from "../_shared/scores.ts";
 import { SLEEPER_NFL_PLAYERS_URL, sleeperToRoster } from "../_shared/rosters.ts";
+import { espnLiveUrl, fakeLiveGames, liveGamesFromScoreboard, type LiveGame } from "../_shared/live.ts";
 import { espnBoxToStats, espnScoreboardUrl, espnSummaryUrl, fakeBoxStats, findEspnGame, type BoxStats } from "../_shared/stats.ts";
 
 type Job =
@@ -26,6 +27,11 @@ type Job =
   | { kind: "scores"; sport_key: string; event_ids: string[] }
   | { kind: "props"; sport_key: string; event_id: string; markets: string[] }
   | { kind: "catalog"; sport_key: string }
+  | {
+      kind: "live";
+      sport_key: string;
+      events: { event_id: string; home_team: string; away_team: string; commence_time: string }[];
+    }
   | {
       kind: "stats";
       sport_key: string;
@@ -81,6 +87,8 @@ Deno.serve(async (req) => {
           ? { kind: job.kind, sport_key: job.sport_key, endpoint: `/sports/${job.sport_key}/events`, cost: 0 }
           : job.kind === "stats"
           ? { kind: job.kind, sport_key: job.sport_key, event_id: job.event_id, endpoint: "espn box score", cost: 0 }
+          : job.kind === "live"
+          ? { kind: job.kind, sport_key: job.sport_key, events: job.events.length, endpoint: "espn scoreboard", cost: 0 }
           : job.kind === "props"
           ? {
               kind: job.kind,
@@ -121,6 +129,8 @@ Deno.serve(async (req) => {
             ? await runScoresJob(supabase, job, provider)
             : job.kind === "stats"
             ? await runStatsJob(supabase, job, provider)
+            : job.kind === "live"
+            ? await runLiveJob(supabase, job, provider)
             : job.kind === "props"
             ? await runPropsJob(supabase, job, provider, bookmakers)
             : await runJob(supabase, job, provider, bookmakers),
@@ -204,7 +214,7 @@ async function syncRosters(supabase: SupabaseClient, sportKey: string) {
 
 async function runJob(
   supabase: SupabaseClient,
-  job: Exclude<Job, { kind: "scores" | "props" | "stats" }>,
+  job: Exclude<Job, { kind: "scores" | "props" | "stats" | "live" }>,
   provider: "fake" | "the-odds-api",
   bookmakers: string[],
 ) {
@@ -334,6 +344,37 @@ async function runStatsJob(
   });
   if (error) throw new Error(`stats ingest failed: ${error.message}`);
   return { kind: job.kind, event_id: job.event_id, matched: providerId !== null, final: box.final, ...data };
+}
+
+/**
+ * Live game updates: ESPN's scoreboard, one call per sport per game date (free). Fake provider: a made-up clock and
+ * plays, with the scores already in the database (the fake scores job / tests own those).
+ */
+async function runLiveJob(
+  supabase: SupabaseClient,
+  job: Extract<Job, { kind: "live" }>,
+  provider: "fake" | "the-odds-api",
+) {
+  let games: LiveGame[] = [];
+  if (provider === "fake") {
+    const { data, error } = await supabase
+      .from("events")
+      .select("id, home_score, away_score")
+      .in("id", job.events.map((e) => e.event_id));
+    if (error) throw error;
+    const scores = new Map((data ?? []).map((e) => [e.id, e]));
+    games = fakeLiveGames(job.events, job.sport_key, Date.now()).map((g) => ({
+      ...g,
+      home_score: scores.get(g.event_id)?.home_score ?? null,
+      away_score: scores.get(g.event_id)?.away_score ?? null,
+    }));
+  } else {
+    const urls = new Set(job.events.map((e) => espnLiveUrl(job.sport_key, e.commence_time)).filter((u) => u !== null));
+    for (const url of urls) games.push(...liveGamesFromScoreboard(await getJson(url), job.events));
+  }
+  const { data, error } = await supabase.rpc("live_ingest", { p_sport_key: job.sport_key, p_games: games });
+  if (error) throw new Error(`live ingest failed: ${error.message}`);
+  return { kind: job.kind, sport_key: job.sport_key, games: games.length, ...data };
 }
 
 async function getJson(url: string): Promise<unknown> {

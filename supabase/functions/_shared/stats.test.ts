@@ -123,6 +123,10 @@ describe("gameRemaining: share of an NBA game left (4 × 12 min)", () => {
     expect(gameRemaining({ state: "in", period: 3, displayClock: "6:00" })).toBeCloseTo(0.375, 4);
     expect(gameRemaining({ state: "in", period: 4, displayClock: "0:30.4" })).toBeCloseTo(30.4 / 2880, 4);
   });
+  it("under a minute the feed drops the minutes (\"45.3\", \"0.0\")", () => {
+    expect(gameRemaining({ state: "in", period: 4, displayClock: "45.3" })).toBeCloseTo(45.3 / 2880, 4);
+    expect(gameRemaining({ state: "in", period: 2, displayClock: "0.0" })).toBeCloseTo(1440 / 2880, 4);
+  });
   it("overtime: just the overtime clock (5 min)", () => {
     expect(gameRemaining({ state: "in", period: 5, displayClock: "2:30" })).toBeCloseTo(150 / 2880, 4);
   });

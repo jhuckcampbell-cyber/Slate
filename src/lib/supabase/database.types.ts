@@ -66,6 +66,51 @@ export type Database = {
         };
         Relationships: [];
       };
+      game_live: {
+        Row: {
+          away_score: number | null;
+          detail: string | null;
+          event_id: string;
+          home_score: number | null;
+          last_play: string | null;
+          period: number | null;
+          situation: string | null;
+          state: string;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          away_score?: number | null;
+          detail?: string | null;
+          event_id: string;
+          home_score?: number | null;
+          last_play?: string | null;
+          period?: number | null;
+          situation?: string | null;
+          state: string;
+          updated_at?: string;
+        };
+        Update: {
+          away_score?: number | null;
+          detail?: string | null;
+          event_id?: string;
+          home_score?: number | null;
+          last_play?: string | null;
+          period?: number | null;
+          situation?: string | null;
+          state?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "game_live_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: true;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       odds_cache: {
         Row: {
           alt_point: number | null;
@@ -637,15 +682,18 @@ export type Database = {
     Views: {
       leaderboard: {
         Row: {
+          bets_count: number | null;
           cash_cents: number;
           display_name: string;
           ev_cents: number | null;
           max_cents: number | null;
           participant_id: string;
+          qualified: boolean | null;
           rank: number | null;
           standing: string | null;
           tournament_id: string;
           user_id: string;
+          wagered_cents: number | null;
         };
         ComputedFields: never;
         Relationships: [
@@ -720,6 +768,7 @@ export type Database = {
         };
         Returns: number;
       };
+      delete_tournament: { Args: { p_tournament_id: string }; Returns: undefined };
       get_roster: {
         Args: { p_tournament_id: string };
         Returns: {
@@ -768,6 +817,8 @@ export type Database = {
         Returns: boolean;
       };
       join_tournament: { Args: { p_code: string }; Returns: string };
+      leave_tournament: { Args: { p_tournament_id: string }; Returns: undefined };
+      live_ingest: { Args: { p_games: Json; p_sport_key: string }; Returns: Json };
       live_probability:
         | {
             Args: {
@@ -900,7 +951,13 @@ export type Database = {
         Returns: string;
       };
       stats_ingest: {
-        Args: { p_event_id: string; p_final: boolean; p_provider_id: string; p_stats: Json };
+        Args: {
+          p_event_id: string;
+          p_final: boolean;
+          p_provider_id: string;
+          p_remaining?: number;
+          p_stats: Json;
+        };
         Returns: Json;
       };
       update_tournament: { Args: { p_changes: Json; p_tournament_id: string }; Returns: undefined };

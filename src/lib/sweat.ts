@@ -73,3 +73,11 @@ export function propProgress(leg: {
   }
   return null;
 }
+
+/** Tension at a glance for an open bet or leg: Safe (80%+), Danger (20% or less), else Sweating. */
+export function sweatTag(p: number | null): { label: "Safe" | "Sweating" | "Danger"; tone: Tone } | null {
+  if (p === null) return null;
+  if (p >= 0.8) return { label: "Safe", tone: "win" };
+  if (p <= 0.2) return { label: "Danger", tone: "loss" };
+  return { label: "Sweating", tone: "live" };
+}

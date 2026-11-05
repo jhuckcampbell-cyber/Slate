@@ -306,7 +306,7 @@ async function runStatsJob(
   provider: "fake" | "the-odds-api",
 ) {
   let providerId = job.provider_id;
-  let box: BoxStats = { final: false, stats: [] };
+  let box: BoxStats = { final: false, stats: [], remaining: null };
   if (provider === "fake") {
     const { data, error } = await supabase
       .from("wager_legs")
@@ -330,6 +330,7 @@ async function runStatsJob(
     p_provider_id: providerId,
     p_final: box.final,
     p_stats: box.stats,
+    p_remaining: box.remaining,
   });
   if (error) throw new Error(`stats ingest failed: ${error.message}`);
   return { kind: job.kind, event_id: job.event_id, matched: providerId !== null, final: box.final, ...data };

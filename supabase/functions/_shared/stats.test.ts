@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { espnBoxToStats, espnDate, espnScoreboardUrl, espnSummaryUrl, fakeBoxStats, findEspnGame } from "./stats.ts";
+import { espnBoxToStats, espnDate, gameRemaining, espnScoreboardUrl, espnSummaryUrl, fakeBoxStats, findEspnGame } from "./stats.ts";
 
 // Shapes from ESPN's public NBA feed (site.api.espn.com/apis/site/v2/sports/basketball/nba/...), trimmed.
 const scoreboard = {
@@ -32,8 +32,8 @@ const scoreboard = {
 const KEYS = ["minutes", "points", "fieldGoalsMade-fieldGoalsAttempted", "threePointFieldGoalsMade-threePointFieldGoalsAttempted",
   "freeThrowsMade-freeThrowsAttempted", "rebounds", "assists", "turnovers"];
 
-const summary = (state: "in" | "post") => ({
-  header: { competitions: [{ status: { type: { state, completed: state === "post" } } }] },
+const summary = (state: "in" | "post", period = 2, displayClock = "8:21") => ({
+  header: { competitions: [{ status: { period, displayClock, type: { state, completed: state === "post" } } }] },
   boxscore: {
     players: [
       {
@@ -81,8 +81,9 @@ describe("finding the game in the feed", () => {
 
 describe("box score → stats", () => {
   it("points, rebounds, assists and threes for everyone who played, keyed to our prop markets", () => {
-    const { final, stats } = espnBoxToStats(summary("in"));
+    const { final, stats, remaining } = espnBoxToStats(summary("in"));
     expect(final).toBe(false);
+    expect(remaining).toBeCloseTo((8 * 60 + 21 + 2 * 720) / 2880, 4);
     expect(stats).toContainEqual({ name: "Joel Embiid", team: "Philadelphia 76ers", market_key: "player_points", stat: 8 });
     expect(stats).toContainEqual({ name: "Joel Embiid", team: "Philadelphia 76ers", market_key: "player_rebounds", stat: 5 });
     expect(stats).toContainEqual({ name: "Joel Embiid", team: "Philadelphia 76ers", market_key: "player_assists", stat: 1 });
@@ -95,8 +96,8 @@ describe("box score → stats", () => {
     expect(espnBoxToStats(summary("post")).final).toBe(true);
   });
   it("an empty or odd reply gives no stats instead of throwing", () => {
-    expect(espnBoxToStats({})).toEqual({ final: false, stats: [] });
-    expect(espnBoxToStats(null)).toEqual({ final: false, stats: [] });
+    expect(espnBoxToStats({})).toEqual({ final: false, stats: [], remaining: null });
+    expect(espnBoxToStats(null)).toEqual({ final: false, stats: [], remaining: null });
   });
 });
 
@@ -112,5 +113,22 @@ describe("fake box score (local dev, no network)", () => {
     const end = fakeBoxStats(players, tip, tip + 4 * 3_600_000);
     expect(end.final).toBe(true);
     expect(end.stats[0]!.stat).toBeGreaterThanOrEqual(mid.stats[0]!.stat);
+  });
+});
+
+describe("gameRemaining: share of an NBA game left (4 × 12 min)", () => {
+  it("from the period and clock", () => {
+    expect(gameRemaining({ state: "pre", period: 0, displayClock: "0:00" })).toBe(1);
+    expect(gameRemaining({ state: "in", period: 1, displayClock: "12:00" })).toBe(1);
+    expect(gameRemaining({ state: "in", period: 3, displayClock: "6:00" })).toBeCloseTo(0.375, 4);
+    expect(gameRemaining({ state: "in", period: 4, displayClock: "0:30.4" })).toBeCloseTo(30.4 / 2880, 4);
+  });
+  it("overtime: just the overtime clock (5 min)", () => {
+    expect(gameRemaining({ state: "in", period: 5, displayClock: "2:30" })).toBeCloseTo(150 / 2880, 4);
+  });
+  it("over: nothing left; unknown: null", () => {
+    expect(gameRemaining({ state: "post", period: 4, displayClock: "0:00" })).toBe(0);
+    expect(gameRemaining({ state: "in", period: 2, displayClock: "soon" })).toBeNull();
+    expect(gameRemaining({})).toBeNull();
   });
 });

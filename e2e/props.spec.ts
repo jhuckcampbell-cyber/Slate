@@ -63,6 +63,8 @@ test("host-enabled player props are bet, then graded by the host's stat entry", 
     await host.reload();
     const hank = await openPlayerBets(host, "Hank");
     await expect(hank.getByLabel(/^Live stat: \d+ Pts · (needs \d+ more|cleared)$/)).toBeVisible({ timeout: 2_000 });
+    // ...and the bet's chance follows it, with a tension tag.
+    await expect(hank.getByText(/^(Safe|Sweating|Danger)$/)).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 90_000 });
   if (SHOTS) await host.screenshot({ path: `${SHOTS}/16b-props-live-stat.png`, fullPage: true });
 

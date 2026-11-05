@@ -2,7 +2,7 @@
 -- that someone bet props on. Stats are public sports data; each saved prop pick reads its player's number.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(26);
 
 delete from private.stats_sync_state;
 
@@ -35,6 +35,17 @@ $$;
 create function pg_temp.job(p_event text) returns jsonb language sql stable as $$
   select j from jsonb_array_elements(private.odds_sync_due_jobs()) j
   where j ->> 'kind' = 'stats' and j ->> 'event_id' = p_event;
+$$;
+-- A pick's live chance (same function the leaderboard uses), for a hypothetical Embiid points pick.
+create function pg_temp.chance(p_selection text, p_line numeric default 27.5) returns double precision language sql stable as $$
+  select private.leg_probability(jsonb_populate_record(null::public.wager_legs, jsonb_build_object(
+    'event_id', 'ps-g1', 'market_key', 'player_points', 'participant_name', 'Joel Embiid', 'selection', p_selection,
+    'line', p_line, 'status', 'pending', 'odds_decimal', 1.9091)));
+$$;
+create function pg_temp.box(p_points int, p_remaining double precision) returns jsonb language sql as $$
+  select public.stats_ingest('ps-g1', '401909922', false,
+    jsonb_build_array(jsonb_build_object('name', 'Joel Embiid', 'team', 'Philadelphia 76ers', 'market_key', 'player_points',
+                                         'stat', p_points)), p_remaining);
 $$;
 create function pg_temp.leg_stat(p_player text) returns numeric language sql stable as $$
   select public.live_stat(l) from public.wager_legs l where l.participant_name = p_player limit 1;
@@ -88,6 +99,21 @@ select is(public.stats_ingest('ps-g1', '401909922', false, '[
   'only real changes count (and only they signal the squad)');
 select is(pg_temp.leg_stat('Joel Embiid'), 12::numeric, 'the number updates as he scores');
 
+-- ---------- live prop chance: box score + clock (pregame -110/-110 at 27.5 = 50%) ----------
+select pg_temp.box(12, 0.5);
+select ok(pg_temp.chance('Over') between 0.2 and 0.5, 'Over 27.5 with 12 at halftime: behind pace, under 50%');
+select ok(abs(pg_temp.chance('Over') + pg_temp.chance('Under') - 1) < 1e-9, 'Over and Under always add up to 100%');
+select pg_temp.box(22, 0.5);
+select ok(pg_temp.chance('Over') > 0.8, 'Over 27.5 with 22 at halftime: well ahead of pace');
+select pg_temp.box(12, 0.1);
+select ok(pg_temp.chance('Over') < 0.01, 'needs 16 more with 5 minutes left: all but dead');
+select pg_temp.box(28, 0.3);
+select is(pg_temp.chance('Over'), 1::double precision, 'Over already cleared: 100%, no matter the clock');
+select is(pg_temp.chance('Under'), 0::double precision, 'Under already gone over: 0%');
+select is(pg_temp.chance('Over', 25.5), 1::double precision, 'a lower ladder line he has cleared is safe...');
+select ok(pg_temp.chance('Over', 45.5) < 0.05, '...and one far above him (17+ more in 14 minutes) is a long shot');
+select pg_temp.box(12, 0.5);
+
 -- ---------- anyone signed in can read stats (public sports data, no picks in it) ----------
 select pg_temp.as_user('a3000000-0000-0000-0000-00000000000a');
 set local role authenticated;
@@ -101,6 +127,7 @@ select public.stats_ingest('ps-g1', '401909922', true, '[
   {"name":"Joel Embiid","team":"Philadelphia 76ers","market_key":"player_points","stat":31}]');
 update private.stats_sync_state set last_sync_at = now() - interval '2 minutes' where event_id = 'ps-g1';
 select ok(pg_temp.job('ps-g1') is null, 'final box score: done syncing');
+select is(pg_temp.chance('Over'), 1::double precision, 'final: 31 > 27.5, the Over has cashed in all but the grading');
 select is(pg_temp.leg_stat('Joel Embiid'), 31::numeric, 'the final number stays');
 select is((select is_final from public.player_stats where event_id = 'ps-g1' and market_key = 'player_points'), true,
   'the final number is marked final');

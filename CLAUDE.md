@@ -141,6 +141,16 @@ supabase/tests/              pgTAP: every RLS policy and RPC has tests
 - Min stake $1; parlay payout capped at 1000-to-1 (decimal 1001); money columns are bigint cents.
 - Unwagered bankroll counts toward final score; host may set min_total_wager.
 
+## Creative enhancements (log: CHANGELOG.md)
+Built: 1. Live Prop Sweat: prop chance follows the box score + clock (private.prop_live_probability wraps
+leg_probability_base); Safe/Sweating/Danger tags (src/lib/sweat.ts sweatTag). Never use live odds for this:
+it would cost credits and jitter.
+Backlog, in order:
+2. Self-settling props: grade finals from the box score; a player who never played gets his leg voided (parlay drops it).
+3. Slip Receipts: a share card (next/og) for each player after reveal, auto-titled from the slip ("4-leg Hail Mary", "Chalk Heavy").
+4. Reactions on revealed picks + moment badges (Bad Beat = leg was 80%+ and missed, Survived, Cooked).
+5. Sweat alerts: "Embiid needs 2 for Dave's parlay" when a leg is one play away.
+
 ## Glossary
 Lock = moment picks freeze and become visible (tournaments.lock_time). Reveal = post-lock visibility.
 Sweat = live tracking phase. P(cash) = de-vigged implied probability a pending wager wins.

@@ -13,7 +13,7 @@ import {
 import { MARKET_LABELS, formatAmerican, formatCents, selectionLabel, shortTeam } from "@/lib/format";
 import { LocalTime } from "@/components/local-time";
 import type { LegOutcome, RevealedWager } from "@/lib/queries/selects";
-import { formatChance, propProgress, scoreLine, wagerOutcome, type Tone } from "@/lib/sweat";
+import { formatChance, propProgress, scoreLine, sweatTag, wagerOutcome, type Tone } from "@/lib/sweat";
 import { cn } from "@/lib/utils";
 
 export type RevealPlayer = {
@@ -350,18 +350,32 @@ const TONE_TEXT: Record<Tone, string> = {
   live: "text-foreground",
 };
 
+const TONE_BAR: Record<Tone, string> = { win: "bg-win", loss: "bg-loss", muted: "bg-muted-foreground", live: "bg-brand" };
+const TONE_PILL: Record<Tone, string> = {
+  win: "bg-win/15 text-win",
+  loss: "bg-loss/15 text-loss",
+  muted: "bg-muted text-muted-foreground",
+  live: "bg-warn/15 text-warn",
+};
+
 function Outcome({ wager }: { wager: RevealedWager }) {
   const out = wagerOutcome(wager);
   const pending = wager.status === "pending";
+  const tag = pending ? sweatTag(wager.winProbability) : null;
   return (
     <div className="mt-1.5 flex items-center gap-2">
       {pending && (
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted" aria-hidden>
           <div
-            className="h-full rounded-full bg-brand transition-[width] duration-700"
+            className={cn("h-full rounded-full transition-[width,background-color] duration-700", tag ? TONE_BAR[tag.tone] : "bg-brand")}
             style={{ width: `${Math.round((wager.winProbability ?? 0) * 100)}%` }}
           />
         </div>
+      )}
+      {tag && (
+        <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-bold tracking-wide uppercase", TONE_PILL[tag.tone])}>
+          {tag.label}
+        </span>
       )}
       <span className={cn("text-xs font-semibold", TONE_TEXT[out.tone], !pending && "ml-auto")}>{out.label}</span>
     </div>
@@ -393,7 +407,10 @@ function LegMark({ leg }: { leg: LegOutcome }) {
       return <span className="text-[10px] font-semibold text-muted-foreground uppercase">Push</span>;
     default:
       return (
-        <span className="num w-8 shrink-0 text-xs text-muted-foreground" aria-label="Chance to hit">
+        <span
+          className={cn("num w-8 shrink-0 text-xs", TONE_TEXT[sweatTag(leg.winProbability)?.tone ?? "muted"])}
+          aria-label="Chance to hit"
+        >
           {formatChance(leg.winProbability)}
         </span>
       );

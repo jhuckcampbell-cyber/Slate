@@ -8,7 +8,22 @@ import { hash } from "./fake-provider.ts";
 const ESPN_NBA = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba";
 
 export type PlayerStat = { name: string; team: string | null; market_key: string; stat: number };
-export type BoxStats = { final: boolean; stats: PlayerStat[] };
+/** remaining: share of the game left (1 = tip-off, 0 = over), null when the clock can't be read. */
+export type BoxStats = { final: boolean; stats: PlayerStat[]; remaining: number | null };
+
+const REGULATION_SECONDS = 4 * 12 * 60;
+
+/** Share of an NBA game left, from the feed's period and clock ("8:21", "0:30.4"). Overtime: its own clock only. */
+export function gameRemaining(status: { state?: unknown; period?: unknown; displayClock?: unknown }): number | null {
+  if (status.state === "post") return 0;
+  if (status.state === "pre") return 1;
+  const period = Number(status.period);
+  const m = /^(\d+):(\d+(?:\.\d+)?)$/.exec(String(status.displayClock ?? ""));
+  if (!Number.isInteger(period) || period < 1 || !m) return null;
+  const clock = Number(m[1]) * 60 + Number(m[2]);
+  const left = period <= 4 ? (4 - period) * 720 + clock : clock;
+  return Math.min(1, Math.max(0, left / REGULATION_SECONDS));
+}
 
 /** ESPN box score column → our prop market. */
 const MARKETS: Record<string, string> = {
@@ -50,7 +65,8 @@ export function findEspnGame(scoreboard: unknown, game: { home_team: string; awa
 
 /** A game summary's box score → one row per player per stat we offer props on. */
 export function espnBoxToStats(summary: unknown): BoxStats {
-  const status = obj(obj(obj(arr(obj(obj(summary).header).competitions)[0]).status).type);
+  const clock = obj(obj(arr(obj(obj(summary).header).competitions)[0]).status);
+  const status = obj(clock.type);
   const final = status.state === "post" || status.completed === true;
   const stats: PlayerStat[] = [];
   for (const teamBox of arr(obj(obj(summary).boxscore).players).map(obj)) {
@@ -69,7 +85,8 @@ export function espnBoxToStats(summary: unknown): BoxStats {
       }
     }
   }
-  return { final, stats };
+  const remaining = final ? 0 : gameRemaining({ state: status.state, period: clock.period, displayClock: clock.displayClock });
+  return { final, stats, remaining };
 }
 
 const GAME_MS = 2.5 * 3_600_000;
@@ -80,6 +97,7 @@ export function fakeBoxStats(players: { name: string; market_key: string }[], ti
   const full: Record<string, number> = { player_points: 34, player_rebounds: 14, player_assists: 11, player_threes: 6 };
   return {
     final: nowMs - tipMs >= GAME_MS,
+    remaining: 1 - progress,
     stats: players.map((p) => ({
       name: p.name,
       team: null,

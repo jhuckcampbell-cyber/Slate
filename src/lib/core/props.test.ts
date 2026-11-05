@@ -6,14 +6,16 @@ describe("propMarkets (mirrors private.prop_markets)", () => {
     expect(propMarkets("basketball_nba")).toEqual(["player_points", "player_rebounds", "player_assists"]);
     expect(propMarkets("basketball_ncaab")).toEqual(["player_points", "player_rebounds", "player_assists"]);
   });
-  it("football: yards (main + alternate ladders), passing TDs, anytime TD", () => {
+  it("football: yards and receptions (main + alternate ladders), passing TDs, anytime TD", () => {
     expect(propMarkets("americanfootball_nfl")).toEqual([
       "player_pass_yds",
       "player_rush_yds",
       "player_reception_yds",
+      "player_receptions",
       "player_pass_yds_alternate",
       "player_rush_yds_alternate",
       "player_reception_yds_alternate",
+      "player_receptions_alternate",
       "player_pass_tds",
       "player_anytime_td",
     ]);

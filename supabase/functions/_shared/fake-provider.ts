@@ -128,6 +128,7 @@ const PROP_LINES: Record<string, [number, number]> = {
   player_pass_yds: [205, 290],
   player_rush_yds: [35, 95],
   player_reception_yds: [35, 85],
+  player_receptions: [3, 8],
   player_pass_tds: [0, 2],
 };
 const FIRST = ["Marcus", "Devin", "Tyler", "Jalen", "Chris", "Andre", "Malik", "Derek", "Isaiah", "Caleb",
@@ -154,7 +155,7 @@ export function fakePlayer(team: string, slot: number): string {
 function propSlots(base: string): number[] {
   if (base === "player_pass_yds" || base === "player_pass_tds") return [0];
   if (base === "player_rush_yds") return [1, 2];
-  if (base === "player_reception_yds") return [2, 3, 4];
+  if (base === "player_reception_yds" || base === "player_receptions") return [2, 3, 4];
   if (base === "player_anytime_td") return [1, 2, 3];
   return [0, 1];
 }

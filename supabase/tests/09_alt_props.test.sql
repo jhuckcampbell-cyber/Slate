@@ -44,10 +44,10 @@ $$;
 
 -- ---------- catalog ----------
 select is(private.prop_markets('americanfootball_nfl'),
-  array['player_pass_yds', 'player_rush_yds', 'player_reception_yds',
+  array['player_pass_yds', 'player_rush_yds', 'player_reception_yds', 'player_receptions',
         'player_pass_yds_alternate', 'player_rush_yds_alternate', 'player_reception_yds_alternate',
-        'player_pass_tds', 'player_anytime_td'],
-  'NFL props: yards, alternate yards, passing TDs, anytime TD');
+        'player_receptions_alternate', 'player_pass_tds', 'player_anytime_td'],
+  'NFL props: yards, receptions, alternate yards and receptions, passing TDs, anytime TD');
 
 select pg_temp.as_user('a3000000-0000-0000-0000-00000000000a');
 create temp table tp as select * from public.create_tournament('TNF', array['ap-g1'], 'TN', null, 10000, null,

@@ -118,9 +118,11 @@ export const MARKET_LABELS: Record<string, string> = {
   player_pass_yds: "Passing yards",
   player_rush_yds: "Rushing yards",
   player_reception_yds: "Receiving yards",
+  player_receptions: "Receptions",
   player_pass_yds_alternate: "Alt passing yards",
   player_rush_yds_alternate: "Alt rushing yards",
   player_reception_yds_alternate: "Alt receiving yards",
+  player_receptions_alternate: "Alt receptions",
   player_pass_tds: "Passing TDs",
   player_anytime_td: "Anytime TD",
 };
@@ -130,9 +132,11 @@ export const PROP_TAB_LABELS: Record<string, string> = {
   player_pass_yds: "Pass yds",
   player_rush_yds: "Rush yds",
   player_reception_yds: "Rec yds",
+  player_receptions: "Receptions",
   player_pass_yds_alternate: "Alt pass",
   player_rush_yds_alternate: "Alt rush",
   player_reception_yds_alternate: "Alt rec",
+  player_receptions_alternate: "Alt receptions",
   player_pass_tds: "Pass TDs",
   player_anytime_td: "Anytime TD",
 };
@@ -145,9 +149,11 @@ export const PROP_STAT_LABELS: Record<string, string> = {
   player_pass_yds: "Pass Yds",
   player_rush_yds: "Rush Yds",
   player_reception_yds: "Rec Yds",
+  player_receptions: "Rec",
   player_pass_yds_alternate: "Pass Yds",
   player_rush_yds_alternate: "Rush Yds",
   player_reception_yds_alternate: "Rec Yds",
+  player_receptions_alternate: "Rec",
   player_pass_tds: "Pass TDs",
 };
 

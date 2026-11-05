@@ -4,6 +4,12 @@ Product and design decisions, newest first. Each entry says what changed and why
 Guardrails that never move: $100 play money, private friend groups, SMS-link join, blind picks until lock,
 live sweat. See "Creative enhancements" in CLAUDE.md for the running backlog.
 
+## 2026-11-05: receptions
+
+- **Receptions props** for football: over/under on catches, plus the alternate "5+ / 7+ catches" ladder (migration
+  0021, tabs "Receptions" and "Alt receptions"). Graded like the other props: the host enters the catches once.
+  Cost note: two more markets per NFL props call (about 2 more Odds API credits per game refresh).
+
 ## 2026-11-05: rules up top, a bet cap, player search, likeliest-first props
 
 - **Rules at the top.** The Rules card now sits right under the tournament title, before the games, so nobody bets

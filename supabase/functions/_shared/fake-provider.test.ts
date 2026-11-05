@@ -9,7 +9,7 @@ const ev = {
   away_team: "Jacksonville Jaguars",
   commence_time: "2026-11-06T01:15:00Z",
 };
-const NFL_PROPS = ["player_pass_yds", "player_rush_yds", "player_reception_yds", "player_pass_tds", "player_anytime_td"];
+const NFL_PROPS = ["player_pass_yds", "player_rush_yds", "player_reception_yds", "player_receptions", "player_pass_tds", "player_anytime_td"];
 
 function playersFor(market: string) {
   const book = fakeOddsResponse([ev], [market], { nowMs: Date.parse("2026-11-05T12:00:00Z") })[0]!.bookmakers![0]!;
@@ -25,6 +25,12 @@ describe("fake props look like a real game (local dev)", () => {
       expect(playersFor("player_rush_yds").has(qb)).toBe(false);
     }
     expect([...playersFor("player_pass_tds")].sort()).toEqual([...passers].sort());
+  });
+  it("receptions go to the pass catchers, never the quarterback", () => {
+    const catchers = playersFor("player_receptions");
+    expect(catchers.size).toBeGreaterThan(2);
+    for (const qb of playersFor("player_pass_yds")) expect(catchers.has(qb)).toBe(false);
+    expect([...catchers].sort()).toEqual([...playersFor("player_reception_yds")].sort());
   });
   it("every prop player is on a team's roster, so the board can say who plays for whom", () => {
     const roster = new Map(fakeRoster([ev.away_team, ev.home_team]).map((p) => [p.name, p.team]));

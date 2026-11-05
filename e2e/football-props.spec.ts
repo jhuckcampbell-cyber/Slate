@@ -44,6 +44,10 @@ test("football: team-grouped props, alternate yards and anytime TD, graded by th
 
   // Who plays for whom: the board groups players under their team.
   await host.getByRole("button", { name: /^Player props/ }).click();
+  // Receptions (catches) are a prop tab too: over/under on a pass catcher, never the quarterback.
+  await host.getByRole("button", { name: "Receptions", exact: true }).click();
+  await expect(host.getByRole("button", { name: / Over [\d.]+ Rec / }).first()).toBeEnabled({ timeout: 60_000 });
+  await expect(host.getByRole("button", { name: new RegExp(`^${fakePlayer(AWAY, 0)}.* Over `) })).toHaveCount(0);
   await host.getByRole("button", { name: "Alt rushing yards" }).click();
   const rb = fakePlayer(AWAY, 1); // slot 0 is the QB (passing only); 1-2 run the ball
   // Labels name the team too ("Malik Reed (Foxes) 57+ Rush Yds"), here and in the slip, My picks, reveal.

@@ -8,9 +8,11 @@ const FOOTBALL = [
   "player_pass_yds",
   "player_rush_yds",
   "player_reception_yds",
+  "player_receptions",
   "player_pass_yds_alternate",
   "player_rush_yds_alternate",
   "player_reception_yds_alternate",
+  "player_receptions_alternate",
   "player_pass_tds",
   "player_anytime_td",
 ] as const;

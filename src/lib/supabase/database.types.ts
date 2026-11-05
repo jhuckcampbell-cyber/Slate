@@ -156,6 +156,51 @@ export type Database = {
           },
         ];
       };
+      player_stats: {
+        Row: {
+          event_id: string;
+          initial_key: string | null;
+          is_final: boolean;
+          market_key: string;
+          name_key: string;
+          player_name: string;
+          stat: number;
+          team: string | null;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          event_id: string;
+          initial_key?: never;
+          is_final?: boolean;
+          market_key: string;
+          name_key: string;
+          player_name: string;
+          stat: number;
+          team?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          event_id?: string;
+          initial_key?: never;
+          is_final?: boolean;
+          market_key?: string;
+          name_key?: string;
+          player_name?: string;
+          stat?: number;
+          team?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "player_stats_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       player_teams: {
         Row: {
           initial_key: string | null;
@@ -422,9 +467,10 @@ export type Database = {
           wager_id: string;
           win_probability: number | null;
           live_probability: number | null;
+          live_stat: number | null;
           participant_team: string | null;
         };
-        ComputedFields: "live_probability" | "participant_team";
+        ComputedFields: "live_probability" | "live_stat" | "participant_team";
         Insert: {
           event_id: string;
           id?: string;
@@ -741,6 +787,15 @@ export type Database = {
             };
             Returns: number;
           };
+      live_stat: {
+        Args: {
+          l: Omit<
+            Database["public"]["Tables"]["wager_legs"]["Row"],
+            Database["public"]["Tables"]["wager_legs"]["ComputedFields"]
+          >;
+        };
+        Returns: number;
+      };
       lock_tournament_now: { Args: { p_tournament_id: string }; Returns: undefined };
       odds_budget_reserve: {
         Args: { p_cost: number; p_endpoint: string; p_sport_key: string };
@@ -843,6 +898,10 @@ export type Database = {
           >;
         };
         Returns: string;
+      };
+      stats_ingest: {
+        Args: { p_event_id: string; p_final: boolean; p_provider_id: string; p_stats: Json };
+        Returns: Json;
       };
       update_tournament: { Args: { p_changes: Json; p_tournament_id: string }; Returns: undefined };
     };

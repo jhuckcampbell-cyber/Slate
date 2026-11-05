@@ -19,12 +19,22 @@ import type { ApiEvent } from "../_shared/odds-api.ts";
 import { oddsCallCost, usageFromHeaders, type Usage as HeaderUsage } from "../_shared/budget.ts";
 import { fakeScoresResponse, normalizeScores, SCORES_CALL_COST, type ApiScoreEvent } from "../_shared/scores.ts";
 import { SLEEPER_NFL_PLAYERS_URL, sleeperToRoster } from "../_shared/rosters.ts";
+import { espnBoxToStats, espnScoreboardUrl, espnSummaryUrl, fakeBoxStats, findEspnGame, type BoxStats } from "../_shared/stats.ts";
 
 type Job =
   | { kind: "odds"; sport_key: string; markets: string[]; event_ids: string[] }
   | { kind: "scores"; sport_key: string; event_ids: string[] }
   | { kind: "props"; sport_key: string; event_id: string; markets: string[] }
-  | { kind: "catalog"; sport_key: string };
+  | { kind: "catalog"; sport_key: string }
+  | {
+      kind: "stats";
+      sport_key: string;
+      event_id: string;
+      home_team: string;
+      away_team: string;
+      commence_time: string;
+      provider_id: string | null;
+    };
 
 type Usage = { endpoint: string; credits_used: number | null; credits_remaining: number | null };
 type Reserve = { ok: boolean; reason?: string; reservation_id?: number; budget?: unknown };
@@ -69,6 +79,8 @@ Deno.serve(async (req) => {
       const plan = (claim.jobs as Job[]).map((job) =>
         job.kind === "catalog"
           ? { kind: job.kind, sport_key: job.sport_key, endpoint: `/sports/${job.sport_key}/events`, cost: 0 }
+          : job.kind === "stats"
+          ? { kind: job.kind, sport_key: job.sport_key, event_id: job.event_id, endpoint: "espn box score", cost: 0 }
           : job.kind === "props"
           ? {
               kind: job.kind,
@@ -107,6 +119,8 @@ Deno.serve(async (req) => {
         results.push(
           job.kind === "scores"
             ? await runScoresJob(supabase, job, provider)
+            : job.kind === "stats"
+            ? await runStatsJob(supabase, job, provider)
             : job.kind === "props"
             ? await runPropsJob(supabase, job, provider, bookmakers)
             : await runJob(supabase, job, provider, bookmakers),
@@ -190,7 +204,7 @@ async function syncRosters(supabase: SupabaseClient, sportKey: string) {
 
 async function runJob(
   supabase: SupabaseClient,
-  job: Exclude<Job, { kind: "scores" | "props" }>,
+  job: Exclude<Job, { kind: "scores" | "props" | "stats" }>,
   provider: "fake" | "the-odds-api",
   bookmakers: string[],
 ) {
@@ -279,6 +293,52 @@ async function runScoresJob(
   });
   if (error) throw new Error(`scores ingest failed: ${error.message}`);
   return { kind: job.kind, sport_key: job.sport_key, ...data };
+}
+
+/**
+ * Live player stats for a game in play that someone bet a prop on: ESPN's public box score (free, no Odds API
+ * credits). The game is matched once by date + teams, then fetched by id. No match yet still records the attempt,
+ * so a game the feed doesn't have is retried once a minute, not in a loop. Fake provider: a made-up box score.
+ */
+async function runStatsJob(
+  supabase: SupabaseClient,
+  job: Extract<Job, { kind: "stats" }>,
+  provider: "fake" | "the-odds-api",
+) {
+  let providerId = job.provider_id;
+  let box: BoxStats = { final: false, stats: [] };
+  if (provider === "fake") {
+    const { data, error } = await supabase
+      .from("wager_legs")
+      .select("participant_name, market_key")
+      .eq("event_id", job.event_id)
+      .neq("participant_name", "");
+    if (error) throw error;
+    const players = new Map<string, { name: string; market_key: string }>();
+    for (const l of data ?? []) {
+      const market_key = l.market_key.replace(/_alternate$/, "");
+      players.set(`${l.participant_name}|${market_key}`, { name: l.participant_name, market_key });
+    }
+    providerId ??= "fake";
+    box = fakeBoxStats([...players.values()], Date.parse(job.commence_time), Date.now());
+  } else {
+    providerId ??= findEspnGame(await getJson(espnScoreboardUrl(job.commence_time)), job);
+    if (providerId) box = espnBoxToStats(await getJson(espnSummaryUrl(providerId)));
+  }
+  const { data, error } = await supabase.rpc("stats_ingest", {
+    p_event_id: job.event_id,
+    p_provider_id: providerId,
+    p_final: box.final,
+    p_stats: box.stats,
+  });
+  if (error) throw new Error(`stats ingest failed: ${error.message}`);
+  return { kind: job.kind, event_id: job.event_id, matched: providerId !== null, final: box.final, ...data };
+}
+
+async function getJson(url: string): Promise<unknown> {
+  const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+  if (!res.ok) throw new Error(`stats feed ${res.status}`);
+  return res.json();
 }
 
 /** Every PAID call: reserve in the DB first (it can say no), call, then settle with the real cost. */

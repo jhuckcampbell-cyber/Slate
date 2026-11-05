@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { admin, joinAs, newPage, openPlayerBets, placeSingle, waitForOdds } from "./helpers";
+import { admin, joinAs, newPage, nudgeSync, openPlayerBets, placeSingle, waitForOdds } from "./helpers";
 
 // Player props: host opts in at create → per-game prop odds (fake provider) → over/under picks →
 // final → the host enters the stat → every pick on that line is graded → the tournament finishes.
@@ -55,6 +55,17 @@ test("host-enabled player props are bet, then graded by the host's stat entry", 
   await host.getByRole("button", { name: "Lock picks now" }).click();
   await host.getByRole("button", { name: "Lock & reveal" }).click();
   await expect(host.getByRole("heading", { name: "Picks are in" })).toBeVisible({ timeout: 20_000 });
+
+  // In play: the box score (fake feed locally) shows each prop pick's number so far, in the player's dropdown.
+  await admin.from("events").update({ commence_time: new Date(Date.now() - 60 * 60_000).toISOString() }).eq("id", eventId);
+  await expect(async () => {
+    await nudgeSync(host);
+    await host.reload();
+    const hank = await openPlayerBets(host, "Hank");
+    await expect(hank.getByLabel(/^Live stat: \d+ Pts · (needs \d+ more|cleared)$/)).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 90_000 });
+  if (SHOTS) await host.screenshot({ path: `${SHOTS}/16b-props-live-stat.png`, fullPage: true });
+
   await admin.rpc("scores_ingest", {
     p_sport_key: "basketball_nba",
     p_fetched_at: new Date().toISOString(),

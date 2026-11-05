@@ -13,7 +13,7 @@ import {
 import { MARKET_LABELS, formatAmerican, formatCents, selectionLabel, shortTeam } from "@/lib/format";
 import { LocalTime } from "@/components/local-time";
 import type { LegOutcome, RevealedWager } from "@/lib/queries/selects";
-import { formatChance, scoreLine, wagerOutcome, type Tone } from "@/lib/sweat";
+import { formatChance, propProgress, scoreLine, wagerOutcome, type Tone } from "@/lib/sweat";
 import { cn } from "@/lib/utils";
 
 export type RevealPlayer = {
@@ -309,7 +309,7 @@ export function PlayerBets({
               {w.legs.map((leg, i) => {
                 const ev = eventsById.get(leg.eventId);
                 return (
-                  <li key={i} className="flex items-baseline gap-1.5 text-sm">
+                  <li key={i} className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-sm">
                     <LegMark leg={leg} />
                     <span className="font-medium">
                       {selectionLabel({
@@ -325,6 +325,7 @@ export function PlayerBets({
                         {shortTeam(ev.away_team)} @ {shortTeam(ev.home_team)}
                       </span>
                     )}
+                    <LiveStat leg={leg} />
                   </li>
                 );
               })}
@@ -364,6 +365,20 @@ function Outcome({ wager }: { wager: RevealedWager }) {
       )}
       <span className={cn("text-xs font-semibold", TONE_TEXT[out.tone], !pending && "ml-auto")}>{out.label}</span>
     </div>
+  );
+}
+
+/** The player's number so far, next to a prop pick: "18 Pts · needs 8 more". */
+function LiveStat({ leg }: { leg: RevealedWager["legs"][number] }) {
+  const p = propProgress({ marketKey: leg.marketKey, selection: leg.selection, line: leg.line, status: leg.status, liveStat: leg.liveStat });
+  if (!p) return null;
+  return (
+    <span
+      aria-label={`Live stat: ${p.text}`}
+      className={cn("ml-auto shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold tabular-nums", TONE_TEXT[p.tone])}
+    >
+      {p.text}
+    </span>
   );
 }
 

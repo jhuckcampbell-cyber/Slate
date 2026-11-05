@@ -48,10 +48,15 @@ export type WagerRow = Omit<MyWager, "legs" | "optimistic"> & { wager_legs: Wage
 
 /** Everyone's wagers, for the post-lock reveal (RLS only returns them once picks are locked). */
 export const REVEAL_WAGER_SELECT =
-  "id, participant_id, wager_type, amount_cents, odds_american, potential_payout_cents, status, payout_cents, live_probability, wager_legs(event_id, market_key, selection, participant_name, participant_team, line, odds_american, status, live_probability)";
+  "id, participant_id, wager_type, amount_cents, odds_american, potential_payout_cents, status, payout_cents, live_probability, wager_legs(event_id, market_key, selection, participant_name, participant_team, line, odds_american, status, live_probability, live_stat)";
 
 /** Graded outcome + live chance, for the sweat view. */
-export type LegOutcome = { status: string; winProbability: number | null };
+export type LegOutcome = {
+  status: string;
+  winProbability: number | null;
+  /** Props: the player's number in this game so far (live box score), when known. */
+  liveStat: number | null;
+};
 
 export type RevealedWager = Omit<RevealWager, "legs"> & {
   oddsAmerican: number;
@@ -82,6 +87,7 @@ type RevealWagerRow = {
         odds_american: number;
         status: string;
         live_probability: number | null;
+        live_stat?: number | null;
       }[]
     | null;
 };
@@ -107,6 +113,7 @@ export function toRevealedWager(row: RevealWagerRow): RevealedWager {
       oddsAmerican: l.odds_american,
       status: l.status,
       winProbability: l.live_probability === null ? null : Number(l.live_probability),
+      liveStat: l.live_stat === null || l.live_stat === undefined ? null : Number(l.live_stat),
     })),
   };
 }

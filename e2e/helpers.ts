@@ -48,13 +48,17 @@ export async function joinAs(page: Page, code: string, name: string) {
   return page;
 }
 
-export async function waitForOdds(page: Page) {
-  // Nudge the sync instead of waiting for the next cron minute (a held lease is fine: cron covers it).
+/** Run odds-sync now instead of waiting for the next cron minute (a held lease is fine: cron covers it). */
+export async function nudgeSync(page: Page) {
   await page.request
     .post(`${SUPABASE_URL}/functions/v1/odds-sync`, {
       headers: { "x-sync-secret": process.env.ODDS_SYNC_SECRET ?? "local-dev-sync-secret" },
     })
     .catch(() => undefined);
+}
+
+export async function waitForOdds(page: Page) {
+  await nudgeSync(page);
   await expect(page.locator('article button[aria-pressed="false"]').first()).toBeEnabled({ timeout: 90_000 });
 }
 

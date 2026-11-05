@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatChance, scoreLine, wagerOutcome } from "./sweat";
+import { formatChance, propProgress, scoreLine, wagerOutcome } from "./sweat";
 
 describe("formatChance", () => {
   it("rounds to whole percent", () => {
@@ -51,5 +51,42 @@ describe("scoreLine", () => {
   });
   it("no score yet: nothing to show", () => {
     expect(scoreLine({ ...ev, status: "scheduled", home_score: null, away_score: null })).toBeNull();
+  });
+});
+
+describe("propProgress: a prop pick's live number", () => {
+  const leg = { marketKey: "player_points", selection: "Over", line: 25.5, status: "pending" };
+  it("no number yet: nothing to show", () => {
+    expect(propProgress({ ...leg, liveStat: null })).toBeNull();
+  });
+  it("Over: how many more he needs, then cleared", () => {
+    expect(propProgress({ ...leg, liveStat: 18 })).toEqual({ text: "18 Pts · needs 8 more", tone: "live" });
+    expect(propProgress({ ...leg, liveStat: 26 })).toEqual({ text: "26 Pts · cleared", tone: "win" });
+    expect(propProgress({ ...leg, line: 8, marketKey: "player_rebounds", liveStat: 8 })).toEqual({
+      text: "8 Reb · needs 1 more",
+      tone: "live",
+    });
+  });
+  it("Under: how much room is left, then busted", () => {
+    const under = { ...leg, selection: "Under", line: 27.5 };
+    expect(propProgress({ ...under, liveStat: 18 })).toEqual({ text: "18 Pts · 9 to spare", tone: "live" });
+    expect(propProgress({ ...under, liveStat: 27 })).toEqual({ text: "27 Pts · 0 to spare", tone: "live" });
+    expect(propProgress({ ...under, liveStat: 28 })).toEqual({ text: "28 Pts · went over", tone: "loss" });
+    expect(propProgress({ ...under, line: 8, marketKey: "player_assists", liveStat: 8 })).toEqual({
+      text: "8 Ast · on the line",
+      tone: "muted",
+    });
+  });
+  it("a ladder pick uses its stat's name", () => {
+    expect(propProgress({ ...leg, marketKey: "player_rush_yds_alternate", line: 49.5, liveStat: 50 })).toEqual({
+      text: "50 Rush Yds · cleared",
+      tone: "win",
+    });
+  });
+  it("graded pick: just the number", () => {
+    expect(propProgress({ ...leg, status: "hit", liveStat: 31 })).toEqual({ text: "31 Pts", tone: "muted" });
+  });
+  it("game lines have no player number", () => {
+    expect(propProgress({ marketKey: "h2h", selection: "Boston Celtics", line: null, status: "pending", liveStat: 3 })).toBeNull();
   });
 });

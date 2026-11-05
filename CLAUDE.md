@@ -130,6 +130,8 @@ supabase/tests/              pgTAP: every RLS policy and RPC has tests
 
 ## v1 product defaults
 - Tournament-wide lock_time (defaults to earliest kickoff). Per-game locks are v2.
+- Live NBA player stats: odds-sync job `stats` pulls ESPN's public box score (free, unofficial, non-commercial) for games in play
+  with a prop pick → player_stats → wager_legs.live_stat ("18 Pts · needs 8 more" in each player's dropdown). Display only.
 - Player props are opt-in per tournament (NFL adds alternate yards ladders, passing TDs, anytime TD; players grouped by
   team via Sleeper rosters, non-commercial only) and graded by the HOST entering each stat once (grade_prop; results are
   public in prop_results; ungraded props refund 48h after kickoff). Odds API has no player stats.

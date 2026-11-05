@@ -89,7 +89,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
   const [{ data: eventLinks }, { data: roster }, { data: me }, mine] = await Promise.all([
     supabase
       .from("tournament_events")
-      .select("events(id, home_team, away_team, commence_time, status, home_score, away_score)")
+      .select("events(id, sport_key, home_team, away_team, commence_time, status, home_score, away_score)")
       .eq("tournament_id", t.id),
     supabase.rpc("get_roster", { p_tournament_id: t.id }),
     supabase

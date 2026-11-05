@@ -45,7 +45,7 @@ test("football: team-grouped props, alternate yards and anytime TD, graded by th
   // Who plays for whom: the board groups players under their team.
   await host.getByRole("button", { name: /^Player props/ }).click();
   await host.getByRole("button", { name: "Alt rushing yards" }).click();
-  const rb = fakePlayer(AWAY, 0);
+  const rb = fakePlayer(AWAY, 1); // slot 0 is the QB (passing only); 1-2 run the ball
   // Labels name the team too ("Malik Reed (Foxes) 57+ Rush Yds"), here and in the slip, My picks, reveal.
   const milestone = host.getByRole("button", { name: new RegExp(`^${rb} \\(Foxes\\) \\d+\\+ Rush Yds`) }).first();
   await expect(milestone).toBeEnabled({ timeout: 60_000 });

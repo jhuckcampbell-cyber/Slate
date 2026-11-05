@@ -13,7 +13,7 @@
 //   ODDS_API_KEY       required for the-odds-api
 //   ODDS_BOOKMAKERS    priority list, default "draftkings,fanduel,betmgm"
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { fakeOddsResponse } from "../_shared/fake-provider.ts";
+import { fakeOddsResponse, fakeRoster } from "../_shared/fake-provider.ts";
 import { normalizeOddsResponse } from "../_shared/normalize.ts";
 import type { ApiEvent } from "../_shared/odds-api.ts";
 import { oddsCallCost, usageFromHeaders, type Usage as HeaderUsage } from "../_shared/budget.ts";
@@ -187,7 +187,7 @@ async function runPropsJob(
     p_usage: null,
   });
   if (error) throw new Error(`props ingest failed: ${error.message}`);
-  const rosters = provider === "fake" ? null : await syncRosters(supabase, job.sport_key);
+  const rosters = provider === "fake" ? await fakeRosters(supabase, job.sport_key) : await syncRosters(supabase, job.sport_key);
   return { kind: job.kind, sport_key: job.sport_key, event_id: job.event_id, skipped_markets: n.skippedMarkets, rosters, ...data };
 }
 
@@ -210,6 +210,19 @@ async function syncRosters(supabase: SupabaseClient, sportKey: string) {
   } catch (e) {
     return { error: String(e) };
   }
+}
+
+/** Local dev: the fake players' teams for every recent game of the sport (so the board groups them like prod). */
+async function fakeRosters(supabase: SupabaseClient, sportKey: string) {
+  const { data, error } = await supabase
+    .from("events")
+    .select("home_team, away_team")
+    .eq("sport_key", sportKey)
+    .gt("commence_time", new Date(Date.now() - 86_400_000).toISOString());
+  if (error) return { error: error.message };
+  const players = (data ?? []).flatMap((e) => fakeRoster([e.away_team, e.home_team]));
+  const { data: res, error: ingestError } = await supabase.rpc("rosters_ingest", { p_sport_key: sportKey, p_players: players });
+  return ingestError ? { error: ingestError.message } : res;
 }
 
 async function runJob(

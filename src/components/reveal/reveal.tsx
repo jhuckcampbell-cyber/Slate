@@ -1,6 +1,8 @@
 "use client";
 
 import { Odds } from "@/components/odds";
+import { TeamMark } from "@/components/team-mark";
+import { pickTeam } from "@/lib/team-colors";
 import { Check, ChevronDown, LockOpen, Ticket, X } from "lucide-react";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { SportsbookEvent } from "@/components/sportsbook/event-card";
@@ -291,6 +293,10 @@ export function PlayerBets({
                 return (
                   <li key={i} className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-sm">
                     <LegMark leg={leg} />
+                    {(() => {
+                      const team = pickTeam({ marketKey: leg.marketKey, outcomeName: leg.selection, participantTeam: leg.participantTeam });
+                      return team ? <TeamMark team={team} className="size-5 self-center" /> : null;
+                    })()}
                     <span className="font-medium">
                       {selectionLabel({
                         marketKey: leg.marketKey,

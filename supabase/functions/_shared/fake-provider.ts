@@ -1,3 +1,15 @@
+import { NFL_TEAMS } from "./rosters.ts";
+
+/** Odds API names of the 30 NBA teams (fake rosters only). */
+const NBA_TEAM_NAMES = [
+  "Atlanta Hawks", "Boston Celtics", "Brooklyn Nets", "Charlotte Hornets", "Chicago Bulls", "Cleveland Cavaliers",
+  "Dallas Mavericks", "Denver Nuggets", "Detroit Pistons", "Golden State Warriors", "Houston Rockets", "Indiana Pacers",
+  "Los Angeles Clippers", "Los Angeles Lakers", "Memphis Grizzlies", "Miami Heat", "Milwaukee Bucks",
+  "Minnesota Timberwolves", "New Orleans Pelicans", "New York Knicks", "Oklahoma City Thunder", "Orlando Magic",
+  "Philadelphia 76ers", "Phoenix Suns", "Portland Trail Blazers", "Sacramento Kings", "San Antonio Spurs",
+  "Toronto Raptors", "Utah Jazz", "Washington Wizards",
+];
+
 /**
  * Fake odds provider for local dev/CI (ODDS_PROVIDER=fake): emits responses in The Odds API v4
  * shape for events already in our DB, so the real normalization + ingest path runs without
@@ -118,24 +130,66 @@ const PROP_LINES: Record<string, [number, number]> = {
   player_reception_yds: [35, 85],
   player_pass_tds: [0, 2],
 };
-const FIRST = ["Marcus", "Devin", "Tyler", "Jalen", "Chris", "Andre", "Malik", "Derek", "Isaiah", "Caleb"];
-const LAST = ["Hayes", "Brooks", "Carter", "Ellis", "Grant", "Mitchell", "Porter", "Reed", "Sutton", "Wade"];
+const FIRST = ["Marcus", "Devin", "Tyler", "Jalen", "Chris", "Andre", "Malik", "Derek", "Isaiah", "Caleb",
+  "Jordan", "Trey", "Darius", "Elijah", "Xavier", "Corey", "Brandon", "Mason", "Terrell", "Nate"];
+const LAST = ["Hayes", "Brooks", "Carter", "Ellis", "Grant", "Mitchell", "Porter", "Reed", "Sutton", "Wade",
+  "Foster", "Bishop", "Coleman", "Dawson", "Fletcher", "Holloway"];
+
+// Every real team gets its own block of names (20 × 16 = 320 combos ≥ 62 teams × 5 slots), so a fake player is on
+// exactly one team league-wide, whoever they play. Unknown (test) teams fall back to a hash.
+const LEAGUE = [...Object.values(NFL_TEAMS), ...NBA_TEAM_NAMES];
 
 /** Fake roster: stable made-up names per team and slot (never real players). */
 export function fakePlayer(team: string, slot: number): string {
-  const h = hash(`${team}#${slot}`);
-  return `${FIRST[h % FIRST.length]} ${LAST[(h >>> 8) % LAST.length]}`;
+  const i = LEAGUE.indexOf(team);
+  // × 97 mod 320 is a bijection (97 is coprime with 320): still unique, but teammates don't share names.
+  const g = i >= 0 && slot < 5 ? ((i * 5 + slot) * 97) % 320 : hash(`${team}#${slot}`);
+  return `${FIRST[g % FIRST.length]} ${LAST[Math.floor(g / FIRST.length) % LAST.length]}`;
+}
+
+/**
+ * Who gets which prop, like a real depth chart: football slot 0 is the QB (passing only), 1-2 run the ball,
+ * 2-4 catch it, 1-3 can score. Basketball: two players per team, every stat.
+ */
+function propSlots(base: string): number[] {
+  if (base === "player_pass_yds" || base === "player_pass_tds") return [0];
+  if (base === "player_rush_yds") return [1, 2];
+  if (base === "player_reception_yds") return [2, 3, 4];
+  if (base === "player_anytime_td") return [1, 2, 3];
+  return [0, 1];
+}
+
+const ROSTER_SLOTS = 5;
+
+/** One game's fake depth charts. Names never repeat within the game (the home team re-draws on a clash). */
+function fakeLineup(away: string, home: string): Record<string, string[]> {
+  const a = Array.from({ length: ROSTER_SLOTS }, (_, slot) => fakePlayer(away, slot));
+  const h: string[] = [];
+  for (let slot = 0; slot < ROSTER_SLOTS; slot++) {
+    let k = slot;
+    let name = fakePlayer(home, k);
+    while ((a.includes(name) || h.includes(name)) && k < slot + 50) name = fakePlayer(home, (k += 7));
+    h.push(name);
+  }
+  return { [away]: a, [home]: h };
+}
+
+/** The fake players of a game's teams [away, home] with their team, so local dev can label who plays for whom. */
+export function fakeRoster(teams: readonly string[]): { name: string; team: string }[] {
+  const lineup = teams.length === 2 ? fakeLineup(teams[0]!, teams[1]!) : {};
+  return teams.flatMap((team) =>
+    Array.from({ length: ROSTER_SLOTS }, (_, slot) => ({ name: lineup[team]?.[slot] ?? fakePlayer(team, slot), team })),
+  );
 }
 
 function fakePropMarket(ev: FakeEventInput, key: string, drift: number, lastUpdate: string): ApiMarket {
   const base = key.replace(/_alternate$/, "");
   const [lo, hi] = PROP_LINES[base] ?? [5, 20];
-  const quarterbacks = base === "player_pass_yds" || base === "player_pass_tds";
-  const perTeam = quarterbacks ? 1 : key === "player_anytime_td" ? 3 : 2;
   const outcomes: ApiMarket["outcomes"] = [];
+  const lineup = fakeLineup(ev.away_team, ev.home_team);
   for (const team of [ev.away_team, ev.home_team]) {
-    for (let slot = 0; slot < perTeam; slot++) {
-      const player = fakePlayer(team, slot);
+    for (const slot of propSlots(base)) {
+      const player = lineup[team]![slot]!;
       const h = hash(`${ev.id}:${base}:${player}`);
       const lean = (drift ^ h) % 3; // a little juice variety
       if (key === "player_anytime_td") {

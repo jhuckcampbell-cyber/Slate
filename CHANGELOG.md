@@ -4,6 +4,16 @@ Product and design decisions, newest first. Each entry says what changed and why
 Guardrails that never move: $100 play money, private friend groups, SMS-link join, blind picks until lock,
 live sweat. See "Creative enhancements" in CLAUDE.md for the running backlog.
 
+## 2026-11-05: team helmets, and a local data glitch fixed
+
+- **Team helmets.** A small helmet (NFL) or jersey (NBA) in the team's colors sits next to every player and team:
+  on the game lines, in Player props (team headers, each player, each ladder), the bet slip, My picks and every
+  friend's revealed bets. Colors only, no logos (trademarks). Why: "who plays for whom" at a glance, without reading.
+- **Glitch (local dev only, production was never affected):** the fake odds generator gave one made-up player every
+  stat (a "receiver" with passing yards), never gave fake players a team, and mixed into a copied real game. Now it
+  follows a depth chart (QB passes, 1-2 run, 2-4 catch), every fake player has a team, and names are unique across
+  the league, so local looks like production.
+
 ## 2026-11-05 (overnight): friendlier, sleeker, easier to follow
 
 Asked for by the founder after the first friends test. Each item says why.

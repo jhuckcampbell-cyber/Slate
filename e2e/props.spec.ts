@@ -41,7 +41,8 @@ test("host-enabled player props are bet, then graded by the host's stat entry", 
   await host.getByRole("button", { name: /^Player props/ }).click();
   const over = host.getByRole("button", { name: / Over [\d.]+ Pts / }).first();
   await expect(over).toBeEnabled({ timeout: 60_000 });
-  const player = (await over.getAttribute("aria-label"))!.split(" Over ")[0]!;
+  // The label may or may not carry the team yet ("Name (Pilots) Over ..."): the roster can land mid-test.
+  const player = (await over.getAttribute("aria-label"))!.split(" Over ")[0]!.replace(/ \([^)]*\)$/, "");
   if (SHOTS) await host.screenshot({ path: `${SHOTS}/16-props-board.png`, fullPage: true });
   await placeSingle(host, over, 10);
 
@@ -49,7 +50,7 @@ test("host-enabled player props are bet, then graded by the host's stat entry", 
   const gina = await newPage(browser);
   await joinAs(gina, code, "Gina");
   await gina.getByRole("button", { name: /^Player props/ }).click();
-  await placeSingle(gina, gina.getByRole("button", { name: new RegExp(`^${player} Under [\\d.]+ Pts`) }), 20);
+  await placeSingle(gina, gina.getByRole("button", { name: new RegExp(`^${player}( \\([^)]*\\))? Under [\\d.]+ Pts`) }), 20);
 
   // Lock, play, final.
   await host.getByRole("button", { name: "Lock picks now" }).click();

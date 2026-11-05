@@ -1,6 +1,7 @@
 "use client";
 
 import { Odds } from "@/components/odds";
+import { TeamMark } from "@/components/team-mark";
 import { LocalTime } from "@/components/local-time";
 import { ChevronDown, Clock } from "lucide-react";
 import { Fragment, useState } from "react";
@@ -23,6 +24,7 @@ export type SportsbookEvent = {
   home_team: string;
   away_team: string;
   commence_time: string;
+  sport_key?: string;
   /** Post-lock only (scores sync). */
   status?: string | null;
   home_score?: number | null;
@@ -74,8 +76,9 @@ export function EventCard({ event, markets, allowedMarkets, locked, selected, on
 
       {sides.map((side) => (
         <div key={side.team} className={cn("grid items-center gap-1.5 py-1", grid)}>
-          <span className="truncate font-display text-lg font-bold uppercase" title={side.team}>
-            {shortTeam(side.team)}
+          <span className="flex min-w-0 items-center gap-1.5" title={side.team}>
+            <TeamMark team={side.team} sportKey={event.sport_key} />
+            <span className="truncate font-display text-lg font-bold">{shortTeam(side.team)}</span>
           </span>
           {columns.map((m) => {
             const row = markets?.get(m)?.find((r) => r.outcomeName === (m === "totals" ? side.totalsSide : side.team));
@@ -179,7 +182,8 @@ function PropsPanel({
               {groups.map((g) => (
                 <Fragment key={g.team ?? "other"}>
                   {showTeams && (
-                    <li className="pt-2 pb-0.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                    <li className="flex items-center gap-1.5 pt-3 pb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                      {g.team && <TeamMark team={g.team} sportKey={event.sport_key} className="size-5" />}
                       {g.team ? shortTeam(g.team) : "Other"}
                     </li>
                   )}
@@ -199,6 +203,8 @@ function PropsPanel({
                         <Ladder
                           key={player}
                           player={player}
+                          team={g.team}
+                          sportKey={event.sport_key}
                           rows={own}
                           selected={selected}
                           render={(r) => button(r, String(r.id))}
@@ -214,8 +220,9 @@ function PropsPanel({
                           sides.length === 1 ? "grid-cols-[1fr_4.25rem]" : "grid-cols-[1fr_4.25rem_4.25rem]",
                         )}
                       >
-                        <span className="truncate text-sm font-medium" title={player}>
-                          {player}
+                        <span className="flex min-w-0 items-center gap-1.5" title={g.team ? `${player} (${g.team})` : player}>
+                          {g.team && <TeamMark team={g.team} sportKey={event.sport_key} />}
+                          <span className="truncate text-sm font-medium">{player}</span>
                         </span>
                         {sides.map((name) => button(own.find((r) => r.outcomeName === name), name))}
                       </li>
@@ -237,11 +244,15 @@ const LADDER_BAND = 500;
 /** One player's alternate ladder: milestone buttons ("50+", "75+", "100+"), lowest first. */
 function Ladder({
   player,
+  team,
+  sportKey,
   rows,
   selected,
   render,
 }: {
   player: string;
+  team: string | null;
+  sportKey?: string;
   rows: BoardRow[];
   selected: ReadonlySet<number>;
   render: (row: BoardRow) => React.ReactNode;
@@ -253,8 +264,9 @@ function Ladder({
   const shown = all || !trimmed ? ladder : inBand;
   return (
     <li className="py-1.5">
-      <span className="block truncate text-sm font-medium" title={player}>
-        {player}
+      <span className="flex min-w-0 items-center gap-1.5" title={team ? `${player} (${team})` : player}>
+        {team && <TeamMark team={team} sportKey={sportKey} />}
+        <span className="truncate text-sm font-medium">{player}</span>
       </span>
       <div className="mt-1 grid grid-cols-4 gap-1.5">{shown.map(render)}</div>
       {trimmed && (

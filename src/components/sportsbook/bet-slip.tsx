@@ -1,6 +1,8 @@
 "use client";
 
 import { Odds } from "@/components/odds";
+import { TeamMark } from "@/components/team-mark";
+import { pickTeam } from "@/lib/team-colors";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Loader2, Lock, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -317,7 +319,10 @@ function SlipRow({
     <div className={cn("rounded-2xl bg-card p-3 ring-1 ring-border", unavailable && "opacity-60")}>
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold">{selectionLabel(current ?? entry)}</p>
+          <p className="flex min-w-0 items-center gap-1.5 font-semibold">
+            <PickBadge marketKey={entry.marketKey} outcomeName={entry.outcomeName} participantTeam={entry.participantTeam} />
+            <span className="truncate">{selectionLabel(current ?? entry)}</span>
+          </p>
           <p className="truncate text-xs text-muted-foreground">
             {MARKET_LABELS[entry.marketKey] ?? entry.marketKey} · {entry.matchup}
           </p>
@@ -357,6 +362,11 @@ function SlipRow({
       )}
     </div>
   );
+}
+
+function PickBadge(p: { marketKey: string; outcomeName: string; participantTeam?: string | null }) {
+  const team = pickTeam(p);
+  return team ? <TeamMark team={team} className="size-5" /> : null;
 }
 
 function StakeInput({

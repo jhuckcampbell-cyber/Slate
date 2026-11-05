@@ -1,6 +1,8 @@
 "use client";
 
 import { Odds } from "@/components/odds";
+import { TeamMark } from "@/components/team-mark";
+import { pickTeam } from "@/lib/team-colors";
 import { EyeOff, Loader2, Ticket, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -79,6 +81,14 @@ export function MyPicks({ participantId, wagers, eventsById, locked }: Props) {
                     <li key={leg.id} className="flex items-baseline justify-between gap-2">
                       <span className="min-w-0">
                         <span className="font-semibold">
+                          {(() => {
+                            const team = pickTeam({
+                              marketKey: leg.market_key,
+                              outcomeName: leg.selection,
+                              participantTeam: leg.participant_team,
+                            });
+                            return team ? <TeamMark team={team} className="mr-1 inline size-5 align-[-5px]" /> : null;
+                          })()}
                           {selectionLabel({
                             marketKey: leg.market_key,
                             outcomeName: leg.selection,

@@ -16,6 +16,8 @@ export type Rules = {
   maxBetCents: number | null;
   /** Host switch: several picks from one game in a parlay (never two on the same line or player stat). */
   sameGameParlays: boolean;
+  /** House rule: everyone makes at least this many bets (0 or missing = no minimum). */
+  minBets?: number;
 };
 
 export type Selection = {
@@ -37,6 +39,7 @@ export type SlipIssueCode =
   | "MISSING_STAKE"
   | "INVALID_AMOUNT"
   | "OVER_MAX_BET"
+  | "LEAVES_TOO_LITTLE"
   | "INSUFFICIENT_BANKROLL"
   | "MARKET_NOT_ALLOWED"
   | "PARLAYS_DISABLED"
@@ -103,9 +106,17 @@ export function slipTotals(drafts: readonly WagerDraft[]) {
   return { stakeCents, returnCents, profitCents: returnCents - stakeCents };
 }
 
+/**
+ * Money that has to stay unspent so the "minimum bets" house rule can still be met: $1 (the smallest bet) for every
+ * required bet not yet placed or in the slip. Mirrors place_wagers, so one big bet can't make the rule impossible.
+ */
+export function reserveCents(minBets: number, betsPlaced: number, betsInSlip: number): number {
+  return Math.max(0, minBets - betsPlaced - betsInSlip) * MIN_WAGER_CENTS;
+}
+
 export function validateSlip(
   drafts: readonly WagerDraft[],
-  ctx: { rules: Rules; bankrollCents: number },
+  ctx: { rules: Rules; bankrollCents: number; betsPlaced?: number },
 ): SlipIssue[] {
   const issues: SlipIssue[] = [];
   let total = 0;
@@ -132,5 +143,11 @@ export function validateSlip(
   }
 
   if (total > ctx.bankrollCents) issues.push({ code: "INSUFFICIENT_BANKROLL" });
+  else if (
+    drafts.length > 0 &&
+    ctx.bankrollCents - total < reserveCents(ctx.rules.minBets ?? 0, ctx.betsPlaced ?? 0, drafts.length)
+  ) {
+    issues.push({ code: "LEAVES_TOO_LITTLE" });
+  }
   return issues;
 }

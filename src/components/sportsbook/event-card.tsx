@@ -3,9 +3,10 @@
 import { Odds } from "@/components/odds";
 import { TeamMark } from "@/components/team-mark";
 import { LocalTime } from "@/components/local-time";
-import { ChevronDown, Clock } from "lucide-react";
+import { ChevronDown, Clock, Search, X } from "lucide-react";
 import { Fragment, useState } from "react";
 import { isAlternateMarket, isPropMarket } from "@/lib/core/props";
+import { matchesQuery, orderPlayers } from "@/lib/prop-order";
 import { oldestCheck, type BoardRow } from "@/lib/core/board";
 import { useServerNow } from "@/lib/hooks/use-server-now";
 import {
@@ -134,9 +135,12 @@ function PropsPanel({
   const [open, setOpen] = useState(false);
   const [market, setMarket] = useState(propKeys[0]!);
   const rows = markets?.get(market) ?? [];
-  const players = [...new Set(rows.map((r) => r.participantName))];
-  // Group by team (away, home, then unknown) so it's clear who plays for whom. No headings if no team is known.
+  const [query, setQuery] = useState("");
+  // Likeliest first (see prop-order.ts), then filtered by the search box.
   const teamOf = (player: string) => rows.find((r) => r.participantName === player)?.participantTeam ?? null;
+  const allPlayers = orderPlayers(rows, market);
+  const players = allPlayers.filter((p) => matchesQuery(p, teamOf(p), query));
+  // Group by team (away, home, then unknown) so it's clear who plays for whom. No headings if no team is known.
   const groups = [event.away_team, event.home_team, null]
     .map((team) => ({ team, players: players.filter((p) => teamOf(p) === team) }))
     .filter((g) => g.players.length > 0);
@@ -175,8 +179,34 @@ function PropsPanel({
               </button>
             ))}
           </div>
-          {players.length === 0 ? (
+          {allPlayers.length > 0 && (
+            <div className="relative pb-2">
+              <Search aria-hidden className="pointer-events-none absolute top-2.5 left-3 size-4 text-muted-foreground" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search players"
+                aria-label={`Search players, ${matchup}`}
+                autoComplete="off"
+                className="h-10 w-full rounded-xl border border-border bg-surface-2/60 pr-10 pl-9 text-base outline-none focus-visible:border-brand [&::-webkit-search-cancel-button]:hidden"
+              />
+              {query && (
+                <button
+                  type="button"
+                  aria-label="Clear search"
+                  onClick={() => setQuery("")}
+                  className="absolute top-0 right-0 flex size-10 items-center justify-center text-muted-foreground"
+                >
+                  <X className="size-4" />
+                </button>
+              )}
+            </div>
+          )}
+          {allPlayers.length === 0 ? (
             <p className="py-2 text-center text-xs text-muted-foreground">Props post shortly…</p>
+          ) : players.length === 0 ? (
+            <p className="py-2 text-center text-xs text-muted-foreground">No players match &ldquo;{query.trim()}&rdquo;.</p>
           ) : (
             <ul>
               {groups.map((g) => (

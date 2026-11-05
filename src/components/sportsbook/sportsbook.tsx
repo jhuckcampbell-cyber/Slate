@@ -139,6 +139,7 @@ function SportsbookInner({
         participantId={participantId}
         rules={rules}
         bankrollCents={bankroll.data.remainingCents}
+        betsPlaced={wagers.data.length}
         boardById={boardById}
         locked={isLocked}
       />

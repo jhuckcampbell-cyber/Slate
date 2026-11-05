@@ -34,6 +34,8 @@ const MESSAGES: Record<string, string> = {
   MISSING_STAKE: "Enter a stake for every pick.",
   INVALID_AMOUNT: "Minimum bet is $1.",
   OVER_MAX_BET: "That's over this tournament's max bet.",
+  LEAVES_TOO_LITTLE:
+    "That leaves too little to make the minimum number of bets this tournament requires. Bet a bit less.",
   INSUFFICIENT_BANKROLL: "Not enough bankroll for that slip.",
   MARKET_NOT_ALLOWED: "The host turned that bet type off.",
   PARLAYS_DISABLED: "The host turned parlays off.",

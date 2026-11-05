@@ -14,6 +14,7 @@ import type { BoardRow } from "@/lib/core/board";
 import {
   buildWagers,
   parlayEligibility,
+  reserveCents,
   slipTotals,
   validateSlip,
   wagerAmerican,
@@ -33,13 +34,15 @@ type Props = {
   participantId: string;
   rules: Rules;
   bankrollCents: number;
+  /** Bets already placed in this tournament (for the minimum-bets rule). */
+  betsPlaced?: number;
   boardById: ReadonlyMap<number, BoardRow>;
   locked: boolean;
 };
 
 const QUICK_STAKES = [500, 1000, 2500];
 
-export function BetSlip({ tournamentId, participantId, rules, bankrollCents, boardById, locked }: Props) {
+export function BetSlip({ tournamentId, participantId, rules, bankrollCents, betsPlaced = 0, boardById, locked }: Props) {
   const { state, dispatch } = useSlip();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -65,9 +68,13 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, boa
     entries.map((e) => [e.oddsId, dollarsToCents(state.stakes[e.oddsId] ?? "") ?? 0]),
   );
   const drafts = buildWagers(mode, entries, stakeCents, dollarsToCents(state.parlayStake) ?? 0);
-  const issues = validateSlip(drafts, { rules, bankrollCents });
+  const issues = validateSlip(drafts, { rules, bankrollCents, betsPlaced });
   const totals = slipTotals(drafts);
-  const maxStake = Math.min(bankrollCents, rules.maxBetCents ?? Number.POSITIVE_INFINITY);
+  // The most one bet can be: the bankroll minus $1 for each bet the minimum-bets rule still needs, split across singles.
+  const reserve = reserveCents(rules.minBets ?? 0, betsPlaced, drafts.length);
+  const spendable = Math.max(bankrollCents - reserve, 0);
+  const perBet = Math.floor((mode === "parlay" ? spendable : spendable / Math.max(entries.length, 1)) / 100) * 100;
+  const maxStake = Math.min(perBet, rules.maxBetCents ?? Number.POSITIVE_INFINITY);
   const missingStake = issues.some((i) => i.code === "MISSING_STAKE");
   const blockingIssues = [...new Set(issues.filter((i) => i.code !== "MISSING_STAKE").map((i) => i.code))];
 
@@ -258,13 +265,19 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, boa
                 variant="outline"
                 size="sm"
                 className="h-9 flex-1"
-                onClick={() =>
-                  setQuickStake(mode === "parlay" ? maxStake : Math.floor(maxStake / entries.length / 100) * 100)
-                }
+                onClick={() => setQuickStake(maxStake)}
               >
                 Max
               </Button>
             </div>
+
+            {reserve > 0 && (
+              <p className="rounded-xl bg-muted/50 p-2.5 text-xs text-muted-foreground">
+                This tournament needs {rules.minBets}+ bets, so {formatCents(reserve)} stays back for the{" "}
+                {reserve / 100} more you&apos;ll make. Most you can put on {mode === "parlay" || entries.length === 1 ? "this bet" : "each bet"}:{" "}
+                <span className="num font-semibold text-foreground">{formatCents(maxStake)}</span>.
+              </p>
+            )}
 
             {blockingIssues.length > 0 && (
               <ul className="space-y-1 text-sm text-destructive">

@@ -4,6 +4,18 @@ Product and design decisions, newest first. Each entry says what changed and why
 Guardrails that never move: $100 play money, private friend groups, SMS-link join, blind picks until lock,
 live sweat. See "Creative enhancements" in CLAUDE.md for the running backlog.
 
+## 2026-11-05: rules up top, a bet cap, player search, likeliest-first props
+
+- **Rules at the top.** The Rules card now sits right under the tournament title, before the games, so nobody bets
+  without knowing the game they joined.
+- **One bet can't swallow the bankroll.** When the host requires N bets, every bet still owed keeps $1 back, so
+  nobody can stake everything on one pick and then be unable to meet the rule. Enforced in the database
+  (`place_wagers` wrapper, migration 0020, error `LEAVES_TOO_LITTLE`) and mirrored in the slip (`reserveCents`):
+  the slip explains the limit and "Max" respects it. The host's existing Max bet still applies on top.
+- **Search players** in every props list (name or team, any order of words).
+- **Likeliest first.** Anytime-scorer and alternate-yardage lists go by chance (favorites at the top, long shots
+  last) instead of A to Z; over/under props go by the line (stars first). Ties fall back to the name.
+
 ## 2026-11-05: team helmets, and a local data glitch fixed
 
 - **Team helmets.** A small helmet (NFL) or jersey (NBA) in the team's colors sits next to every player and team:

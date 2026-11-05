@@ -116,6 +116,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
     maxParlayLegs: allowed.max_parlay_legs ?? 6,
     maxBetCents: t.max_bet_cents === null ? null : Number(t.max_bet_cents),
     sameGameParlays: allowed.same_game_parlays ?? true, // mirrors place_wagers' default
+    minBets: Number(allowed.min_bets ?? 0),
   };
   const isLocked = Boolean(t.is_locked);
   const isHost = t.host_id === viewer.userId;
@@ -176,6 +177,45 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
           <LockCountdown lockTime={t.lock_time} serverNow={t.server_now ?? undefined} isLocked={isLocked} />
         </div>
       </header>
+
+      <section className="mt-5" aria-labelledby="rules-heading">
+        <h2 id="rules-heading" className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          Rules
+        </h2>
+        <dl className="grid grid-cols-2 gap-2 text-sm">
+          <Rule label="Bankroll" value={bankroll} />
+          <Rule label="Max bet" value={rules.maxBetCents ? formatCents(rules.maxBetCents) : "No limit"} />
+          <Rule
+            label="Bets"
+            value={
+              gameMarkets.map((m) => MARKET_LABELS[m] ?? m).join(", ") + (playerProps ? " + player props" : "")
+            }
+          />
+          {(allIn || minBets > 0) && (
+            <Rule
+              label="House rules"
+              value={[allIn && "Bet it all", minBets > 0 && `${minBets}+ bets`].filter(Boolean).join(" · ")}
+            />
+          )}
+          <Rule
+            label="Parlays"
+            value={
+              rules.parlays
+                ? `Up to ${rules.maxParlayLegs} legs${rules.sameGameParlays ? ", same-game OK" : ", one per game"}`
+                : "Off"
+            }
+          />
+        </dl>
+        {!isLocked && (
+          <p className="mt-3 flex gap-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
+            <EyeOff className="mt-0.5 size-4 shrink-0" />
+            <span>
+              Picks stay hidden from everyone until <LocalTime iso={t.lock_time} />, then they&apos;re all revealed at
+              once.
+            </span>
+          </p>
+        )}
+      </section>
 
       {isLocked ? (
         <RevealSection
@@ -249,45 +289,6 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
       )}
 
       <InstallHint className="mt-8" />
-
-      <section className="mt-8" aria-labelledby="rules-heading">
-        <h2 id="rules-heading" className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          Rules
-        </h2>
-        <dl className="grid grid-cols-2 gap-2 text-sm">
-          <Rule label="Bankroll" value={bankroll} />
-          <Rule label="Max bet" value={rules.maxBetCents ? formatCents(rules.maxBetCents) : "No limit"} />
-          <Rule
-            label="Bets"
-            value={
-              gameMarkets.map((m) => MARKET_LABELS[m] ?? m).join(", ") + (playerProps ? " + player props" : "")
-            }
-          />
-          {(allIn || minBets > 0) && (
-            <Rule
-              label="House rules"
-              value={[allIn && "Bet it all", minBets > 0 && `${minBets}+ bets`].filter(Boolean).join(" · ")}
-            />
-          )}
-          <Rule
-            label="Parlays"
-            value={
-              rules.parlays
-                ? `Up to ${rules.maxParlayLegs} legs${rules.sameGameParlays ? ", same-game OK" : ", one per game"}`
-                : "Off"
-            }
-          />
-        </dl>
-        {!isLocked && (
-          <p className="mt-3 flex gap-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
-            <EyeOff className="mt-0.5 size-4 shrink-0" />
-            <span>
-              Picks stay hidden from everyone until <LocalTime iso={t.lock_time} />, then they&apos;re all revealed at
-              once.
-            </span>
-          </p>
-        )}
-      </section>
 
       {!isLocked && <ExitTournament tournamentId={t.id} isHost={isHost} title={t.title} />}
     </main>

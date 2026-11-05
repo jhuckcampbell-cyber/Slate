@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildWagers,
+  reserveCents,
   parlayEligibility,
   slipTotals,
   validateSlip,
@@ -124,6 +125,49 @@ describe("validateSlip", () => {
     const drafts = buildWagers("parlay", [sel(1, "a"), sel(2, "a", -110, "totals")], {}, 1000);
     expect(validateSlip(drafts, { rules, bankrollCents: 10_000 })).toEqual([
       { code: "SAME_EVENT_PARLAY" },
+    ]);
+  });
+});
+
+describe("minimum-bets budget", () => {
+  const picks2 = [sel(1, "a"), sel(2, "b")];
+
+  it("keeps $1 back for every bet the rules still require", () => {
+    expect(reserveCents(5, 0, 1)).toBe(400);
+    expect(reserveCents(5, 2, 1)).toBe(200);
+    expect(reserveCents(2, 3, 1)).toBe(0);
+    expect(reserveCents(0, 0, 4)).toBe(0);
+  });
+
+  it("blocks one bet on the whole bankroll when the host wants several bets", () => {
+    const drafts = buildWagers("singles", [sel(1, "a")], { 1: 10_000 }, undefined);
+    expect(validateSlip(drafts, { rules: { ...rules, minBets: 3 }, bankrollCents: 10_000, betsPlaced: 0 })).toEqual([
+      { code: "LEAVES_TOO_LITTLE" },
+    ]);
+  });
+
+  it("allows a stake that leaves enough for the remaining required bets", () => {
+    const drafts = buildWagers("singles", [sel(1, "a")], { 1: 9_800 }, undefined);
+    expect(validateSlip(drafts, { rules: { ...rules, minBets: 3 }, bankrollCents: 10_000, betsPlaced: 0 })).toEqual([]);
+  });
+
+  it("counts bets already placed and bets in this slip", () => {
+    const drafts = buildWagers("singles", picks2, { 1: 5_000, 2: 4_950 }, undefined);
+    // 1 placed + 2 in slip = 3 of 4 required: $1 must stay back, but only $0.50 would.
+    expect(validateSlip(drafts, { rules: { ...rules, minBets: 4 }, bankrollCents: 10_000, betsPlaced: 1 })).toEqual([
+      { code: "LEAVES_TOO_LITTLE" },
+    ]);
+  });
+
+  it("does nothing when no minimum is set", () => {
+    const drafts = buildWagers("singles", [sel(1, "a")], { 1: 10_000 }, undefined);
+    expect(validateSlip(drafts, { rules, bankrollCents: 10_000 })).toEqual([]);
+  });
+
+  it("reports only the bankroll problem when the slip is already too big", () => {
+    const drafts = buildWagers("singles", [sel(1, "a")], { 1: 12_000 }, undefined);
+    expect(validateSlip(drafts, { rules: { ...rules, minBets: 3 }, bankrollCents: 10_000, betsPlaced: 0 })).toEqual([
+      { code: "INSUFFICIENT_BANKROLL" },
     ]);
   });
 });

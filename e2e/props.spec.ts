@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { admin, joinAs, newPage, nudgeSync, openPlayerBets, placeSingle, waitForOdds } from "./helpers";
+import { admin, closeFinal, joinAs, newPage, nudgeSync, openPlayerBets, placeSingle, waitForOdds } from "./helpers";
 
 // Player props: host opts in at create → per-game prop odds (fake provider) → over/under picks →
 // final → the host enters the stat → every pick on that line is graded → the tournament finishes.
@@ -34,7 +34,7 @@ test("host-enabled player props are bet, then graded by the host's stat entry", 
   await host.getByRole("button", { name: /Create & get invite link/ }).click();
   await host.waitForURL(/\/t\/[A-Z0-9]{2,5}-[A-Z0-9]{4}/);
   const code = new URL(host.url()).pathname.split("/").pop()!;
-  await expect(host.getByText("Moneyline, Spread, Total + player props")).toBeVisible();
+  await expect(host.getByText("Winner, Spread, Total + player props")).toBeVisible();
   await waitForOdds(host);
 
   // Host: first player's Over on points.
@@ -93,6 +93,7 @@ test("host-enabled player props are bet, then graded by the host's stat entry", 
   // Over wins, Under loses, the stat is public, the tournament finishes.
   await expect(gina.getByRole("heading", { name: "Final standings" })).toBeVisible({ timeout: 30_000 });
   await expect(gina.getByText("Hank wins")).toBeVisible();
+  await closeFinal(gina);
   await openPlayerBets(gina, "Gina");
   await openPlayerBets(gina, "Hank");
   await expect(gina.getByText("Lost")).toBeVisible();

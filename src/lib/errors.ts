@@ -27,6 +27,8 @@ const MESSAGES: Record<string, string> = {
   INVALID_RULES: "Allow at least one bet type.",
   CANNOT_REMOVE_HOST: "The host can't be removed.",
   PLAYER_NOT_FOUND: "That player already left.",
+  INVALID_MIN_BETS: "Minimum bets must be between 0 and 20.",
+  HOST_CANNOT_LEAVE: "You're the host. Delete the tournament instead.",
   // slip
   INVALID_SLIP: "Your slip is empty.",
   MISSING_STAKE: "Enter a stake for every pick.",

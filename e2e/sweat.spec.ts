@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { formatCents } from "../src/lib/format";
-import { admin, createTournament, joinAs, newPage, openPlayerBets, placeSingle, tournamentId, waitForOdds } from "./helpers";
+import { admin, closeFinal, createTournament, joinAs, newPage, openPlayerBets, placeSingle, tournamentId, waitForOdds } from "./helpers";
 
 // Phase 5: lock → live scores → leaderboard and chances → final → graded bets, credited
 // bankrolls, winner. Scores are pushed with the service role (what the scores sync does).
@@ -64,7 +64,11 @@ test("live scores move the leaderboard, a final grades bets and crowns a winner"
   await admin.from("events").update({ commence_time: new Date(Date.now() - 75 * 60_000).toISOString() }).eq("id", eventId);
 
   await expect(gina.getByRole("heading", { name: "Leaderboard" })).toBeVisible({ timeout: 30_000 });
-  await expect(gina.getByText("Rockets 40 · Comets 50")).toBeVisible({ timeout: 30_000 });
+  // The game card: big score for each side.
+  const game = gina.getByRole("article", { name: "Rockets at Comets" });
+  await expect(game).toContainText("40", { timeout: 30_000 });
+  await expect(game).toContainText("50");
+  await expect(game).toContainText("Live");
   await openPlayerBets(gina, "Gina");
   await expect(gina.getByText(/\d+% to cash|>99% to cash/).first()).toBeVisible();
   // Live order depends on the (fake) prices, so only check both are ranked; the final is exact.
@@ -78,6 +82,13 @@ test("live scores move the leaderboard, a final grades bets and crowns a winner"
   // Final: Comets win. Gina is credited her bet's return on top of the $80 she didn't bet.
   await scores(101, 99, true);
   await expect(gina.getByRole("heading", { name: "Final standings" })).toBeVisible({ timeout: 30_000 });
+  // The champion moment: once, then it's out of the way.
+  await expect(gina.getByRole("dialog", { name: "Tournament over" })).toContainText("You!");
+  if (SHOTS) {
+    await gina.waitForTimeout(1200);
+    await gina.screenshot({ path: `${SHOTS}/14b-champion.png` });
+  }
+  await closeFinal(gina);
   await expect(gina.getByText("You win")).toBeVisible();
   await expect(gina.getByText(`Won ${formatCents(ginaReturn)}`)).toBeVisible();
   await expect(gina.getByRole("listitem", { name: /^1\. Gina/ })).toContainText(formatCents(8000 + ginaReturn));
@@ -90,5 +101,9 @@ test("live scores move the leaderboard, a final grades bets and crowns a winner"
 
   await host.reload();
   await expect(host.getByText("Gina wins")).toBeVisible();
+  await closeFinal(host);
+  await gina.reload();
+  await expect(gina.getByRole("heading", { name: "Final standings" })).toBeVisible();
+  await expect(gina.getByRole("dialog", { name: "Tournament over" })).toHaveCount(0); // once per phone
   await expect(host.getByRole("listitem", { name: /^2\. Hank/ })).toContainText("$90");
 });

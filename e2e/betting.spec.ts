@@ -29,12 +29,13 @@ test("blind slip: parlay, live odds change, cancel refund", async ({ browser }) 
 
   // Guest: sees that Hank submitted, but not what.
   await guest.reload();
+  await guest.waitForLoadState("networkidle"); // hydrated, so the tab tap works
   await expect(guest.getByText(/1\/2 locked in/)).toBeVisible();
   await guest.getByRole("tab", { name: /My picks/ }).click();
   await expect(guest.getByText("No picks yet")).toBeVisible();
 
   // Host: a line moves while a pick sits in the slip → Realtime → accept → place.
-  await host.getByRole("tab", { name: /Board/ }).click();
+  await host.getByRole("tab", { name: /Games/ }).click();
   const pick = firstGame.getByRole("button", { pressed: false }).last(); // home moneyline
   const oddsId = Number(await pick.getAttribute("data-odds-id"));
   // Move relative to the price the player ACCEPTS (aria-label "Celtics ML -260"), not the DB value:

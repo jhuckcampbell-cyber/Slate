@@ -81,3 +81,45 @@ export function sweatTag(p: number | null): { label: "Safe" | "Sweating" | "Dang
   if (p <= 0.2) return { label: "Danger", tone: "loss" };
   return { label: "Sweating", tone: "live" };
 }
+
+export type LiveFeed = {
+  state: string;
+  home_score?: number | null;
+  away_score?: number | null;
+  detail?: string | null;
+  situation?: string | null;
+  last_play?: string | null;
+};
+
+export type GameView = {
+  state: "pre" | "in" | "post";
+  away: { name: string; score: number | null; leading: boolean };
+  home: { name: string; score: number | null; leading: boolean };
+  detail: string | null;
+  situation: string | null;
+  lastPlay: string | null;
+};
+
+/** One game's live card: the free live feed (score, clock, last play) when we have it; the official final wins. */
+export function gameView(e: ScoredEvent, live: LiveFeed | null): GameView {
+  const official = e.status === "final";
+  const useLive = live !== null && !official;
+  const home = useLive ? (live.home_score ?? e.home_score ?? null) : (e.home_score ?? null);
+  const away = useLive ? (live.away_score ?? e.away_score ?? null) : (e.away_score ?? null);
+  const state: GameView["state"] = official
+    ? "post"
+    : useLive && (live.state === "in" || live.state === "post")
+      ? live.state
+      : home !== null && away !== null
+        ? "in"
+        : "pre";
+  const both = home !== null && away !== null;
+  return {
+    state,
+    away: { name: shortTeam(e.away_team), score: away, leading: both && away > home },
+    home: { name: shortTeam(e.home_team), score: home, leading: both && home > away },
+    detail: official ? "Final" : useLive ? (live.detail ?? null) : null,
+    situation: useLive && state === "in" ? (live.situation ?? null) : null,
+    lastPlay: useLive && state === "in" ? (live.last_play ?? null) : null,
+  };
+}

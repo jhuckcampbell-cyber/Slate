@@ -3,13 +3,21 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { EyeOff, House, UserRound } from "lucide-react";
-import { AppBar, DisplayTitle, Eyebrow } from "@/components/brand";
+import { EyeOff, House } from "lucide-react";
+import { AppBar, Eyebrow } from "@/components/brand";
+import { LiveGames } from "@/components/game/live-games";
+import { FinalCelebration } from "@/components/leaderboard/final-celebration";
+import { loadMyTournaments } from "@/components/my-tournaments-list";
+import { SettingsButton } from "@/components/settings/settings-button";
+import { ExitTournament } from "@/components/tournament/exit-tournament";
+import { TournamentTitle } from "@/components/tournament/explainer";
+import { TournamentSwitcher } from "@/components/tournament/tournament-switcher";
+import { explainTournament } from "@/lib/plain-english";
 import { InstallHint } from "@/components/install-hint";
 import { PageSkeleton } from "@/components/page-skeleton";
 import { Leaderboard, type LeaderRow } from "@/components/leaderboard/leaderboard";
 import { PropsDesk, type PropLine, type PropResult } from "@/components/leaderboard/props-desk";
-import { PlayerBets, Reveal, Scoreboard, type RevealPlayer } from "@/components/reveal/reveal";
+import { PlayerBets, Reveal, type RevealPlayer } from "@/components/reveal/reveal";
 import { Sportsbook } from "@/components/sportsbook/sportsbook";
 import type { SportsbookEvent } from "@/components/sportsbook/event-card";
 import { HostTools } from "@/components/tournament/host-tools";
@@ -17,7 +25,6 @@ import { LockCountdown } from "@/components/tournament/lock-countdown";
 import { ShareButton } from "@/components/tournament/share-button";
 import { SquadList, type SquadMember } from "@/components/tournament/squad-list";
 import { TournamentLive } from "@/components/tournament/tournament-live";
-import { Badge } from "@/components/ui/badge";
 import { toBoardRow } from "@/lib/core/board";
 import { normalizeCode } from "@/lib/core/codes";
 import { propLinesToGrade, propMarkets, tournamentMarkets } from "@/lib/core/props";
@@ -44,6 +51,8 @@ type AllowedBetTypes = {
   max_parlay_legs?: number;
   player_props?: boolean;
   same_game_parlays?: boolean;
+  all_in?: boolean;
+  min_bets?: number;
 };
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
@@ -77,7 +86,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
     .maybeSingle();
   if (!t) redirect(`/join/${code}`);
 
-  const [{ data: eventLinks }, { data: roster }, { data: me }] = await Promise.all([
+  const [{ data: eventLinks }, { data: roster }, { data: me }, mine] = await Promise.all([
     supabase
       .from("tournament_events")
       .select("events(id, home_team, away_team, commence_time, status, home_score, away_score)")
@@ -89,6 +98,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
       .eq("tournament_id", t.id)
       .eq("user_id", viewer.userId)
       .maybeSingle(),
+    loadMyTournaments(),
   ]);
   if (!me) redirect(`/join/${code}`);
 
@@ -112,6 +122,27 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
   const bankroll = formatCents(t.starting_bankroll_cents);
   const squad: SquadMember[] = roster ?? [];
   const shareUrl = `${publicEnv.siteUrl}/join/${t.code}`;
+  const allIn = Boolean(allowed.all_in);
+  const minBets = Number(allowed.min_bets ?? 0);
+  const hostName = squad.find((m) => m.is_host)?.display_name ?? "Your friend";
+  const explainer = explainTournament({
+    bankrollCents: Number(t.starting_bankroll_cents),
+    games: events.map((e) => `${shortTeam(e.away_team)} @ ${shortTeam(e.home_team)}`),
+    markets: gameMarkets,
+    parlays: rules.parlays,
+    playerProps,
+    maxBetCents: rules.maxBetCents,
+    allIn,
+    minBets,
+    hostName: isHost ? null : hostName,
+  });
+  const switcher = mine.map((m) => ({
+    code: m.code,
+    title: m.title,
+    sportKey: m.sportKey,
+    label: m.label,
+    detail: m.score ?? m.finish,
+  }));
 
   return (
     <main className="mx-auto w-full max-w-md flex-1 px-4 pt-[max(env(safe-area-inset-top),12px)] pb-10">
@@ -127,27 +158,19 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
         <AppBar>
           <Link
             href="/"
-            className="flex h-9 items-center gap-1.5 rounded-full bg-card px-3 text-sm font-medium ring-1 ring-border"
+            aria-label="Home"
+            className="flex size-10 items-center justify-center rounded-full bg-card ring-1 ring-border"
           >
-            <House className="size-4" aria-hidden />
-            Home
+            <House className="size-[18px]" aria-hidden />
           </Link>
-          <Badge variant="outline" className="h-7 font-mono tracking-widest">
-            {t.code}
-          </Badge>
-          <Link
-            href="/account"
-            aria-label="Account"
-            className="flex size-9 items-center justify-center rounded-full bg-card font-display text-base font-bold ring-1 ring-border"
-          >
-            {viewer.profile?.display_name?.slice(0, 1).toUpperCase() ?? <UserRound className="size-4" />}
-          </Link>
+          <TournamentSwitcher current={t.code} items={switcher} />
+          <SettingsButton />
         </AppBar>
         <Eyebrow className="mt-6">
           {sportEmoji(t.sport_key)} {sportLabel(t.sport_key)} · {events.length} {events.length === 1 ? "game" : "games"}
           {isLocked && <span className="text-warn"> · {STATUS_LABELS[t.status] ?? "Locked"}</span>}
         </Eyebrow>
-        <DisplayTitle className="mt-1.5">{t.title}</DisplayTitle>
+        <TournamentTitle title={t.title} sections={explainer} />
         {t.description && <p className="mt-2 text-muted-foreground">{t.description}</p>}
         <div className="mt-3 inline-flex rounded-full bg-card px-3.5 py-1.5 text-sm ring-1 ring-border">
           <LockCountdown lockTime={t.lock_time} serverNow={t.server_now ?? undefined} isLocked={isLocked} />
@@ -188,6 +211,8 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
                 maxParlayLegs: rules.maxParlayLegs,
                 playerProps,
                 sameGameParlays: rules.sameGameParlays,
+                allIn,
+                minBets,
               }}
               firstKickoff={events[0]?.commence_time ?? t.lock_time}
               canEditBankroll={squad.length === 1 && Number(me.total_potential_payout_cents) === 0}
@@ -206,6 +231,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
               remainingCents: Number(me.remaining_bankroll_cents),
               potentialPayoutCents: Number(me.total_potential_payout_cents),
             }}
+            houseRules={allIn || minBets > 0 ? { allIn, minBets, bankrollCents: Number(t.starting_bankroll_cents) } : undefined}
           />
 
           <SquadList
@@ -237,6 +263,12 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
               gameMarkets.map((m) => MARKET_LABELS[m] ?? m).join(", ") + (playerProps ? " + player props" : "")
             }
           />
+          {(allIn || minBets > 0) && (
+            <Rule
+              label="House rules"
+              value={[allIn && "Bet it all", minBets > 0 && `${minBets}+ bets`].filter(Boolean).join(" · ")}
+            />
+          )}
           <Rule
             label="Parlays"
             value={
@@ -256,6 +288,8 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
           </p>
         )}
       </section>
+
+      {!isLocked && <ExitTournament tournamentId={t.id} isHost={isHost} title={t.title} />}
     </main>
   );
 }
@@ -267,6 +301,7 @@ async function PreLockSportsbook({
   rules,
   events,
   bankroll,
+  houseRules,
 }: {
   supabase: Supabase;
   tournamentId: string;
@@ -274,6 +309,7 @@ async function PreLockSportsbook({
   rules: Rules;
   events: SportsbookEvent[];
   bankroll: { remainingCents: number; potentialPayoutCents: number };
+  houseRules?: { allIn: boolean; minBets: number; bankrollCents: number };
 }) {
   const [{ data: boardRows }, { data: wagerRows }] = await Promise.all([
     supabase.from("odds_board").select(BOARD_COLUMNS).in("event_id", events.map((e) => e.id)),
@@ -294,6 +330,7 @@ async function PreLockSportsbook({
       initialBoard={(boardRows ?? []).map(toBoardRow)}
       initialWagers={((wagerRows ?? []) as unknown as WagerRow[]).map(toMyWager)}
       initialBankroll={bankroll}
+      houseRules={houseRules}
     />
   );
 }
@@ -316,7 +353,8 @@ async function RevealSection({
   settled: boolean;
   startingBankrollCents: number;
 }) {
-  const [{ data: wagerRows }, { data: participants }, { data: board }, { data: propRows }] = await Promise.all([
+  const [{ data: wagerRows }, { data: participants }, { data: board }, { data: propRows }, { data: liveRows }] =
+    await Promise.all([
     supabase.from("wagers").select(REVEAL_WAGER_SELECT).eq("tournament_id", tournamentId).order("created_at"),
     supabase
       .from("tournament_participants")
@@ -331,7 +369,12 @@ async function RevealSection({
       .select("event_id, market_key, participant_name, stat")
       .eq("tournament_id", tournamentId)
       .order("graded_at"),
+    supabase
+      .from("game_live")
+      .select("event_id, state, home_score, away_score, detail, situation, last_play")
+      .in("event_id", events.map((e) => e.id)),
   ]);
+  const live = Object.fromEntries((liveRows ?? []).map((r) => [r.event_id, r]));
 
   const leaders: LeaderRow[] = (board ?? []).map((r) => ({
     participantId: String(r.participant_id),
@@ -390,7 +433,13 @@ async function RevealSection({
 
   return (
     <>
-      <Scoreboard events={events} />
+      {settled && (
+        <FinalCelebration
+          tournamentId={tournamentId}
+          finishers={leaders.map((l) => ({ name: l.name, isYou: l.isYou, cashCents: l.cashCents, rank: l.rank }))}
+        />
+      )}
+      <LiveGames events={events} live={live} />
       <Leaderboard
         rows={leaders}
         settled={settled}

@@ -1,20 +1,21 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-/** Ticket-stub mark: a bet slip with two notches and three pick lines. */
+/** The Slate mark: a violet-to-coral tile with a bold white S (and a spark: the live sweat). */
+export const LOGO_S = "M21.6 10.6c-1-1.8-3-2.8-5.5-2.8-3.1 0-5.4 1.7-5.4 4 0 5.7 11.4 3.1 11.4 8.7 0 2.5-2.4 4.2-5.8 4.2-2.6 0-4.7-1.1-5.8-3";
+
 export function LogoMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" aria-hidden className={cn("size-7", className)}>
-      <path
-        fill="var(--brand)"
-        d="M7 3h18a3 3 0 0 1 3 3v6.5a3.5 3.5 0 0 0 0 7V26a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-6.5a3.5 3.5 0 0 0 0-7V6a3 3 0 0 1 3-3Z"
-      />
-      <path
-        stroke="var(--brand-foreground)"
-        strokeWidth="2.6"
-        strokeLinecap="round"
-        d="M10 10.5h12M10 16h8M10 21.5h10"
-      />
+    <svg viewBox="0 0 32 32" aria-hidden className={cn("size-8", className)}>
+      <defs>
+        <linearGradient id="slate-mark" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="var(--brand)" />
+          <stop offset="1" stopColor="var(--hype)" />
+        </linearGradient>
+      </defs>
+      <rect x="1" y="1" width="30" height="30" rx="9" fill="url(#slate-mark)" />
+      <path d={LOGO_S} fill="none" stroke="white" strokeWidth="3.4" strokeLinecap="round" />
+      <circle cx="24.8" cy="7.4" r="1.7" fill="white" />
     </svg>
   );
 }
@@ -23,8 +24,8 @@ export function Wordmark({ className }: { className?: string }) {
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
       <LogoMark />
-      <span className="font-display text-xl font-extrabold tracking-wide uppercase italic">
-        Slate<span className="text-brand">.</span>
+      <span className="font-display text-[1.4rem] font-extrabold tracking-tight">
+        slate<span className="text-hype">.</span>
       </span>
     </span>
   );
@@ -62,7 +63,7 @@ export function DisplayTitle({
   as?: "h1" | "h2";
 }) {
   return (
-    <Tag className={cn("font-display text-[2.6rem]/[0.95] font-extrabold tracking-tight text-balance uppercase", className)}>
+    <Tag className={cn("font-display text-[2.4rem]/[1] font-extrabold tracking-tight text-balance", className)}>
       {children}
     </Tag>
   );

@@ -29,3 +29,15 @@ export function tournamentStatusLabel(t: MyTournament, nowMs: number): string {
   if (t.status === "locked" || Date.parse(t.lockTime) <= nowMs) return "Locked";
   return "Open";
 }
+
+function ordinal(n: number): string {
+  const teen = n % 100 >= 11 && n % 100 <= 13;
+  const suffix = teen ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th");
+  return `${n}${suffix}`;
+}
+
+/** "🏆 Won", "2nd of 5". */
+export function finishLabel(rank: number | null, players: number): string | null {
+  if (rank === null) return null;
+  return rank === 1 ? "🏆 Won" : `${ordinal(rank)} of ${players}`;
+}

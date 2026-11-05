@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { orderMyTournaments, tournamentStatusLabel, type MyTournament } from "./my-tournaments";
+import { finishLabel, orderMyTournaments, tournamentStatusLabel, type MyTournament } from "./my-tournaments";
 
 const t = (code: string, status: string, lockTime: string): MyTournament => ({
   code,
@@ -31,5 +31,18 @@ describe("tournamentStatusLabel", () => {
     expect(tournamentStatusLabel(t("A", "locked", "2026-11-05T11:00:00Z"), now)).toBe("Locked");
     expect(tournamentStatusLabel(t("A", "live", "2026-11-05T11:00:00Z"), now)).toBe("Live");
     expect(tournamentStatusLabel(t("A", "settled", "2026-11-05T11:00:00Z"), now)).toBe("Final");
+  });
+});
+
+describe("finishLabel: how you did, for past tournaments", () => {
+  it("place out of the field", () => {
+    expect(finishLabel(1, 5)).toBe("🏆 Won");
+    expect(finishLabel(2, 5)).toBe("2nd of 5");
+    expect(finishLabel(3, 3)).toBe("3rd of 3");
+    expect(finishLabel(11, 12)).toBe("11th of 12");
+    expect(finishLabel(22, 30)).toBe("22nd of 30");
+  });
+  it("unknown: nothing", () => {
+    expect(finishLabel(null, 5)).toBeNull();
   });
 });

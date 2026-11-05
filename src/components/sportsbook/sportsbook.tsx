@@ -1,10 +1,11 @@
 "use client";
 
-import { Lock } from "lucide-react";
+import { CircleCheck, CircleDashed, Lock } from "lucide-react";
 import { useMemo, useState } from "react";
 import { indexBoard, type BoardRow } from "@/lib/core/board";
 import type { Rules } from "@/lib/core/slip";
 import { formatCents, shortTeam } from "@/lib/format";
+import { requirements, type HouseRules } from "@/lib/plain-english";
 import { useBoard } from "@/lib/queries/board";
 import { useBankroll, useMyWagers, type Bankroll, type MyWager } from "@/lib/queries/wagers";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,8 @@ export type SportsbookProps = {
   initialBoard: BoardRow[];
   initialWagers: MyWager[];
   initialBankroll: Bankroll;
+  /** Host rules (all-in, minimum bets): a live checklist under the bankroll. */
+  houseRules?: HouseRules;
 };
 
 export function Sportsbook(props: SportsbookProps) {
@@ -43,6 +46,7 @@ function SportsbookInner({
   initialBoard,
   initialWagers,
   initialBankroll,
+  houseRules,
 }: SportsbookProps) {
   const [tab, setTab] = useState<"board" | "picks">("board");
   const { state, dispatch } = useSlip();
@@ -85,13 +89,22 @@ function SportsbookInner({
         <Stat label="Potential" value={formatCents(bankroll.data.potentialPayoutCents)} />
       </dl>
 
+      {houseRules && (
+        <HouseRulesChecklist
+          items={requirements(houseRules, {
+            bets: wagers.data.length,
+            wageredCents: wagers.data.reduce((sum, w) => sum + w.amount_cents, 0),
+          })}
+        />
+      )}
+
       <TabSwitch
         label="Sportsbook view"
         className="mt-4"
         value={tab}
         onChange={setTab}
         options={[
-          { value: "board", label: "Board" },
+          { value: "board", label: "Games" },
           { value: "picks", label: `My picks${wagers.data.length > 0 ? ` (${wagers.data.length})` : ""}` },
         ]}
       />
@@ -132,6 +145,25 @@ function SportsbookInner({
       {/* Keep the last card clear of the sticky slip bar. */}
       {state.entries.length > 0 && <div className="h-24" aria-hidden />}
     </section>
+  );
+}
+
+function HouseRulesChecklist({ items }: { items: ReturnType<typeof requirements> }) {
+  if (items.length === 0) return null;
+  const allDone = items.every((i) => i.done);
+  return (
+    <ul
+      aria-label="House rules"
+      className={cn("mt-2 space-y-1 rounded-2xl p-3 text-sm ring-1", allDone ? "bg-win/8 ring-win/30" : "bg-warn/8 ring-warn/30")}
+    >
+      {items.map((i) => (
+        <li key={i.label} className="flex items-center gap-2">
+          {i.done ? <CircleCheck className="size-4 shrink-0 text-win" /> : <CircleDashed className="size-4 shrink-0 text-warn" />}
+          <span className="flex-1">{i.label}</span>
+          <span className={cn("text-xs font-semibold tabular-nums", i.done ? "text-win" : "text-warn")}>{i.detail}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 

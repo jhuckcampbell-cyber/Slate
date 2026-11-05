@@ -1,11 +1,12 @@
 "use client";
 
+import { Odds } from "@/components/odds";
 import { EyeOff, Loader2, Ticket, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { friendlyError } from "@/lib/errors";
-import { formatAmerican, formatCents, selectionLabel, shortTeam } from "@/lib/format";
+import { formatCents, selectionLabel, shortTeam } from "@/lib/format";
 import { useCancelWager, type MyWager } from "@/lib/queries/wagers";
 import { cn } from "@/lib/utils";
 import type { SportsbookEvent } from "./event-card";
@@ -25,7 +26,7 @@ export function MyPicks({ participantId, wagers, eventsById, locked }: Props) {
     return (
       <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
         <Ticket className="mx-auto mb-2 size-6" />
-        No picks yet. Tap a line on the board to start a slip.
+        No picks yet. Tap a price under Games to start a slip.
       </div>
     );
   }
@@ -48,7 +49,7 @@ export function MyPicks({ participantId, wagers, eventsById, locked }: Props) {
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                   {w.wager_type === "parlay" ? `${w.legs.length}-leg parlay` : "Single"} ·{" "}
-                  {formatAmerican(w.odds_american)}
+                  <Odds american={w.odds_american} />
                 </span>
                 {!locked && !w.optimistic && (
                   <Button
@@ -94,7 +95,7 @@ export function MyPicks({ participantId, wagers, eventsById, locked }: Props) {
                       </span>
                       {w.wager_type === "parlay" && (
                         <span className="text-xs text-muted-foreground tabular-nums">
-                          {formatAmerican(leg.odds_american)}
+                          <Odds american={leg.odds_american} />
                         </span>
                       )}
                     </li>

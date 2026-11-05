@@ -1,5 +1,6 @@
 "use client";
 
+import { HouseRulesFields } from "@/components/tournament/house-rules-fields";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -33,7 +34,7 @@ type EventRow = {
 };
 
 const MARKETS = [
-  { key: "h2h", label: "Moneyline" },
+  { key: "h2h", label: "Winner" },
   { key: "spreads", label: "Spread" },
   { key: "totals", label: "Over/Under" },
 ] as const;
@@ -53,6 +54,8 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
   const [parlays, setParlays] = useState(true);
   const [sameGame, setSameGame] = useState(true);
   const [playerProps, setPlayerProps] = useState(false);
+  const [allIn, setAllIn] = useState(false);
+  const [minBets, setMinBets] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const propsAvailable = propMarkets(sport).length > 0;
 
@@ -98,6 +101,8 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
             max_parlay_legs: 6,
             player_props: propsAvailable && playerProps,
             same_game_parlays: parlays && sameGame,
+            all_in: allIn,
+            min_bets: minBets,
           },
         })
         .single();
@@ -127,7 +132,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
         )}
         <div>
           <p className="text-xs text-muted-foreground">Step {step} of 2</p>
-          <h1 className="font-display text-4xl leading-none font-extrabold uppercase">{step === 1 ? "Pick the game(s)" : "Set the rules"}</h1>
+          <h1 className="font-display text-4xl leading-none font-extrabold tracking-tight">{step === 1 ? "Pick the game(s)" : "Set the rules"}</h1>
         </div>
       </header>
 
@@ -291,7 +296,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
             <label className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border p-3">
               <span>
                 <span className="block text-sm font-medium">Same-game parlays</span>
-                <span className="text-xs text-muted-foreground">Stack picks from one game, like Ravens ML + Henry TD</span>
+                <span className="text-xs text-muted-foreground">Stack picks from one game, like Ravens to win + Henry TD</span>
               </span>
               <Switch aria-label="Same-game parlays" checked={sameGame} onCheckedChange={setSameGame} />
             </label>
@@ -308,6 +313,8 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
               <Switch aria-label="Player props" checked={playerProps} onCheckedChange={setPlayerProps} />
             </label>
           )}
+
+          <HouseRulesFields allIn={allIn} onAllIn={setAllIn} minBets={minBets} onMinBets={setMinBets} />
 
           {firstKickoff && (
             <p className="rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">

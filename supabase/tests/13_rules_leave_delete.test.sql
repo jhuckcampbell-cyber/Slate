@@ -3,7 +3,7 @@
 -- delete a tournament, both only before lock (after lock the picks are frozen).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(22);
 
 insert into auth.users (id, aud, role, email, is_anonymous, raw_user_meta_data) values
   ('a4000000-0000-0000-0000-00000000000a', 'authenticated', 'authenticated', 'h@test.dev', false, '{"display_name":"Hank"}'),
@@ -72,6 +72,18 @@ select throws_ok(format('select public.delete_tournament(%L)', (select id from t
 select pg_temp.as_user('a4000000-0000-0000-0000-00000000000a');
 select lives_ok(format('select public.delete_tournament(%L)', (select id from t3)), 'the host deletes before lock');
 select is((select count(*)::int from public.tournaments where id = (select id from t3)), 0, '...and it''s gone for everyone');
+
+-- ---------- a removed player is told why, however they come back ----------
+select pg_temp.as_user('c4000000-0000-0000-0000-00000000000c');
+select public.join_tournament((select code from t2));
+select is(public.removed_from((select code from t2)), false, 'still in: not removed');
+select pg_temp.as_user('a4000000-0000-0000-0000-00000000000a');
+select public.remove_participant((select id from t2), 'c4000000-0000-0000-0000-00000000000c');
+select pg_temp.as_user('c4000000-0000-0000-0000-00000000000c');
+select is(public.removed_from((select code from t2)), true, 'the host removed Oz: his invite link says so');
+select pg_temp.as_user('b4000000-0000-0000-0000-00000000000b');
+select is(public.removed_from((select code from t2)), false, '...and only for Oz');
+select pg_temp.as_user('a4000000-0000-0000-0000-00000000000a');
 
 -- ---------- qualification on the leaderboard ----------
 -- t1: all in + 2 bets. Hank bets all $100 in two bets; Pia bets $50 once (holding $50 would otherwise put her ahead).

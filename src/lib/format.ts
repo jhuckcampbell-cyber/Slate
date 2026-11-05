@@ -109,7 +109,7 @@ function trimPoint(point: number): string {
 }
 
 export const MARKET_LABELS: Record<string, string> = {
-  h2h: "Moneyline",
+  h2h: "Winner",
   spreads: "Spread",
   totals: "Total",
   player_points: "Points",
@@ -151,7 +151,7 @@ export const PROP_STAT_LABELS: Record<string, string> = {
   player_pass_tds: "Pass TDs",
 };
 
-/** Human label for a pick: "Celtics -7", "Knicks ML", "Over 230.5". */
+/** Human label for a pick: "Celtics -7", "Knicks to win", "Over 230.5". */
 export function selectionLabel(sel: {
   marketKey: string;
   outcomeName: string;
@@ -163,7 +163,7 @@ export function selectionLabel(sel: {
   const who = sel.participantName && sel.participantTeam ? `${sel.participantName} (${shortTeam(sel.participantTeam)})` : sel.participantName;
   switch (sel.marketKey) {
     case "h2h":
-      return `${shortTeam(sel.outcomeName)} ML`;
+      return `${shortTeam(sel.outcomeName)} to win`;
     case "spreads":
       return `${shortTeam(sel.outcomeName)} ${formatSpread(sel.point)}`;
     case "totals":

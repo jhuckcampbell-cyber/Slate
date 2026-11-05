@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatChance, propProgress, scoreLine, sweatTag, wagerOutcome } from "./sweat";
+import { formatChance, gameView, propProgress, scoreLine, sweatTag, wagerOutcome } from "./sweat";
 
 describe("formatChance", () => {
   it("rounds to whole percent", () => {
@@ -101,5 +101,49 @@ describe("sweatTag: tension at a glance", () => {
   });
   it("no chance known: no tag", () => {
     expect(sweatTag(null)).toBeNull();
+  });
+});
+
+describe("gameView: one game's live card (free live feed, else the official score)", () => {
+  const ev = {
+    home_team: "Baltimore Ravens",
+    away_team: "Jacksonville Jaguars",
+    commence_time: "2026-11-06T01:15:00Z",
+    status: "live",
+    home_score: 14,
+    away_score: 10,
+  };
+  it("live feed: its score, clock, down & distance and last play", () => {
+    expect(
+      gameView(ev, { state: "in", home_score: 17, away_score: 10, detail: "8:21 - 3rd", situation: "2nd & 7 at JAX 34", last_play: "Henry 12-yard run" }),
+    ).toEqual({
+      state: "in",
+      away: { name: "Jaguars", score: 10, leading: false },
+      home: { name: "Ravens", score: 17, leading: true },
+      detail: "8:21 - 3rd",
+      situation: "2nd & 7 at JAX 34",
+      lastPlay: "Henry 12-yard run",
+    });
+  });
+  it("no live feed: the official score", () => {
+    expect(gameView(ev, null)).toMatchObject({ state: "in", home: { score: 14, leading: true }, detail: null, lastPlay: null });
+    expect(gameView({ ...ev, status: "final" }, null)).toMatchObject({ state: "post", detail: "Final" });
+  });
+  it("the official final wins over the live feed (that's what grades bets)", () => {
+    expect(gameView({ ...ev, status: "final", home_score: 27, away_score: 20 }, { state: "in", home_score: 24, away_score: 20 }))
+      .toMatchObject({ state: "post", home: { score: 27 }, detail: "Final" });
+  });
+  it("not started: no scores", () => {
+    expect(gameView({ ...ev, status: "scheduled", home_score: null, away_score: null }, null)).toMatchObject({
+      state: "pre",
+      home: { score: null, leading: false },
+      away: { score: null, leading: false },
+    });
+  });
+  it("tied: nobody leads", () => {
+    expect(gameView({ ...ev, home_score: 10, away_score: 10 }, null)).toMatchObject({
+      home: { leading: false },
+      away: { leading: false },
+    });
   });
 });

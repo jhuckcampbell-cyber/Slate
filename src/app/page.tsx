@@ -1,23 +1,26 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { EyeOff, LockOpen, Plus, Trophy, Zap } from "lucide-react";
-import { AppBar, DisplayTitle, Eyebrow } from "@/components/brand";
+import { EyeOff, MessageCircle, Plus, Trophy } from "lucide-react";
+import { AppBar, Eyebrow } from "@/components/brand";
 import { InstallHint } from "@/components/install-hint";
 import { MyTournamentsList } from "@/components/my-tournaments-list";
+import { SettingsButton } from "@/components/settings/settings-button";
 import { JoinCodeForm } from "@/components/tournament/join-code-form";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const FEATURES = [
-  { icon: Zap, title: "In by text", body: "No signup, no download. One tap from the group chat." },
-  { icon: EyeOff, title: "Blind picks", body: "Slips stay hidden until kickoff. No copycats." },
-  { icon: Trophy, title: "Live sweat", body: "Real odds, one leaderboard, endless trash talk." },
+const STEPS = [
+  { icon: MessageCircle, title: "Text the link", body: "Pick tonight's game and drop the invite in the group chat. Friends join in one tap." },
+  { icon: EyeOff, title: "Pick in secret", body: "Everyone gets $100 of fake money to bet. Picks stay hidden until kickoff." },
+  { icon: Trophy, title: "Sweat it together", body: "Watch the score and the leaderboard move live. Most money at the end wins." },
 ];
 
 export default function Home() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-[max(env(safe-area-inset-top),12px)] pb-10">
-      <AppBar />
+      <AppBar>
+        <SettingsButton />
+      </AppBar>
 
       {/* Returning players: straight back into their tournaments (streams in; nothing for first-time visitors). */}
       <Suspense fallback={null}>
@@ -25,77 +28,48 @@ export default function Home() {
       </Suspense>
 
       <section className="mt-8">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand ring-1 ring-brand/30">
-          Play money · Real odds · Free
-        </span>
-        <DisplayTitle className="mt-4 text-[3.4rem]/[0.92]">
-          Bet your <span className="text-brand">friends</span>.<br />
-          Not your wallet.
-        </DisplayTitle>
-        <p className="mt-4 text-base text-muted-foreground">
-          Spin up a tournament for tonight&apos;s game, drop the link in the group chat, and sweat it out together.
+        <h1 className="font-display text-[2.6rem]/[1.02] font-extrabold tracking-tight text-balance">
+          Bet your friends, <span className="bg-gradient-to-r from-brand to-hype bg-clip-text text-transparent">not your wallet.</span>
+        </h1>
+        <p className="mt-3 text-base text-muted-foreground">
+          A free game for watching sports with friends. Fake money, real odds, one leaderboard.
         </p>
       </section>
 
-      <RevealPreview />
-
-      <ul className="mt-6 grid grid-cols-3 gap-2">
-        {FEATURES.map(({ icon: Icon, title, body }) => (
-          <li key={title} className="rounded-2xl bg-card p-3 ring-1 ring-border">
-            <Icon className="size-5 text-brand" />
-            <p className="mt-2 font-display text-lg leading-none font-bold uppercase">{title}</p>
-            <p className="mt-1.5 text-xs leading-snug text-muted-foreground">{body}</p>
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-8 space-y-4">
-        <Link href="/create" className={cn(buttonVariants(), "h-14 w-full text-base font-semibold")}>
+      <div className="mt-6 space-y-3 rounded-3xl bg-card p-4 ring-1 ring-border">
+        <Link href="/create" className={cn(buttonVariants(), "h-14 w-full rounded-2xl text-base font-semibold")}>
           <Plus /> Start a tournament
         </Link>
         <div className="space-y-2">
-          <Eyebrow className="text-center">Got a code?</Eyebrow>
+          <Eyebrow className="text-center">Got a code from a friend?</Eyebrow>
           <JoinCodeForm />
         </div>
       </div>
 
+      <section className="mt-8" aria-labelledby="how-it-works">
+        <Eyebrow>
+          <span id="how-it-works">How it works</span>
+        </Eyebrow>
+        <ol className="mt-3 space-y-3">
+          {STEPS.map(({ icon: Icon, title, body }, i) => (
+            <li key={title} className="flex gap-3">
+              <span className="relative flex size-10 shrink-0 items-center justify-center rounded-2xl bg-brand/12 text-brand ring-1 ring-brand/25">
+                <Icon className="size-5" />
+                <span className="num absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-hype text-[11px] font-bold text-hype-foreground">
+                  {i + 1}
+                </span>
+              </span>
+              <span>
+                <span className="block font-semibold">{title}</span>
+                <span className="block text-sm leading-snug text-muted-foreground">{body}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-4 text-xs text-muted-foreground">No real money, ever. Nothing to buy, nothing to deposit.</p>
+      </section>
+
       <InstallHint className="mt-8" />
     </main>
-  );
-}
-
-/** Decorative: what the squad sees at kickoff. Static sample data, hidden from screen readers. */
-function RevealPreview() {
-  const backers = ["Mike", "Sam", "Jo", "Dee", "Ty", "Al"];
-  return (
-    <div aria-hidden className="relative mt-8">
-      <div className="absolute inset-x-6 -bottom-2 h-full rotate-2 rounded-2xl bg-surface-2/70 ring-1 ring-border" />
-      <div className="relative rounded-2xl bg-card p-4 shadow-2xl shadow-black/40 ring-1 ring-border">
-        <div className="flex items-center justify-between">
-          <span className="inline-flex items-center gap-1.5 font-display text-lg font-bold text-hype uppercase">
-            <LockOpen className="size-4" /> Picks are in
-          </span>
-          <span className="text-xs text-muted-foreground">7 players · $560 in play</span>
-        </div>
-        <div className="mt-3 flex items-baseline justify-between">
-          <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">BUF @ KC · Spread</span>
-          <span className="font-display text-xl font-bold">6 of 7 on KC −3</span>
-        </div>
-        <div className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-muted">
-          <div className="w-[86%] bg-chart-1" />
-          <div className="w-[14%] bg-chart-2" />
-        </div>
-        <div className="mt-3 flex flex-wrap gap-1">
-          {backers.map((n) => (
-            <span key={n} className="rounded-full bg-muted px-2 py-0.5 text-xs ring-1 ring-border">
-              {n}
-            </span>
-          ))}
-          <span className="rounded-full bg-chart-2/15 px-2 py-0.5 text-xs text-chart-2 ring-1 ring-chart-2/40">
-            You · BUF +3
-          </span>
-        </div>
-      </div>
-    </div>
   );
 }

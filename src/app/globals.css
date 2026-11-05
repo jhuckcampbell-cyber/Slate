@@ -76,15 +76,15 @@
   --border: oklch(0.85 0.03 265 / 11%);
   --input: oklch(0.85 0.03 265 / 16%);
 
-  /* Volt: the one action/money color. Dark text on it. */
-  --brand: oklch(0.9 0.2 128);
-  --brand-foreground: oklch(0.2 0.04 135);
+  /* Electric violet: the one action color ("game night", not a sportsbook). White text on it. */
+  --brand: oklch(0.66 0.22 292);
+  --brand-foreground: oklch(0.99 0 0);
   --primary: var(--brand);
   --primary-foreground: var(--brand-foreground);
-  --ring: oklch(0.9 0.2 128 / 60%);
+  --ring: oklch(0.66 0.22 292 / 60%);
 
   /* Hype: reveal, celebrations, "you" emphasis that isn't money. */
-  --hype: oklch(0.72 0.19 18);
+  --hype: oklch(0.72 0.17 30);
   --hype-foreground: oklch(0.99 0 0);
 
   /* Outcomes and states. */
@@ -94,7 +94,7 @@
   --destructive: oklch(0.68 0.2 22);
 
   /* Ordered series colors (consensus sides, charts). */
-  --chart-1: oklch(0.9 0.2 128);
+  --chart-1: oklch(0.66 0.22 292);
   --chart-2: oklch(0.76 0.13 230);
   --chart-3: oklch(0.72 0.19 18);
   --chart-4: oklch(0.8 0.14 300);
@@ -122,15 +122,15 @@
   }
   body {
     @apply text-foreground;
-    /* Stadium lights: a faint volt glow from above, fixed so it doesn't scroll away. */
+    /* Soft violet + coral glow from above, fixed so it doesn't scroll away. */
     background:
-      radial-gradient(120% 60% at 50% -10%, oklch(0.9 0.2 128 / 0.09), transparent 60%),
-      radial-gradient(90% 50% at 100% 0%, oklch(0.72 0.19 18 / 0.06), transparent 55%),
+      radial-gradient(120% 60% at 50% -10%, oklch(0.66 0.22 292 / 0.16), transparent 60%),
+      radial-gradient(90% 50% at 100% 0%, oklch(0.72 0.17 30 / 0.08), transparent 55%),
       var(--background);
     background-attachment: fixed;
   }
   ::selection {
-    background-color: oklch(0.9 0.2 128 / 0.35);
+    background-color: oklch(0.66 0.22 292 / 0.4);
   }
 }
 
@@ -155,4 +155,16 @@
 @keyframes flash-down {
   from { background-color: oklch(0.68 0.2 22 / 0.45); }
   to { background-color: transparent; }
+}
+
+/* Final-standings confetti (FinalCelebration). Hidden for reduced motion. */
+@keyframes confetti-fall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(720deg); opacity: 0.7; }
+}
+.confetti {
+  animation-name: confetti-fall;
+  animation-timing-function: cubic-bezier(0.3, 0.1, 0.6, 1);
+  animation-iteration-count: 2;
+  animation-fill-mode: both;
 }

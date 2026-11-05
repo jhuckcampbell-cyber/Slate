@@ -15,6 +15,14 @@ type Props = {
 };
 
 type RosterSignal = { change?: string; user_id?: string };
+type TournamentSignal = { status?: string };
+
+// Set right before this device leaves or deletes on purpose, so the "left"/"deleted" signals that follow
+// don't send it to the "removed by the host" screen.
+const leaving = new Set<string>();
+export function markLeaving(tournamentId: string) {
+  leaving.add(tournamentId);
+}
 
 const POLL_MS = 20_000;
 const SWEAT_REFRESH_MS = 60_000;
@@ -51,11 +59,17 @@ export function TournamentLive({ tournamentId, code, viewerUserId, renderedVersi
 
     const channel = supabase
       .channel(`tournament:${tournamentId}`, { config: { private: true } })
-      .on("broadcast", { event: "tournament" }, refresh)
+      .on("broadcast", { event: "tournament" }, ({ payload }: { payload: TournamentSignal }) => {
+        if (payload.status === "deleted") {
+          if (!leaving.has(tournamentId)) router.replace("/?deleted=1");
+          return;
+        }
+        refresh();
+      })
       .on("broadcast", { event: "scores" }, refresh)
       .on("broadcast", { event: "roster" }, ({ payload }: { payload: RosterSignal }) => {
         if (payload.change === "left" && payload.user_id === viewerUserId) {
-          router.replace(`/join/${code}?removed=1`);
+          if (!leaving.has(tournamentId)) router.replace(`/join/${code}?removed=1`);
           return;
         }
         refresh();
@@ -73,7 +87,9 @@ export function TournamentLive({ tournamentId, code, viewerUserId, renderedVersi
     const poll = setInterval(async () => {
       if (document.visibilityState !== "visible") return;
       const { data } = await supabase.from("tournaments").select("updated_at").eq("id", tournamentId).maybeSingle();
-      if (!data) router.replace(`/join/${code}`);
+      if (!data) {
+        if (!leaving.has(tournamentId)) router.replace(`/join/${code}`);
+      }
       else if (data.updated_at !== version.current) refresh();
     }, POLL_MS);
 

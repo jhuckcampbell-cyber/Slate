@@ -13,7 +13,7 @@ export type LeaderRow = {
   evCents: number;
   maxCents: number;
   rank: number;
-  standing: "alive" | "eliminated" | "busted";
+  standing: "alive" | "eliminated" | "busted" | "disqualified";
 };
 
 /**
@@ -96,7 +96,9 @@ export function Leaderboard({
                       )}
                     </p>
                     <p className="text-muted-foreground text-xs">
-                      {settled ? (
+                      {r.standing === "disqualified" ? (
+                        <span className="font-semibold text-loss">Broke a house rule · ranked last</span>
+                      ) : settled ? (
                         r.standing === "busted" ? (
                           "Busted"
                         ) : (

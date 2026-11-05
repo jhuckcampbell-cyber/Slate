@@ -1,7 +1,11 @@
-# SquadBets design system: "Night game"
+# Slate design system: "Game night"
 
-Dark-only, mobile-first (design at 375px). It should feel like a stadium at night: an ink-navy base, a
-faint stadium-light glow, one loud action color, and scoreboard type for anything that's a number.
+Dark-only, mobile-first (design at 375px). It should feel like watching the game with friends, not like a sportsbook:
+an ink-navy base, a soft violet-and-coral glow, one action color, plain words, and scoreboard type for numbers.
+(Changed 2026-11-05 from the volt-lime "Night game" look, which read like DraftKings. See CHANGELOG.md.)
+
+Words: say what it means. "Winner" not "Moneyline", "Celtics to win" not "Celtics ML", "Games" not "Board".
+Every tournament explains itself in plain English (`src/lib/plain-english.ts`), and odds can show as a % chance.
 
 Tokens live in `src/app/globals.css`. Brand primitives live in `src/components/brand.tsx`. Run the
 visual tour after any UI change:
@@ -16,7 +20,7 @@ Never use raw palette classes (`emerald-400`, `amber-300`, `text-black`). Use th
 | `card` | cards, tiles, inputs' container |
 | `surface-2` | raised elements inside cards (odds buttons, kickoff chips), disabled buttons |
 | `muted-foreground` | secondary text, labels |
-| `brand` / `brand-foreground` | **volt**: the one action and money color. Primary buttons, bankroll, potential returns, selected odds. Dark text on it. |
+| `brand` / `brand-foreground` | **electric violet**: the one action and money color. Primary buttons, bankroll, potential returns, selected odds. White text on it. |
 | `hype` / `hype-foreground` | **coral**: social moments that aren't money. The reveal, inviter avatars, celebrations. |
 | `win` / `loss` | outcome colors (price moved up/down, graded legs). |
 | `warn` | lock state, odds-changed prompts, host tools accent. |
@@ -24,14 +28,15 @@ Never use raw palette classes (`emerald-400`, `amber-300`, `text-black`). Use th
 | `destructive` | removing/cancelling. |
 
 Rules:
-- Only one volt button per view. Second actions use `secondary` or `outline`; dangerous ones use a
+- Only one brand button per view. Second actions use `secondary` or `outline`; dangerous ones use a
   `warn` ring or `destructive`.
 - Tints are token/alpha: `bg-brand/10 ring-brand/30`, `from-hype/25`.
 
 ## Type
 - **Display** (`font-display`, Barlow Condensed 600–800) is for page titles (`<DisplayTitle>`), section
-  headlines, team names on the board, and slip/reveal headings. Always uppercase, tight leading.
-  - Set size and leading together (`text-[2.6rem]/[0.95]`). The class merger drops a separate
+  headlines, team names on the board, and slip/reveal headings. Page titles are sentence case (calmer); small
+  section heads may stay uppercase.
+  - Set size and leading together (`text-[2.4rem]/[1]`). The class merger drops a separate
     `leading-*` after a size.
 - **Numerals** (`num` utility: display face + tabular figures) is for odds, money, counts and
   countdowns. Exception: letters that look like digits in that face (the O/U on totals) use the body font.
@@ -46,9 +51,10 @@ Rules:
 ## Motion
 - `tw-animate-css` entrances (`animate-in fade-in slide-in-from-bottom-3`), staggered ~70ms, always
   behind `motion-safe:`.
-- Odds flash `win`/`loss` on Realtime moves. The reveal gets one full-screen moment per device.
+- Odds flash `win`/`loss` on Realtime moves. The reveal and the champion (final) each get one full-screen moment
+  per device; confetti is hidden for reduced motion.
 
 ## Brand
-- Mark: a volt ticket stub with three pick lines (`<LogoMark>`). Wordmark: "SQUAD" + volt "BETS",
-  display italic.
+- Mark: a violet-to-coral rounded tile with a bold white S and a spark (`<LogoMark>`, path `LOGO_S`). Wordmark:
+  lowercase "slate" + coral dot. Regenerate app icons with `node scripts/make-icons.mjs` after changing the mark.
 - No league or team logos (trademarks). Use names, abbreviations, and emoji sport markers.

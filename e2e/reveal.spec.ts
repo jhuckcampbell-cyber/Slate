@@ -82,12 +82,10 @@ test("host rule edits and removals reach players live", async ({ browser }) => {
   await expect(kyle.getByText("The host removed you from this tournament.")).toBeVisible({ timeout: 15_000 });
   await expect(gina.getByRole("listitem").filter({ hasText: "Kyle" })).toHaveCount(0);
 
-  // Same account can't rejoin.
+  // Same account can't rejoin: opening the invite again just says why (no join form).
   await kyle.goto(`/join/${code}`);
-  await kyle.waitForLoadState("networkidle");
-  await kyle.getByLabel("Your name").fill("Kyle");
-  await kyle.getByRole("button", { name: "I'm in" }).click();
   await expect(kyle.getByText("The host removed you from this tournament.")).toBeVisible();
+  await expect(kyle.getByLabel("Your name")).toHaveCount(0);
 });
 
 test("the countdown hitting zero reveals picks on its own", async ({ browser }) => {

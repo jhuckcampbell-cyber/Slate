@@ -64,7 +64,7 @@ test("football: team-grouped props, alternate yards and anytime TD, graded by th
   await placeSingle(gina, gina.getByRole("button", { name: td }), 20);
 
   // Same-game parlay (on by default): Foxes moneyline + the same scorer, both from this one game.
-  await gina.getByRole("button", { name: /^Foxes ML / }).click();
+  await gina.getByRole("button", { name: /^Foxes to win / }).click();
   await gina.getByRole("button", { name: td }).click();
   await gina.getByRole("button", { name: /Bet slip/ }).click();
   await gina.getByRole("tab", { name: /Parlay \(2\)/ }).click();

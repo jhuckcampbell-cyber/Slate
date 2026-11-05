@@ -97,7 +97,10 @@ supabase/functions/          Deno Edge Functions. Entrypoints (*/index.ts) are e
 supabase/functions/_shared/  PURE TS shared by functions (import with .ts extensions); Vitest-tested
 src/components/sportsbook/   board (event cards), slip store + drawer, my picks
 src/components/tournament/   lobby pieces: countdown, live channel, squad list, host tools
-src/components/reveal/       post-lock: live Scoreboard, PlayerBets (drops down from each leaderboard row), by-game
+src/components/game/         live game card (score, clock, last play from game_live)
+src/components/settings/     Settings sheet (odds as American or %, stored per phone in src/lib/prefs.ts)
+src/lib/plain-english.ts     odds as %, "bet $10 to win", house-rules checklist, the "How it works" explainer
+src/components/reveal/       post-lock: PlayerBets (drops down from each leaderboard row), by-game
                              consensus as a collapsed "Picks are in" dropdown, sweat outcomes
 src/components/leaderboard/  live/final standings (from the leaderboard view)
 tests/integration/           Vitest against the local stack (concurrency, Realtime channel auth)
@@ -123,7 +126,8 @@ supabase/tests/              pgTAP: every RLS policy and RPC has tests
 9. Regenerate DB types after every migration; never hand-edit database.types.ts.
    RPCs raise stable UPPER_SNAKE error codes; map them to copy in src/lib/errors.ts.
 10. Mobile-first: design at 375px, tap targets ≥44px, bottom-sheet slip.
-11. Visual design follows docs/DESIGN.md: semantic color tokens only (brand/hype/win/loss/warn/surface-2,
+11. Visual design follows docs/DESIGN.md (palette since 2026-11-05: violet brand + coral hype, "game night" not
+    sportsbook; plain words over jargon: Winner not Moneyline, "to win" not ML): semantic color tokens only (brand/hype/win/loss/warn/surface-2,
     never raw palette classes like emerald-400), `font-display` + `num` for titles and numbers, brand
     primitives from src/components/brand.tsx. After UI changes run the screenshot tour
     (SCREENS=./screens npx playwright test e2e/screens.spec.ts) and look at it.
@@ -139,7 +143,14 @@ supabase/tests/              pgTAP: every RLS policy and RPC has tests
   one per game line, one per player stat (ladder = its main stat); a repeat is CONFLICTING_LEGS. Payout = product
   of legs (no correlation haircut) and live P(cash) multiplies legs as if independent: approximate for SGPs.
 - Min stake $1; parlay payout capped at 1000-to-1 (decimal 1001); money columns are bigint cents.
-- Unwagered bankroll counts toward final score; host may set min_total_wager.
+- Unwagered bankroll counts toward final score. House rules (allowed_bet_types.all_in / min_bets, migration 0017):
+  players who miss them rank below everyone who met them (leaderboard.qualified, standing 'disqualified');
+  min_total_wager_cents is legacy and unused.
+- Leave (player) / delete (host) only before lock: leave_tournament / delete_tournament. A 'tournament' signal with
+  status 'deleted' sends open lobbies home.
+- Live game feed (migration 0018): odds-sync job `live` reads ESPN's free scoreboard once a minute for NBA/NFL games
+  in play → game_live (score, clock, down & distance, last play). In-progress scores also update events (live chances);
+  a final only ever comes from scores_ingest. Display-only, non-commercial: replace before monetizing.
 
 ## Creative enhancements (log: CHANGELOG.md)
 Built: 1. Live Prop Sweat: prop chance follows the box score + clock (private.prop_live_probability wraps

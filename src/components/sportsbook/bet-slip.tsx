@@ -1,5 +1,6 @@
 "use client";
 
+import { Odds } from "@/components/odds";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Loader2, Lock, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -18,7 +19,7 @@ import {
   type Rules,
 } from "@/lib/core/slip";
 import { friendlyError, messageFor, priceUpdatesFrom } from "@/lib/errors";
-import { MARKET_LABELS, dollarsToCents, formatAmerican, formatCents, selectionLabel } from "@/lib/format";
+import { MARKET_LABELS, dollarsToCents, formatCents, selectionLabel } from "@/lib/format";
 import { patchBoardPrices } from "@/lib/queries/board";
 import { queryKeys } from "@/lib/queries/keys";
 import { usePlaceWagers, type MyWager, type SlipPayload } from "@/lib/queries/wagers";
@@ -232,7 +233,7 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, boa
               <div className="rounded-2xl border border-brand/40 bg-brand/5 p-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-semibold">{entries.length}-leg parlay</span>
-                  <span className="num text-xl leading-none font-bold text-brand">{formatAmerican(wagerAmerican(drafts[0].legs))}</span>
+                  <span className="num text-xl leading-none font-bold text-brand"><Odds american={wagerAmerican(drafts[0].legs)} /></span>
                 </div>
                 <StakeInput
                   value={state.parlayStake}
@@ -326,12 +327,12 @@ function SlipRow({
             <span className="text-xs font-medium text-muted-foreground">Unavailable</span>
           ) : changed && current ? (
             <span className="flex items-center gap-1 text-warn">
-              <s className="text-xs text-muted-foreground">{formatAmerican(entry.priceAmerican)}</s>
+              <s className="text-xs text-muted-foreground"><Odds american={entry.priceAmerican} /></s>
               <ArrowRight className="size-3" />
-              {formatAmerican(current.priceAmerican)}
+              <Odds american={current.priceAmerican} />
             </span>
           ) : (
-            formatAmerican(entry.priceAmerican)
+            <Odds american={entry.priceAmerican} />
           )}
         </div>
         <button

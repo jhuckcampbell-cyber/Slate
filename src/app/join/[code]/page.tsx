@@ -47,11 +47,17 @@ async function Join({ params, searchParams }: PageProps<"/join/[code]">) {
   if (!t) notFound();
 
   const viewer = await getViewer();
+  let wasRemoved = removed === "1";
   if (viewer) {
     // RLS only returns the tournament if the viewer is already in it.
     const supabase = await createClient();
-    const { data: mine } = await supabase.from("tournaments").select("id").eq("code", code).maybeSingle();
+    const [{ data: mine }, { data: removedFrom }] = await Promise.all([
+      supabase.from("tournaments").select("id").eq("code", code).maybeSingle(),
+      supabase.rpc("removed_from", { p_code: code }),
+    ]);
     if (mine) redirect(`/t/${code}`);
+    // However they got here (the live signal, a refresh racing it, an old text), tell a removed player why.
+    wasRemoved ||= removedFrom === true;
   }
 
   const locked = t.is_locked;
@@ -100,7 +106,7 @@ async function Join({ params, searchParams }: PageProps<"/join/[code]">) {
       </div>
 
       <div className="mt-auto pt-8">
-        {removed === "1" ? (
+        {wasRemoved ? (
           // Sent here by the lobby when the host removes you (join_tournament would refuse anyway).
           <p className="rounded-xl bg-muted p-4 text-center text-sm">The host removed you from this tournament.</p>
         ) : locked ? (

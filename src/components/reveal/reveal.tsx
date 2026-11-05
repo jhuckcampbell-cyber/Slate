@@ -1,5 +1,6 @@
 "use client";
 
+import { Odds } from "@/components/odds";
 import { Check, ChevronDown, LockOpen, Ticket, X } from "lucide-react";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { SportsbookEvent } from "@/components/sportsbook/event-card";
@@ -10,7 +11,7 @@ import {
   type ConsensusSide,
   type GameConsensus,
 } from "@/lib/core/consensus";
-import { MARKET_LABELS, formatAmerican, formatCents, selectionLabel, shortTeam } from "@/lib/format";
+import { MARKET_LABELS, formatCents, selectionLabel, shortTeam } from "@/lib/format";
 import { LocalTime } from "@/components/local-time";
 import type { LegOutcome, RevealedWager } from "@/lib/queries/selects";
 import { formatChance, propProgress, scoreLine, sweatTag, wagerOutcome, type Tone } from "@/lib/sweat";
@@ -241,27 +242,6 @@ function BackerChip({ backer, player, sideLine }: { backer: Backer; player: Reve
 }
 
 // ---------------------------------------------------------------------------
-// Live scores: always visible above the leaderboard once a game has started.
-// ---------------------------------------------------------------------------
-export function Scoreboard({ events }: { events: SportsbookEvent[] }) {
-  const scored = events.flatMap((e) => {
-    const score = scoreLine(e);
-    return score ? [{ id: e.id, ...score }] : [];
-  });
-  if (scored.length === 0) return null;
-  return (
-    <section aria-label="Scores" className="mt-6 space-y-2">
-      {scored.map((s) => (
-        <div key={s.id} className="flex items-center justify-between gap-3 rounded-2xl bg-card px-4 py-3 ring-1 ring-border">
-          <p className="num text-2xl font-bold">{s.text}</p>
-          <StatePill state={s.state} />
-        </div>
-      ))}
-    </section>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // One player's slip: drops down from their leaderboard row after lock.
 // ---------------------------------------------------------------------------
 export function PlayerBets({
@@ -298,7 +278,7 @@ export function PlayerBets({
           <li key={w.id} className="rounded-xl bg-muted/40 p-2.5">
             <div className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
               <span className="font-semibold tracking-wide uppercase">
-                {w.wagerType === "parlay" ? `${w.legs.length}-leg parlay` : "Single"} · {formatAmerican(w.oddsAmerican)}
+                {w.wagerType === "parlay" ? `${w.legs.length}-leg parlay` : "Single"} · <Odds american={w.oddsAmerican} />
               </span>
               <span className="tabular-nums">
                 {formatCents(w.amountCents)} → <span className="text-brand">{formatCents(w.potentialPayoutCents)}</span>

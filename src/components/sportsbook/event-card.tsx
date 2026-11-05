@@ -1,5 +1,6 @@
 "use client";
 
+import { Odds } from "@/components/odds";
 import { LocalTime } from "@/components/local-time";
 import { ChevronDown, Clock } from "lucide-react";
 import { Fragment, useState } from "react";
@@ -351,7 +352,7 @@ function OddsButton({
             line && (selected ? "text-brand-foreground/75" : "text-muted-foreground"),
           )}
         >
-          {formatAmerican(row.priceAmerican)}
+          <Odds american={row.priceAmerican} />
         </span>
       </span>
     </button>

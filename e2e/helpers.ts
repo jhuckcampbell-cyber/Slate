@@ -45,6 +45,7 @@ export async function joinAs(page: Page, code: string, name: string) {
   await page.getByLabel("Your name").fill(name);
   await page.getByRole("button", { name: "I'm in" }).click();
   await page.waitForURL(`**/t/${code}`);
+  await page.waitForLoadState("networkidle"); // hydrated: taps work from here
   return page;
 }
 
@@ -109,4 +110,13 @@ export async function openPlayerBets(page: Page, name: string) {
 /** After lock: open the "Picks are in" dropdown (what everyone's on, by game). */
 export async function openPicksByGame(page: Page) {
   await page.getByRole("heading", { name: "Picks are in" }).click();
+}
+
+/** After the final: the champion celebration covers the page once; close it to get to the standings. */
+export async function closeFinal(page: Page) {
+  const button = page.getByRole("button", { name: "See final standings" });
+  await page.waitForLoadState("networkidle"); // it appears once the page hydrates (it reads this phone's storage)
+  await expect(button).toBeVisible({ timeout: 30_000 });
+  await button.click();
+  await expect(page.getByRole("dialog", { name: "Tournament over" })).toBeHidden();
 }

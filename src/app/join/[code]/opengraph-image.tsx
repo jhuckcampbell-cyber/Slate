@@ -1,3 +1,4 @@
+import { LOGO_S } from "@/components/brand";
 import { ImageResponse } from "next/og";
 import { normalizeCode } from "@/lib/core/codes";
 import { formatCents, formatKickoff, sportEmoji, sportLabel } from "@/lib/format";
@@ -25,13 +26,24 @@ export default async function Image({ params }: { params: Promise<{ code: string
           display: "flex",
           flexDirection: "column",
           padding: 64,
-          background: "linear-gradient(135deg, #0a0a0a 0%, #052e1f 100%)",
+          background: "radial-gradient(120% 90% at 10% 0%, #3b2370 0%, #0e1220 55%), #0e1220",
           color: "white",
           fontFamily: "sans-serif",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 28, color: "#34d399" }}>
-          <span style={{ fontWeight: 800, letterSpacing: 4 }}>SLATE</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 30, color: "#ffffff" }}>
+          <svg width="52" height="52" viewBox="0 0 32 32">
+            <defs>
+              <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stopColor="#8b5cf6" />
+                <stop offset="1" stopColor="#fb7158" />
+              </linearGradient>
+            </defs>
+            <rect x="1" y="1" width="30" height="30" rx="9" fill="url(#g)" />
+            <path d={LOGO_S} fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" />
+            <circle cx="24.8" cy="7.4" r="1.7" fill="#fff" />
+          </svg>
+          <span style={{ fontWeight: 800 }}>slate.</span>
           {t && <span style={{ color: "#a3a3a3" }}>· {sportLabel(t.sport_key)}</span>}
         </div>
 

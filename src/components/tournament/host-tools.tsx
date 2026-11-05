@@ -1,5 +1,6 @@
 "use client";
 
+import { HouseRulesFields } from "@/components/tournament/house-rules-fields";
 import { Loader2, LockKeyhole, SlidersHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -36,7 +37,7 @@ type Props = {
 };
 
 const MARKETS = [
-  { key: "h2h", label: "Moneyline" },
+  { key: "h2h", label: "Winner" },
   { key: "spreads", label: "Spread" },
   { key: "totals", label: "Over/Under" },
 ] as const;
@@ -298,6 +299,13 @@ function EditRulesForm({
             <Switch id="edit-props" checked={draft.playerProps} onCheckedChange={(v) => set("playerProps", v)} />
           </div>
         )}
+
+        <HouseRulesFields
+          allIn={draft.allIn}
+          onAllIn={(v) => set("allIn", v)}
+          minBets={draft.minBets}
+          onMinBets={(v) => set("minBets", v)}
+        />
       </div>
 
       <DrawerFooter className="grid grid-cols-2 gap-2 border-t border-border pt-3 pb-[max(env(safe-area-inset-bottom),16px)]">

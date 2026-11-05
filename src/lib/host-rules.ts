@@ -15,6 +15,8 @@ export type EditableRules = {
   maxParlayLegs: number;
   playerProps: boolean;
   sameGameParlays: boolean;
+  allIn: boolean;
+  minBets: number;
 };
 
 /** Form state: strings as typed. maxBet "" = no limit; lockTime is a datetime-local value. */
@@ -28,6 +30,8 @@ export type RulesDraft = {
   maxParlayLegs: number;
   playerProps: boolean;
   sameGameParlays: boolean;
+  allIn: boolean;
+  minBets: number;
 };
 
 export type TournamentChanges = {
@@ -41,6 +45,8 @@ export type TournamentChanges = {
     max_parlay_legs: number;
     player_props: boolean;
     same_game_parlays: boolean;
+    all_in: boolean;
+    min_bets: number;
   };
 };
 
@@ -60,6 +66,8 @@ export function draftFromRules(r: EditableRules): RulesDraft {
     maxParlayLegs: r.maxParlayLegs,
     playerProps: r.playerProps,
     sameGameParlays: r.sameGameParlays,
+    allIn: r.allIn,
+    minBets: r.minBets,
   };
 }
 
@@ -88,13 +96,16 @@ export function rulesChanges(r: EditableRules, d: RulesDraft): RulesChangesResul
   if (maxBet !== r.maxBetCents) changes.max_bet_cents = maxBet;
 
   if (d.markets.length === 0) return { ok: false, error: "INVALID_RULES" };
+  if (!Number.isInteger(d.minBets) || d.minBets < 0 || d.minBets > 20) return { ok: false, error: "INVALID_MIN_BETS" };
   const markets = sorted(d.markets);
   if (
     markets.join() !== sorted(r.markets).join() ||
     d.parlays !== r.parlays ||
     d.maxParlayLegs !== r.maxParlayLegs ||
     d.playerProps !== r.playerProps ||
-    d.sameGameParlays !== r.sameGameParlays
+    d.sameGameParlays !== r.sameGameParlays ||
+    d.allIn !== r.allIn ||
+    d.minBets !== r.minBets
   ) {
     changes.allowed_bet_types = {
       markets,
@@ -102,6 +113,8 @@ export function rulesChanges(r: EditableRules, d: RulesDraft): RulesChangesResul
       max_parlay_legs: d.maxParlayLegs,
       player_props: d.playerProps,
       same_game_parlays: d.sameGameParlays,
+      all_in: d.allIn,
+      min_bets: d.minBets,
     };
   }
 

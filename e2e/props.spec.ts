@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { admin, joinAs, newPage, placeSingle, waitForOdds } from "./helpers";
+import { admin, joinAs, newPage, openPlayerBets, placeSingle, waitForOdds } from "./helpers";
 
 // Player props: host opts in at create → per-game prop odds (fake provider) → over/under picks →
 // final → the host enters the stat → every pick on that line is graded → the tournament finishes.
@@ -80,7 +80,8 @@ test("host-enabled player props are bet, then graded by the host's stat entry", 
   // Over wins, Under loses, the stat is public, the tournament finishes.
   await expect(gina.getByRole("heading", { name: "Final standings" })).toBeVisible({ timeout: 30_000 });
   await expect(gina.getByText("Hank wins")).toBeVisible();
-  await gina.getByRole("tab", { name: "By player" }).click();
+  await openPlayerBets(gina, "Gina");
+  await openPlayerBets(gina, "Hank");
   await expect(gina.getByText("Lost")).toBeVisible();
   await expect(gina.getByText(/^Won \$/)).toBeVisible();
   await expect(gina.getByText("Entered by Hank.")).toBeVisible();

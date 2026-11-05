@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createTournament, joinAs, newPage, placeSingle, waitForOdds } from "./helpers";
+import { createTournament, joinAs, newPage, openPicksByGame, openPlayerBets, placeSingle, waitForOdds } from "./helpers";
 
 // Design review tour, not a regression test. Skipped unless SCREENS=<output dir> is set:
 //   SCREENS=./screens npx playwright test e2e/screens.spec.ts
@@ -79,7 +79,8 @@ test("design tour", async ({ browser }) => {
   await gina.waitForTimeout(300);
   await gina.screenshot({ path: `${OUT}/11-reveal-moment.png` });
   await gina.waitForTimeout(2600);
-  await shot(gina, "12-reveal-by-game", true);
-  await gina.getByRole("tab", { name: "By player" }).click();
-  await shot(gina, "13-reveal-by-player", true);
+  await shot(gina, "12-reveal-leaderboard", true);
+  await openPlayerBets(gina, "Gina");
+  await openPicksByGame(gina);
+  await shot(gina, "13-reveal-open", true);
 });

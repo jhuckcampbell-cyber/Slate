@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { formatCents } from "../src/lib/format";
-import { admin, createTournament, joinAs, newPage, placeSingle, tournamentId, waitForOdds } from "./helpers";
+import { admin, createTournament, joinAs, newPage, openPlayerBets, placeSingle, tournamentId, waitForOdds } from "./helpers";
 
 // Phase 5: lock → live scores → leaderboard and chances → final → graded bets, credited
 // bankrolls, winner. Scores are pushed with the service role (what the scores sync does).
@@ -65,7 +65,7 @@ test("live scores move the leaderboard, a final grades bets and crowns a winner"
 
   await expect(gina.getByRole("heading", { name: "Leaderboard" })).toBeVisible({ timeout: 30_000 });
   await expect(gina.getByText("Rockets 40 · Comets 50")).toBeVisible({ timeout: 30_000 });
-  await gina.getByRole("tab", { name: "By player" }).click();
+  await openPlayerBets(gina, "Gina");
   await expect(gina.getByText(/\d+% to cash|>99% to cash/).first()).toBeVisible();
   // Live order depends on the (fake) prices, so only check both are ranked; the final is exact.
   await expect(gina.getByRole("listitem", { name: /^\d\. Gina/ })).toBeVisible();

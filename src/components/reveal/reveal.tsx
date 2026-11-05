@@ -1,12 +1,10 @@
 "use client";
 
-import { Check, Crown, LockOpen, Ticket, X } from "lucide-react";
+import { Check, ChevronDown, LockOpen, Ticket, X } from "lucide-react";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { SportsbookEvent } from "@/components/sportsbook/event-card";
-import { TabSwitch } from "@/components/tab-switch";
 import {
   buildConsensus,
-  slipsByPlayer,
   type Backer,
   type ConsensusMarket,
   type ConsensusSide,
@@ -34,10 +32,12 @@ type Props = {
   wagers: RevealedWager[];
 };
 
+/**
+ * After lock: the "Picks are in" moment, and what everyone's on, game by game, as a dropdown (closed by
+ * default; each player's own bets drop down from their leaderboard row instead).
+ */
 export function Reveal({ tournamentId, events, players, wagers }: Props) {
-  const [tab, setTab] = useState<"games" | "players">("games");
   const games = useMemo(() => buildConsensus(wagers, events.map((e) => e.id)), [wagers, events]);
-  const slips = useMemo(() => slipsByPlayer(wagers, players.map((p) => p.participantId)), [wagers, players]);
   const byId = useMemo(() => new Map(players.map((p) => [p.participantId, p])), [players]);
   const eventsById = useMemo(() => new Map(events.map((e) => [e.id, e])), [events]);
   const inPlay = wagers.reduce((sum, w) => sum + w.amountCents, 0);
@@ -46,48 +46,26 @@ export function Reveal({ tournamentId, events, players, wagers }: Props) {
   } · ${formatCents(inPlay)} in play`;
 
   return (
-    <section className="mt-6" aria-labelledby="reveal-heading">
+    <section className="mt-6" aria-label="What everyone's on">
       <Celebration tournamentId={tournamentId} summary={summary} />
 
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-hype/25 via-card to-card p-4 ring-1 ring-hype/40 motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95">
-        <h2 id="reveal-heading" className="flex items-center gap-2 font-display text-3xl font-extrabold uppercase">
-          <LockOpen className="size-6 text-hype" /> Picks are in
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">{summary}</p>
-      </div>
-
-      <TabSwitch
-        label="Reveal view"
-        className="mt-4"
-        value={tab}
-        onChange={setTab}
-        options={[
-          { value: "games", label: "By game" },
-          { value: "players", label: "By player" },
-        ]}
-      />
-
-      <div className="mt-4 space-y-3">
-        {tab === "games"
-          ? games.map((game, i) => (
-              <GameCard key={game.eventId} game={game} event={eventsById.get(game.eventId)} players={byId} index={i} />
-            ))
-          : slips.map((slip, i) => {
-              const player = byId.get(slip.participantId);
-              if (!player) return null;
-              return (
-                <PlayerCard
-                  key={slip.participantId}
-                  player={player}
-                  wagers={slip.wagers}
-                  riskedCents={slip.riskedCents}
-                  potentialCents={slip.potentialPayoutCents}
-                  eventsById={eventsById}
-                  index={i}
-                />
-              );
-            })}
-      </div>
+      <details className="group rounded-2xl bg-gradient-to-br from-hype/25 via-card to-card ring-1 ring-hype/40">
+        <summary className="flex cursor-pointer list-none items-center gap-3 p-4 [&::-webkit-details-marker]:hidden">
+          <div className="min-w-0 flex-1">
+            <h2 className="flex items-center gap-2 font-display text-3xl font-extrabold uppercase">
+              <LockOpen className="size-6 text-hype" /> Picks are in
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">{summary}</p>
+            <p className="mt-0.5 text-xs font-medium text-hype group-open:hidden">Tap to see what everyone&apos;s on</p>
+          </div>
+          <ChevronDown className="size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="space-y-3 px-3 pb-3">
+          {games.map((game, i) => (
+            <GameCard key={game.eventId} game={game} event={eventsById.get(game.eventId)} players={byId} index={i} />
+          ))}
+        </div>
+      </details>
     </section>
   );
 }
@@ -200,7 +178,6 @@ function GameCard({
         {event && !score && <span className="text-xs text-muted-foreground"><LocalTime iso={event.commence_time} /></span>}
         {score && <StatePill state={score.state} />}
       </header>
-      {score && <p className="num mt-1 text-2xl font-bold">{score.text}</p>}
 
       {game.markets.length === 0 ? (
         <p className="mt-2 text-sm text-muted-foreground">Nobody touched this one.</p>
@@ -264,102 +241,101 @@ function BackerChip({ backer, player, sideLine }: { backer: Backer; player: Reve
 }
 
 // ---------------------------------------------------------------------------
-// By player: every slip, side by side.
+// Live scores: always visible above the leaderboard once a game has started.
 // ---------------------------------------------------------------------------
-function PlayerCard({
+export function Scoreboard({ events }: { events: SportsbookEvent[] }) {
+  const scored = events.flatMap((e) => {
+    const score = scoreLine(e);
+    return score ? [{ id: e.id, ...score }] : [];
+  });
+  if (scored.length === 0) return null;
+  return (
+    <section aria-label="Scores" className="mt-6 space-y-2">
+      {scored.map((s) => (
+        <div key={s.id} className="flex items-center justify-between gap-3 rounded-2xl bg-card px-4 py-3 ring-1 ring-border">
+          <p className="num text-2xl font-bold">{s.text}</p>
+          <StatePill state={s.state} />
+        </div>
+      ))}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// One player's slip: drops down from their leaderboard row after lock.
+// ---------------------------------------------------------------------------
+export function PlayerBets({
   player,
   wagers,
-  riskedCents,
-  potentialCents,
-  eventsById,
-  index,
+  events,
 }: {
   player: RevealPlayer;
   wagers: RevealedWager[];
-  riskedCents: number;
-  potentialCents: number;
-  eventsById: ReadonlyMap<string, SportsbookEvent>;
-  index: number;
+  events: SportsbookEvent[];
 }) {
-  const anim = stagger(index);
+  const eventsById = new Map(events.map((e) => [e.id, e]));
+  const riskedCents = wagers.reduce((sum, w) => sum + w.amountCents, 0);
+  const potentialCents = wagers.reduce((sum, w) => sum + (w.status === "pending" ? w.potentialPayoutCents : 0), 0);
+  if (wagers.length === 0) {
+    return (
+      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Ticket className="size-4" /> No picks. Sitting on {formatCents(player.holdingCents)}.
+      </p>
+    );
+  }
   return (
-    <article
-      aria-label={player.name}
-      className={cn(
-        "rounded-2xl bg-card p-4 ring-1",
-        player.isYou ? "ring-brand/40" : "ring-border",
-        anim.className,
-      )}
-      style={anim.style}
-    >
-      <header className="flex items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand/15 font-semibold text-brand">
-          {player.name.slice(0, 1).toUpperCase()}
-        </span>
-        <h3 className="min-w-0 flex-1 truncate font-display text-xl font-bold uppercase">
-          {player.name}
-          {player.isYou && <span className="font-normal text-muted-foreground"> (you)</span>}
-          {player.isHost && <Crown className="ml-1.5 inline size-4 text-warn" aria-label="Host" />}
-        </h3>
-        <div className="text-right text-xs text-muted-foreground tabular-nums">
-          <div>
-            Risked <span className="num text-base font-bold text-foreground">{formatCents(riskedCents)}</span>
-          </div>
-          <div>
-            Returns <span className="num text-base font-bold text-brand">{formatCents(potentialCents)}</span>
-          </div>
-        </div>
-      </header>
-
-      {wagers.length === 0 ? (
-        <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-          <Ticket className="size-4" /> No picks. Sitting on {formatCents(player.holdingCents)}.
-        </p>
-      ) : (
-        <ul className="mt-3 space-y-2">
-          {wagers.map((w) => (
-            <li key={w.id} className="rounded-xl bg-muted/40 p-2.5">
-              <div className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
-                <span className="font-semibold tracking-wide uppercase">
-                  {w.wagerType === "parlay" ? `${w.legs.length}-leg parlay` : "Single"} · {formatAmerican(w.oddsAmerican)}
-                </span>
-                <span className="tabular-nums">
-                  {formatCents(w.amountCents)} → <span className="text-brand">{formatCents(w.potentialPayoutCents)}</span>
-                </span>
-              </div>
-              <Outcome wager={w} />
-              <ul className="mt-1 space-y-0.5">
-                {w.legs.map((leg, i) => {
-                  const ev = eventsById.get(leg.eventId);
-                  return (
-                    <li key={i} className="flex items-baseline gap-1.5 text-sm">
-                      <LegMark leg={leg} />
-                      <span className="font-medium">
-                        {selectionLabel({
-                          marketKey: leg.marketKey,
-                          outcomeName: leg.selection,
-                          point: leg.line,
-                          participantName: leg.participantName,
-                          participantTeam: leg.participantTeam,
-                        })}
+    <div>
+      <p className="text-xs text-muted-foreground tabular-nums">
+        Risked <span className="num font-bold text-foreground">{formatCents(riskedCents)}</span>
+        {potentialCents > 0 && (
+          <>
+            {" · "}Can still win <span className="num font-bold text-brand">{formatCents(potentialCents)}</span>
+          </>
+        )}
+      </p>
+      <ul className="mt-2 space-y-2">
+        {wagers.map((w) => (
+          <li key={w.id} className="rounded-xl bg-muted/40 p-2.5">
+            <div className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
+              <span className="font-semibold tracking-wide uppercase">
+                {w.wagerType === "parlay" ? `${w.legs.length}-leg parlay` : "Single"} · {formatAmerican(w.oddsAmerican)}
+              </span>
+              <span className="tabular-nums">
+                {formatCents(w.amountCents)} → <span className="text-brand">{formatCents(w.potentialPayoutCents)}</span>
+              </span>
+            </div>
+            <Outcome wager={w} />
+            <ul className="mt-1 space-y-0.5">
+              {w.legs.map((leg, i) => {
+                const ev = eventsById.get(leg.eventId);
+                return (
+                  <li key={i} className="flex items-baseline gap-1.5 text-sm">
+                    <LegMark leg={leg} />
+                    <span className="font-medium">
+                      {selectionLabel({
+                        marketKey: leg.marketKey,
+                        outcomeName: leg.selection,
+                        point: leg.line,
+                        participantName: leg.participantName,
+                        participantTeam: leg.participantTeam,
+                      })}
+                    </span>
+                    {ev && events.length > 1 && (
+                      <span className="ml-1.5 text-xs text-muted-foreground">
+                        {shortTeam(ev.away_team)} @ {shortTeam(ev.home_team)}
                       </span>
-                      {ev && (
-                        <span className="ml-1.5 text-xs text-muted-foreground">
-                          {shortTeam(ev.away_team)} @ {shortTeam(ev.home_team)}
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </li>
-          ))}
-          {player.holdingCents > 0 && (
-            <li className="px-1 text-xs text-muted-foreground">Holding {formatCents(player.holdingCents)} unbet.</li>
-          )}
-        </ul>
-      )}
-    </article>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </li>
+        ))}
+        {player.holdingCents > 0 && (
+          <li className="px-1 text-xs text-muted-foreground">Holding {formatCents(player.holdingCents)} unbet.</li>
+        )}
+      </ul>
+    </div>
   );
 }
 

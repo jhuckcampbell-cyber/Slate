@@ -97,7 +97,8 @@ supabase/functions/          Deno Edge Functions. Entrypoints (*/index.ts) are e
 supabase/functions/_shared/  PURE TS shared by functions (import with .ts extensions); Vitest-tested
 src/components/sportsbook/   board (event cards), slip store + drawer, my picks
 src/components/tournament/   lobby pieces: countdown, live channel, squad list, host tools
-src/components/reveal/       post-lock reveal (consensus by game, slips by player) + sweat outcomes
+src/components/reveal/       post-lock: live Scoreboard, PlayerBets (drops down from each leaderboard row), by-game
+                             consensus as a collapsed "Picks are in" dropdown, sweat outcomes
 src/components/leaderboard/  live/final standings (from the leaderboard view)
 tests/integration/           Vitest against the local stack (concurrency, Realtime channel auth)
 supabase/tests/              pgTAP: every RLS policy and RPC has tests

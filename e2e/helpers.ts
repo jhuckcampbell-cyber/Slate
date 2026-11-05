@@ -1,4 +1,4 @@
-import { expect, type Browser, type Page } from "@playwright/test";
+import { expect, test, type Browser, type BrowserContext, type BrowserContextOptions, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
 // Requires: local Supabase (+ seed) and `npx supabase functions serve` (odds-sync, fake provider).
@@ -25,9 +25,18 @@ export async function createTournament(page: Page, games: number, hostName = "Ha
 }
 
 /** A page in its own browser context (= a different person, no shared session). */
-export async function newPage(browser: Browser) {
-  return (await browser.newContext()).newPage();
+export async function newPage(browser: Browser, options?: BrowserContextOptions) {
+  const context = await browser.newContext(options);
+  opened.push(context);
+  return context.newPage();
 }
+
+// Every spec shares one browser per worker; contexts left open pile up (dozens of live pages polling and
+// holding Realtime sockets) and slow later specs to a crawl. Close each test's people when it ends.
+const opened: BrowserContext[] = [];
+test.afterEach(async () => {
+  await Promise.all(opened.splice(0).map((c) => c.close().catch(() => {})));
+});
 
 /** Join by invite link as a brand-new guest. */
 export async function joinAs(page: Page, code: string, name: string) {
@@ -84,4 +93,16 @@ export async function tournamentId(code: string) {
   const { data, error } = await admin.from("tournaments").select("id").eq("code", code).single();
   if (error) throw error;
   return data.id as string;
+}
+
+/** After lock: tap a player's leaderboard row to drop down their bets. */
+export async function openPlayerBets(page: Page, name: string) {
+  const row = page.getByRole("listitem", { name: new RegExp(`^\\d+\\. ${name}`) });
+  await row.locator("summary").click();
+  return row;
+}
+
+/** After lock: open the "Picks are in" dropdown (what everyone's on, by game). */
+export async function openPicksByGame(page: Page) {
+  await page.getByRole("heading", { name: "Picks are in" }).click();
 }

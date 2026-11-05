@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { admin, createTournament, joinAs, newPage, placeSingle, tournamentId, waitForOdds } from "./helpers";
+import { admin, createTournament, joinAs, newPage, openPicksByGame, openPlayerBets, placeSingle, tournamentId, waitForOdds } from "./helpers";
 
 // Phase 3: blind until lock, then the reveal reaches every open lobby without a reload.
 
@@ -46,9 +46,13 @@ test("picks stay blind until the host locks, then everyone sees them live", asyn
     await expect(page.getByRole("heading", { name: "Picks are in" })).toBeVisible({ timeout: 15_000 });
   }
 
+  // What everyone's on is a dropdown (closed by default); each leaderboard player drops down their bets.
+  await expect(guest.getByText("Split 1–1").first()).toBeHidden();
+  await openPicksByGame(guest);
   await expect(guest.getByText("Split 1–1").first()).toBeVisible();
-  await guest.getByRole("tab", { name: "By player" }).click();
-  await expect(guest.getByRole("article").filter({ hasText: "Hank" })).toContainText("$10");
+  const hank = await openPlayerBets(guest, "Hank");
+  await expect(hank).toContainText("$10");
+  await expect(guest.getByRole("tab", { name: "By player" })).toHaveCount(0);
 
   // Betting and host controls are gone.
   await expect(guest.locator("button[data-odds-id]")).toHaveCount(0);

@@ -9,7 +9,7 @@ import { InstallHint } from "@/components/install-hint";
 import { PageSkeleton } from "@/components/page-skeleton";
 import { Leaderboard, type LeaderRow } from "@/components/leaderboard/leaderboard";
 import { PropsDesk, type PropLine, type PropResult } from "@/components/leaderboard/props-desk";
-import { Reveal, type RevealPlayer } from "@/components/reveal/reveal";
+import { PlayerBets, Reveal, Scoreboard, type RevealPlayer } from "@/components/reveal/reveal";
 import { Sportsbook } from "@/components/sportsbook/sportsbook";
 import type { SportsbookEvent } from "@/components/sportsbook/event-card";
 import { HostTools } from "@/components/tournament/host-tools";
@@ -390,7 +390,22 @@ async function RevealSection({
 
   return (
     <>
-      <Leaderboard rows={leaders} settled={settled} />
+      <Scoreboard events={events} />
+      <Leaderboard
+        rows={leaders}
+        settled={settled}
+        bets={Object.fromEntries(
+          players.map((p) => [
+            p.participantId,
+            <PlayerBets
+              key={p.participantId}
+              player={p}
+              wagers={wagers.filter((w) => w.participantId === p.participantId)}
+              events={events}
+            />,
+          ]),
+        )}
+      />
       <PropsDesk
         tournamentId={tournamentId}
         isHost={squad.some((m) => m.is_host && m.user_id === viewerUserId)}

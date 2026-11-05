@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { EyeOff, LockOpen, Plus, Trophy, Zap } from "lucide-react";
 import { AppBar, DisplayTitle, Eyebrow } from "@/components/brand";
 import { InstallHint } from "@/components/install-hint";
+import { MyTournamentsList } from "@/components/my-tournaments-list";
 import { JoinCodeForm } from "@/components/tournament/join-code-form";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -16,6 +18,11 @@ export default function Home() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-[max(env(safe-area-inset-top),12px)] pb-10">
       <AppBar />
+
+      {/* Returning players: straight back into their tournaments (streams in; nothing for first-time visitors). */}
+      <Suspense fallback={null}>
+        <MyTournamentsList className="mt-6" />
+      </Suspense>
 
       <section className="mt-8">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand ring-1 ring-brand/30">

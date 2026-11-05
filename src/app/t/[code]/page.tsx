@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { EyeOff, UserRound } from "lucide-react";
+import { EyeOff, House, UserRound } from "lucide-react";
 import { AppBar, DisplayTitle, Eyebrow } from "@/components/brand";
 import { InstallHint } from "@/components/install-hint";
 import { PageSkeleton } from "@/components/page-skeleton";
@@ -125,6 +125,13 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
 
       <header>
         <AppBar>
+          <Link
+            href="/"
+            className="flex h-9 items-center gap-1.5 rounded-full bg-card px-3 text-sm font-medium ring-1 ring-border"
+          >
+            <House className="size-4" aria-hidden />
+            Home
+          </Link>
           <Badge variant="outline" className="h-7 font-mono tracking-widest">
             {t.code}
           </Badge>

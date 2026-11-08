@@ -4,6 +4,20 @@ Product and design decisions, newest first. Each entry says what changed and why
 Guardrails that never move: $100 play money, private friend groups, SMS-link join, blind picks until lock,
 live sweat. See "Creative enhancements" in CLAUDE.md for the running backlog.
 
+## 2026-11-08: a calmer leaderboard and a lighter lobby
+
+Friends found the leaderboard "too much and confusing".
+
+- **One number per player.** Each row is rank, name, the projected total in big type, and how far up or down from the
+  starting bankroll they are (▲ $49.65 / ▼ $12). "Cash · Max" is gone; a short line under the title says what
+  "projected" means. A note appears only when it matters (broke a house rule, busted, can't catch the lead).
+- **One chance per bet.** Tapping a name shows their bets with a single bar and "Safe · 99% to cash". A single bet's
+  only pick no longer repeats the same percentage; parlay legs still show each leg's chance.
+- **Rules fold into one line** ("$100 each · 3+ bets · $20 max bet"); tap for bet types and parlays. The "picks stay
+  hidden" note is a quiet line instead of another box.
+- **Bankroll / At risk / Potential** is one strip instead of three cards.
+- **The "Get the app" tip shows on your first visit only**, not on every page forever.
+
 ## 2026-11-08: a page for every game
 
 - **Tap a game to see everything you can bet on it**, like a real sportsbook. The board stays clean (each game's

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronDown, RotateCcw, Trophy } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, RotateCcw, Trophy } from "lucide-react";
 import { Eyebrow } from "@/components/brand";
 import { buttonVariants } from "@/components/ui/button";
 import { formatCents } from "@/lib/format";
@@ -25,10 +25,13 @@ export function Leaderboard({
   rows,
   settled,
   bets = {},
+  startCents,
 }: {
   rows: LeaderRow[];
   settled: boolean;
   bets?: Record<string, React.ReactNode>;
+  /** Starting bankroll: each row shows how far up or down from it the player is. */
+  startCents?: number;
 }) {
   const sorted = [...rows].sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
   const winners = settled ? sorted.filter((r) => r.rank === 1) : [];
@@ -57,89 +60,66 @@ export function Leaderboard({
         </h2>
         {!settled && <Eyebrow>Projected · live</Eyebrow>}
       </div>
+      {!settled && (
+        <p className="text-muted-foreground mt-0.5 text-xs">
+          What each player ends with if their open bets go the way the odds say. Tap a name for their bets.
+        </p>
+      )}
 
       <ol className="mt-2 space-y-2">
         {sorted.map((r) => {
           const out = r.standing !== "alive";
+          const score = settled ? r.cashCents : r.evCents;
+          const change = startCents === undefined ? null : score - startCents;
+          const note =
+            r.standing === "disqualified"
+              ? { text: "Broke a house rule · ranked last", tone: "text-loss" }
+              : r.standing === "busted"
+                ? { text: "Busted", tone: "text-loss" }
+                : r.standing === "eliminated" && !settled
+                  ? { text: "Can't catch the lead", tone: "text-warn" }
+                  : null;
           return (
             <li
               key={r.participantId}
               aria-label={`${r.rank}. ${r.name}`}
-              className={cn(
-                "bg-card rounded-2xl ring-1",
-                r.isYou ? "ring-brand/40" : "ring-border",
-              )}
+              className={cn("bg-card rounded-2xl ring-1", r.isYou ? "ring-brand/40" : "ring-border")}
             >
               <details className="group">
                 <summary
                   className={cn(
-                    "flex cursor-pointer list-none items-center gap-3 p-3 [&::-webkit-details-marker]:hidden",
+                    "flex min-h-16 cursor-pointer list-none items-center gap-3 px-3 py-2.5 [&::-webkit-details-marker]:hidden",
                     out && "opacity-70",
                   )}
                 >
                   <span
                     className={cn(
                       "num w-6 shrink-0 text-center text-2xl font-extrabold",
-                      r.rank === 1 ? "text-hype" : "text-muted-foreground",
+                      r.rank === 1 && !out ? "text-hype" : "text-muted-foreground",
                     )}
                   >
                     {r.rank}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-display truncate text-lg leading-tight font-bold uppercase">
+                    <p className="font-display truncate text-xl leading-tight font-bold uppercase">
                       {r.name}
-                      {r.isYou && (
-                        <span className="text-muted-foreground font-normal normal-case">
-                          {" "}
-                          (you)
-                        </span>
-                      )}
+                      {r.isYou && <span className="text-muted-foreground font-normal normal-case"> (you)</span>}
                     </p>
-                    <p className="text-muted-foreground text-xs">
-                      {r.standing === "disqualified" ? (
-                        <span className="font-semibold text-loss">Broke a house rule · ranked last</span>
-                      ) : settled ? (
-                        r.standing === "busted" ? (
-                          "Busted"
-                        ) : (
-                          "Final"
-                        )
-                      ) : (
-                        <>
-                          Cash{" "}
-                          <span className="num text-foreground">{formatCents(r.cashCents)}</span> ·
-                          Max <span className="num text-foreground">{formatCents(r.maxCents)}</span>
-                          {out && (
-                            <span
-                              className={cn(
-                                "ml-1.5 font-semibold",
-                                r.standing === "busted" ? "text-loss" : "text-warn",
-                              )}
-                            >
-                              · {r.standing === "busted" ? "Busted" : "Eliminated"}
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </p>
+                    {note && <p className={cn("text-xs font-semibold", note.tone)}>{note.text}</p>}
                   </div>
-                  <span
-                    className={cn(
-                      "num text-2xl font-bold",
-                      r.rank === 1 && !out ? "text-brand" : "text-foreground",
-                    )}
-                  >
-                    {formatCents(settled ? r.cashCents : r.evCents)}
-                  </span>
+                  <div className="text-right">
+                    <p className={cn("num text-3xl leading-none font-bold", r.rank === 1 && !out && "text-brand")}>
+                      {formatCents(score)}
+                    </p>
+                    {change !== null && <Change cents={change} />}
+                  </div>
                   <ChevronDown
                     aria-label="Show bets"
                     className="text-muted-foreground size-4 shrink-0 transition-transform group-open:rotate-180"
                   />
                 </summary>
                 <div className="border-border border-t px-3 pt-2.5 pb-3">
-                  {bets[r.participantId] ?? (
-                    <p className="text-muted-foreground text-sm">No picks.</p>
-                  )}
+                  {bets[r.participantId] ?? <p className="text-muted-foreground text-sm">No picks.</p>}
                 </div>
               </details>
             </li>
@@ -156,5 +136,17 @@ export function Leaderboard({
         </Link>
       )}
     </section>
+  );
+}
+
+/** Up or down from the starting bankroll: "▲ $49.65", "▼ $12", "Even". */
+function Change({ cents }: { cents: number }) {
+  if (cents === 0) return <p className="text-muted-foreground mt-1 text-xs font-semibold">Even</p>;
+  const up = cents > 0;
+  return (
+    <p className={cn("num mt-1 flex items-center justify-end gap-0.5 text-sm font-bold", up ? "text-win" : "text-loss")}>
+      {up ? <ArrowUp className="size-3.5" aria-label="Up" /> : <ArrowDown className="size-3.5" aria-label="Down" />}
+      {formatCents(Math.abs(cents))}
+    </p>
   );
 }

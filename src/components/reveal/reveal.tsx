@@ -292,7 +292,8 @@ export function PlayerBets({
                 const ev = eventsById.get(leg.eventId);
                 return (
                   <li key={i} className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-sm">
-                    <LegMark leg={leg} />
+                    {/* A single's chance is already on the bet's bar: only parlay legs show their own. */}
+                    {(w.legs.length > 1 || leg.status !== "pending") && <LegMark leg={leg} />}
                     {(() => {
                       const team = pickTeam({ marketKey: leg.marketKey, outcomeName: leg.selection, participantTeam: leg.participantTeam });
                       return team ? <TeamMark team={team} className="size-5 self-center" /> : null;
@@ -337,12 +338,6 @@ const TONE_TEXT: Record<Tone, string> = {
 };
 
 const TONE_BAR: Record<Tone, string> = { win: "bg-win", loss: "bg-loss", muted: "bg-muted-foreground", live: "bg-brand" };
-const TONE_PILL: Record<Tone, string> = {
-  win: "bg-win/15 text-win",
-  loss: "bg-loss/15 text-loss",
-  muted: "bg-muted text-muted-foreground",
-  live: "bg-warn/15 text-warn",
-};
 
 function Outcome({ wager }: { wager: RevealedWager }) {
   const out = wagerOutcome(wager);
@@ -358,12 +353,11 @@ function Outcome({ wager }: { wager: RevealedWager }) {
           />
         </div>
       )}
-      {tag && (
-        <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-bold tracking-wide uppercase", TONE_PILL[tag.tone])}>
-          {tag.label}
-        </span>
-      )}
-      <span className={cn("text-xs font-semibold", TONE_TEXT[out.tone], !pending && "ml-auto")}>{out.label}</span>
+      <span className={cn("shrink-0 text-xs font-semibold", TONE_TEXT[out.tone], !pending && "ml-auto")}>
+        {tag && <span className={TONE_TEXT[tag.tone === "live" ? "muted" : tag.tone]}>{tag.label}</span>}
+        {tag && " · "}
+        {out.label}
+      </span>
     </div>
   );
 }

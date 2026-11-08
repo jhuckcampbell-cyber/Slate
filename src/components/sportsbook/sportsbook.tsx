@@ -109,7 +109,7 @@ function SportsbookInner({
 
   return (
     <section className="mt-6" aria-label="Sportsbook">
-      <dl className="grid grid-cols-3 gap-2 text-center">
+      <dl className="grid grid-cols-3 divide-x divide-border rounded-2xl bg-card py-2.5 text-center ring-1 ring-border">
         <Stat label="Bankroll" value={formatCents(bankroll.data.remainingCents)} highlight />
         <Stat label="At risk" value={formatCents(atRiskCents)} />
         <Stat label="Potential" value={formatCents(bankroll.data.potentialPayoutCents)} />
@@ -213,7 +213,7 @@ function HouseRulesChecklist({ items }: { items: ReturnType<typeof requirements>
 
 function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className="rounded-2xl bg-card p-2.5 ring-1 ring-border">
+    <div className="px-2">
       <dt className="text-[11px] text-muted-foreground">{label}</dt>
       <dd className={cn("num mt-0.5 text-2xl leading-none font-bold", highlight && "text-brand")}>{value}</dd>
     </div>

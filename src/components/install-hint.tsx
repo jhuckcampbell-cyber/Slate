@@ -10,13 +10,26 @@ import { cn } from "@/lib/utils";
 type InstallPromptEvent = Event & { prompt: () => Promise<void> };
 
 const KEY = "squadbets:install-dismissed";
+/** Shown once: through the first visit it appears on (this tab's session), then never again. */
+const SEEN = "squadbets:install-seen";
+const THIS_VISIT = "squadbets:install-this-visit";
 const noopSubscribe = () => () => {};
 
 function wasDismissed() {
   try {
-    return localStorage.getItem(KEY) === "1";
+    if (localStorage.getItem(KEY) === "1") return true;
+    return localStorage.getItem(SEEN) === "1" && sessionStorage.getItem(THIS_VISIT) !== "1";
   } catch {
     return false;
+  }
+}
+
+function markSeen() {
+  try {
+    localStorage.setItem(SEEN, "1");
+    sessionStorage.setItem(THIS_VISIT, "1");
+  } catch {
+    // storage blocked: it shows again next visit
   }
 }
 
@@ -42,13 +55,17 @@ export function InstallHint({ className }: { className?: string }) {
     return () => window.removeEventListener("beforeinstallprompt", onPrompt);
   }, []);
 
-  if (!onClient) return null;
-  const mode = installMode({
-    userAgent: navigator.userAgent,
-    standalone: isStandalone(),
-    canPrompt: prompt !== null,
-    dismissed: dismissed || wasDismissed(),
-  });
+  const mode = onClient
+    ? installMode({
+        userAgent: navigator.userAgent,
+        standalone: isStandalone(),
+        canPrompt: prompt !== null,
+        dismissed: dismissed || wasDismissed(),
+      })
+    : "none";
+  useEffect(() => {
+    if (mode !== "none") markSeen();
+  }, [mode]);
   if (mode === "none") return null;
 
   const dismiss = () => {

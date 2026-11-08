@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { EyeOff, House } from "lucide-react";
+import { ChevronDown, EyeOff, House } from "lucide-react";
 import { AppBar, Eyebrow } from "@/components/brand";
 import { LiveGames } from "@/components/game/live-games";
 import { FinalCelebration } from "@/components/leaderboard/final-celebration";
@@ -179,11 +179,26 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
         </div>
       </header>
 
+      {/* One line with what matters (bankroll and house rules); tap for the rest. */}
       <section className="mt-5" aria-labelledby="rules-heading">
-        <h2 id="rules-heading" className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          Rules
-        </h2>
-        <dl className="grid grid-cols-2 gap-2 text-sm">
+        <details className="group rounded-2xl bg-card ring-1 ring-border">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-3.5 py-2.5 [&::-webkit-details-marker]:hidden">
+            <h2 id="rules-heading" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Rules
+            </h2>
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+              {[
+                `${bankroll} each`,
+                allIn && "Bet it all",
+                minBets > 0 && `${minBets}+ bets`,
+                rules.maxBetCents && `${formatCents(rules.maxBetCents)} max bet`,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+            <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+          </summary>
+          <dl className="grid grid-cols-2 gap-x-3 gap-y-2.5 border-t border-border px-3.5 pt-3 pb-3.5 text-sm">
           <Rule label="Bankroll" value={bankroll} />
           <Rule label="Max bet" value={rules.maxBetCents ? formatCents(rules.maxBetCents) : "No limit"} />
           <Rule
@@ -192,12 +207,6 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
               gameMarkets.map((m) => MARKET_LABELS[m] ?? m).join(", ") + (playerProps ? " + player props" : "")
             }
           />
-          {(allIn || minBets > 0) && (
-            <Rule
-              label="House rules"
-              value={[allIn && "Bet it all", minBets > 0 && `${minBets}+ bets`].filter(Boolean).join(" · ")}
-            />
-          )}
           <Rule
             label="Parlays"
             value={
@@ -206,10 +215,11 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
                 : "Off"
             }
           />
-        </dl>
+          </dl>
+        </details>
         {!isLocked && (
-          <p className="mt-3 flex gap-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
-            <EyeOff className="mt-0.5 size-4 shrink-0" />
+          <p className="mt-2 flex gap-2 px-1 text-xs text-muted-foreground">
+            <EyeOff className="size-3.5 shrink-0" />
             <span>
               Picks stay hidden from everyone until <LocalTime iso={t.lock_time} />, then they&apos;re all revealed at
               once.
@@ -445,6 +455,7 @@ async function RevealSection({
       <Leaderboard
         rows={leaders}
         settled={settled}
+        startCents={startingBankrollCents}
         bets={Object.fromEntries(
           players.map((p) => [
             p.participantId,
@@ -476,9 +487,9 @@ async function RevealSection({
 
 function Rule({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-card p-3 ring-1 ring-border">
+    <div>
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 font-display text-lg leading-tight font-bold">{value}</dd>
+      <dd className="font-semibold">{value}</dd>
     </div>
   );
 }

@@ -164,6 +164,12 @@ function HouseRulesChecklist({ items }: { items: ReturnType<typeof requirements>
           <span className={cn("text-xs font-semibold tabular-nums", i.done ? "text-win" : "text-warn")}>{i.detail}</span>
         </li>
       ))}
+      {!allDone && (
+        <li className="pt-1 text-xs text-muted-foreground">
+          Your slip can only be placed once it meets every house rule. If you cancel a bet, re-bet before lock or
+          you&apos;ll rank last.
+        </li>
+      )}
     </ul>
   );
 }

@@ -4,7 +4,7 @@ import { Odds } from "@/components/odds";
 import { TeamMark } from "@/components/team-mark";
 import { pickTeam } from "@/lib/team-colors";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Loader2, Lock, X } from "lucide-react";
+import { ArrowRight, CircleCheck, CircleDashed, Loader2, Lock, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,8 @@ import type { BoardRow } from "@/lib/core/board";
 import {
   buildWagers,
   parlayEligibility,
-  reserveCents,
+  houseRuleShortfall,
+  splitEvenly,
   slipTotals,
   validateSlip,
   wagerAmerican,
@@ -70,13 +71,16 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
   const drafts = buildWagers(mode, entries, stakeCents, dollarsToCents(state.parlayStake) ?? 0);
   const issues = validateSlip(drafts, { rules, bankrollCents, betsPlaced });
   const totals = slipTotals(drafts);
-  // The most one bet can be: the bankroll minus $1 for each bet the minimum-bets rule still needs, split across singles.
-  const reserve = reserveCents(rules.minBets ?? 0, betsPlaced, drafts.length);
-  const spendable = Math.max(bankrollCents - reserve, 0);
-  const perBet = Math.floor((mode === "parlay" ? spendable : spendable / Math.max(entries.length, 1)) / 100) * 100;
+  // The most one bet can be: the bankroll, split across singles, capped by the host's max bet.
+  const perBet = Math.floor((mode === "parlay" ? bankrollCents : bankrollCents / Math.max(entries.length, 1)) / 100) * 100;
   const maxStake = Math.min(perBet, rules.maxBetCents ?? Number.POSITIVE_INFINITY);
   const missingStake = issues.some((i) => i.code === "MISSING_STAKE");
-  const blockingIssues = [...new Set(issues.filter((i) => i.code !== "MISSING_STAKE").map((i) => i.code))];
+  // House rules have their own checklist in the slip; every other problem is listed in red.
+  const short = houseRuleShortfall(rules, { bankrollCents, betsPlaced }, drafts);
+  const hasHouseRules = (rules.minBets ?? 0) > 0 || Boolean(rules.allIn);
+  const blockingIssues = [
+    ...new Set(issues.filter((i) => i.code !== "MISSING_STAKE" && !i.code.startsWith("HOUSE_RULE_")).map((i) => i.code)),
+  ];
 
   if (entries.length === 0) return null;
 
@@ -84,6 +88,13 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
     const value = centsToInput(cents);
     if (mode === "parlay") dispatch({ type: "parlayStake", value });
     else dispatch({ type: "stakeAll", value });
+  }
+
+  /** Max: everything that's left, split to the cent (so "bet it all" adds up exactly), within the max bet. */
+  function setMax() {
+    if (mode === "parlay") return setQuickStake(Math.min(bankrollCents, rules.maxBetCents ?? bankrollCents));
+    const split = splitEvenly(bankrollCents, entries.length, rules.maxBetCents);
+    dispatch({ type: "stakeEach", values: Object.fromEntries(entries.map((e, i) => [e.oddsId, centsToInput(split[i] ?? 0)])) });
   }
 
   function acceptChanges() {
@@ -154,6 +165,9 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
   else if (anyChanged) action = { label: "Accept new odds", onClick: acceptChanges, disabled: false };
   else if (missingStake) action = { label: "Enter a stake", disabled: true };
   else if (blockingIssues.length) action = { label: "Fix your slip", disabled: true };
+  else if (short.betsShort > 0)
+    action = { label: `Add ${short.betsShort} more ${short.betsShort === 1 ? "pick" : "picks"} to place`, disabled: true };
+  else if (short.leftCents > 0) action = { label: `Bet ${formatCents(short.leftCents)} more to place`, disabled: true };
   else
     action = {
       label: `Place ${drafts.length > 1 ? `${drafts.length} bets` : "bet"} · ${formatCents(totals.stakeCents)}`,
@@ -261,22 +275,28 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
                   {formatCents(c)}
                 </Button>
               ))}
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 flex-1"
-                onClick={() => setQuickStake(maxStake)}
-              >
-                Max
+              <Button variant="outline" size="sm" className="h-9 flex-1" onClick={setMax}>
+                {rules.allIn ? "Bet it all" : "Max"}
               </Button>
             </div>
 
-            {reserve > 0 && (
-              <p className="rounded-xl bg-muted/50 p-2.5 text-xs text-muted-foreground">
-                This tournament needs {rules.minBets}+ bets, so {formatCents(reserve)} stays back for the{" "}
-                {reserve / 100} more you&apos;ll make. Most you can put on {mode === "parlay" || entries.length === 1 ? "this bet" : "each bet"}:{" "}
-                <span className="num font-semibold text-foreground">{formatCents(maxStake)}</span>.
-              </p>
+            {hasHouseRules && (
+              <ul aria-label="House rules for this slip" className="space-y-1 rounded-xl bg-muted/50 p-2.5 text-sm">
+                {(rules.minBets ?? 0) > 0 && (
+                  <RuleLine
+                    done={short.betsShort === 0}
+                    label={`At least ${rules.minBets} ${rules.minBets === 1 ? "bet" : "bets"}`}
+                    detail={`${Math.min(betsPlaced + drafts.length, rules.minBets ?? 0)} of ${rules.minBets}`}
+                  />
+                )}
+                {rules.allIn && (
+                  <RuleLine
+                    done={short.leftCents === 0}
+                    label="Bet your whole bankroll"
+                    detail={short.leftCents === 0 ? "All in" : `${formatCents(short.leftCents)} left`}
+                  />
+                )}
+              </ul>
             )}
 
             {blockingIssues.length > 0 && (
@@ -374,6 +394,16 @@ function SlipRow({
         />
       )}
     </div>
+  );
+}
+
+function RuleLine({ done, label, detail }: { done: boolean; label: string; detail: string }) {
+  return (
+    <li className="flex items-center gap-2">
+      {done ? <CircleCheck className="size-4 shrink-0 text-win" /> : <CircleDashed className="size-4 shrink-0 text-warn" />}
+      <span className="flex-1">{label}</span>
+      <span className={cn("num text-xs font-semibold", done ? "text-win" : "text-warn")}>{detail}</span>
+    </li>
   );
 }
 

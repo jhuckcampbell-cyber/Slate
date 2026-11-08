@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { joinAs, newPage, placeSingle, waitForOdds } from "./helpers";
+import { joinAs, newPage, waitForOdds } from "./helpers";
 
 // 2026-11-05 batch: house rules (bet it all, minimum bets) with a live checklist, the plain-English explainer,
 // odds as percentages (Settings), the tournament switcher, leaving, and deleting.
@@ -24,9 +24,25 @@ test("house rules, explainer, % odds, switcher, leave and delete", async ({ brow
   const checklist = host.getByRole("list", { name: "House rules" });
   await expect(checklist).toContainText("$100 left to bet");
   await expect(checklist).toContainText("0 of 2");
-  await placeSingle(host, host.locator('article button[aria-pressed="false"]').first(), 40);
-  await expect(checklist).toContainText("$60 left to bet");
-  await expect(checklist).toContainText("1 of 2");
+  // The slip can't be placed until it meets every house rule (2026-11-08: friends were ranked last for a slip
+  // the app had accepted).
+  await host.locator('article button[aria-pressed="false"]').first().click();
+  await host.getByRole("button", { name: /Bet slip/ }).click();
+  const slip = host.getByRole("dialog");
+  await slip.getByLabel(/^Stake on/).fill("40");
+  await expect(slip.getByRole("button", { name: "Add 1 more pick to place" })).toBeDisabled();
+  await expect(slip.getByRole("list", { name: "House rules for this slip" })).toContainText("1 of 2");
+  await host.keyboard.press("Escape");
+  await host.locator('article button[aria-pressed="false"]').first().click();
+  await host.getByRole("button", { name: /Bet slip/ }).click();
+  await expect(slip.getByRole("button", { name: "Enter a stake" })).toBeDisabled();
+  await slip.getByLabel(/^Stake on/).nth(1).fill("20");
+  await expect(slip.getByRole("button", { name: "Bet $40 more to place" })).toBeDisabled();
+  await slip.getByRole("button", { name: "Bet it all" }).click(); // $50 + $50, exactly the bankroll
+  await slip.getByRole("button", { name: "Place 2 bets · $100" }).click();
+  await expect(slip.getByRole("button", { name: /Place 2 bets/ })).toBeHidden({ timeout: 15_000 });
+  await expect(checklist).toContainText("All in");
+  await expect(checklist).toContainText("2 of 2");
 
   // Plain-English explainer behind the title.
   await host.getByRole("button", { name: /How it works/ }).click();

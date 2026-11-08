@@ -284,6 +284,47 @@ describe("player props", () => {
     ]);
   });
 
+  // Bug 2026-11 (prod): DraftKings had posted rush yards for one QB only, so the whole market showed one player.
+  it("fills each player from the first book that prices them, never mixing books for one player", () => {
+    const rush = (book: string, outcomes: { name: string; description: string; price: number; point: number }[]) => ({
+      key: book,
+      title: book,
+      markets: [{ key: "player_rush_yds", outcomes }],
+    });
+    const n = normalizeOddsResponse(
+      [
+        {
+          ...nfl("player_rush_yds", []),
+          bookmakers: [
+            rush("fanduel", [
+              { name: "Over", description: "Trevor Lawrence", price: -120, point: 15.5 },
+              { name: "Under", description: "Trevor Lawrence", price: -110, point: 15.5 },
+              { name: "Over", description: "Derrick Henry", price: -115, point: 89.5 },
+              { name: "Under", description: "Derrick Henry", price: -115, point: 89.5 },
+              { name: "Over", description: "Travis Etienne", price: -110, point: 55.5 },
+              { name: "Under", description: "Travis Etienne", price: -110, point: 55.5 },
+            ]),
+            rush("draftkings", [
+              { name: "Over", description: "Trevor Lawrence", price: -105, point: 14.5 },
+              { name: "Under", description: "Trevor Lawrence", price: -125, point: 14.5 },
+            ]),
+          ],
+        },
+      ],
+      { markets: ["player_rush_yds"], bookmakers: ["draftkings", "fanduel"] },
+    );
+    expect(n.outcomes.map((o) => `${o.participant_name} ${o.outcome_name} ${o.point} ${o.bookmaker}`).sort()).toEqual([
+      "Derrick Henry Over 89.5 fanduel",
+      "Derrick Henry Under 89.5 fanduel",
+      "Travis Etienne Over 55.5 fanduel",
+      "Travis Etienne Under 55.5 fanduel",
+      "Trevor Lawrence Over 14.5 draftkings", // priority book wins for a player both books price
+      "Trevor Lawrence Under 14.5 draftkings",
+    ]);
+    expect(n.markets).toEqual([{ event_id: "tnf", market_key: "player_rush_yds", bookmaker: "fanduel" }]);
+    expect(n.skippedMarkets).toBe(0);
+  });
+
   it("a prop without a line is unusable", () => {
     const n = normalizeOddsResponse(
       [

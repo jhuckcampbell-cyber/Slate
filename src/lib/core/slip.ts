@@ -18,6 +18,8 @@ export type Rules = {
   sameGameParlays: boolean;
   /** House rule: everyone makes at least this many bets (0 or missing = no minimum). */
   minBets?: number;
+  /** House rule: everyone bets their whole bankroll. */
+  allIn?: boolean;
 };
 
 export type Selection = {
@@ -39,7 +41,8 @@ export type SlipIssueCode =
   | "MISSING_STAKE"
   | "INVALID_AMOUNT"
   | "OVER_MAX_BET"
-  | "LEAVES_TOO_LITTLE"
+  | "HOUSE_RULE_MIN_BETS"
+  | "HOUSE_RULE_ALL_IN"
   | "INSUFFICIENT_BANKROLL"
   | "MARKET_NOT_ALLOWED"
   | "PARLAYS_DISABLED"
@@ -107,11 +110,30 @@ export function slipTotals(drafts: readonly WagerDraft[]) {
 }
 
 /**
- * Money that has to stay unspent so the "minimum bets" house rule can still be met: $1 (the smallest bet) for every
- * required bet not yet placed or in the slip. Mirrors place_wagers, so one big bet can't make the rule impossible.
+ * What this slip still misses of the house rules, counting bets already placed (mirrors place_wagers, migration 0022:
+ * a slip only goes through if, once placed, the player meets every rule).
  */
-export function reserveCents(minBets: number, betsPlaced: number, betsInSlip: number): number {
-  return Math.max(0, minBets - betsPlaced - betsInSlip) * MIN_WAGER_CENTS;
+export function houseRuleShortfall(
+  rules: Pick<Rules, "minBets" | "allIn">,
+  ctx: { bankrollCents: number; betsPlaced: number },
+  drafts: readonly WagerDraft[],
+): { betsShort: number; leftCents: number } {
+  const stake = drafts.reduce((sum, d) => sum + Math.max(d.amountCents, 0), 0);
+  return {
+    betsShort: Math.max(0, (rules.minBets ?? 0) - ctx.betsPlaced - drafts.length),
+    leftCents: rules.allIn ? Math.max(0, ctx.bankrollCents - stake) : 0,
+  };
+}
+
+/** Split a bankroll across n bets to the cent (whole dollars where possible, so all-in adds up exactly). */
+export function splitEvenly(totalCents: number, n: number, capCents: number | null = null): number[] {
+  if (n <= 0 || totalCents <= 0) return [];
+  const dollars = Math.floor(totalCents / 100);
+  const base = Math.floor(dollars / n);
+  const extra = dollars - base * n;
+  const out = Array.from({ length: n }, (_, i) => (base + (i < extra ? 1 : 0)) * 100);
+  out[n - 1]! += totalCents - dollars * 100; // leftover cents ride on the last bet
+  return capCents === null ? out : out.map((c) => Math.min(c, capCents));
 }
 
 export function validateSlip(
@@ -143,11 +165,10 @@ export function validateSlip(
   }
 
   if (total > ctx.bankrollCents) issues.push({ code: "INSUFFICIENT_BANKROLL" });
-  else if (
-    drafts.length > 0 &&
-    ctx.bankrollCents - total < reserveCents(ctx.rules.minBets ?? 0, ctx.betsPlaced ?? 0, drafts.length)
-  ) {
-    issues.push({ code: "LEAVES_TOO_LITTLE" });
+  else if (drafts.length > 0) {
+    const short = houseRuleShortfall(ctx.rules, { bankrollCents: ctx.bankrollCents, betsPlaced: ctx.betsPlaced ?? 0 }, drafts);
+    if (short.betsShort > 0) issues.push({ code: "HOUSE_RULE_MIN_BETS" });
+    if (short.leftCents > 0) issues.push({ code: "HOUSE_RULE_ALL_IN" });
   }
   return issues;
 }

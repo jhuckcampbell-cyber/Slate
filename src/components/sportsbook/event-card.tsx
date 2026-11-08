@@ -133,7 +133,10 @@ function PropsPanel({
   onToggle: (row: BoardRow) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [market, setMarket] = useState(propKeys[0]!);
+  // Only prop types the books have actually priced get a tab: an empty tab read as "broken".
+  const postedKeys = propKeys.filter((k) => (markets?.get(k)?.length ?? 0) > 0);
+  const [picked, setMarket] = useState<string | null>(null);
+  const market = picked && postedKeys.includes(picked) ? picked : (postedKeys[0] ?? propKeys[0]!);
   const rows = markets?.get(market) ?? [];
   const [query, setQuery] = useState("");
   // Likeliest first (see prop-order.ts), then filtered by the search box.
@@ -162,8 +165,13 @@ function PropsPanel({
       {open && (
         <div className="pb-1">
           {/* Wraps instead of scrolling sideways: every prop type is visible at once. */}
+          {postedKeys.length === 0 && (
+            <p className="pb-2 text-center text-sm text-muted-foreground">
+              No player props posted for this game yet. Sportsbooks usually post them a day or two before kickoff.
+            </p>
+          )}
           <div className="flex flex-wrap gap-1.5 pb-2">
-            {propKeys.map((k) => (
+            {postedKeys.map((k) => (
               <button
                 key={k}
                 type="button"
@@ -203,9 +211,7 @@ function PropsPanel({
               )}
             </div>
           )}
-          {allPlayers.length === 0 ? (
-            <p className="py-2 text-center text-xs text-muted-foreground">Props post shortly…</p>
-          ) : players.length === 0 ? (
+          {allPlayers.length === 0 ? null : players.length === 0 ? (
             <p className="py-2 text-center text-xs text-muted-foreground">No players match &ldquo;{query.trim()}&rdquo;.</p>
           ) : (
             <ul>

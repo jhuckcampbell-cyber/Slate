@@ -4,6 +4,24 @@ Product and design decisions, newest first. Each entry says what changed and why
 Guardrails that never move: $100 play money, private friend groups, SMS-link join, blind picks until lock,
 live sweat. See "Creative enhancements" in CLAUDE.md for the running backlog.
 
+## 2026-11-08: house rules checked on submit, every player's props, honest empty tabs
+
+From the founder's and friends' first real games.
+
+- **You can't break a house rule by accident anymore.** Friends submitted one bet when the host required three (or
+  kept cash when the host said "bet everything") and were ranked last at lock. Now a slip only goes through if, once
+  placed, you meet every house rule. The database enforces it (migration 0022, errors `HOUSE_RULE_MIN_BETS` /
+  `HOUSE_RULE_ALL_IN`), and the slip shows a ✓/✗ checklist with a button that says what's missing ("Add 1 more pick
+  to place", "Bet $40 more to place"). With "bet everything" on, **Bet it all** splits what's left across your
+  picks to the cent. Cancelling a bet before lock is still allowed; the checklist then reminds you to re-bet or
+  rank last. This replaces the $1-per-owed-bet reserve from 2026-11-05.
+- **Every player's props, not just one.** Rush yards once showed only Trevor Lawrence: each prop type came from one
+  sportsbook, the first that had posted any line, and early in the week DraftKings had only the QB. Now each
+  player comes from the first sportsbook (DraftKings, FanDuel, BetMGM) that prices them cleanly, so one book posting
+  late no longer hides everyone else. No extra Odds API credits (all three books were already in the call).
+- **No more "Props post shortly…" tabs.** Prop types with no lines yet are hidden; if a game has none at all, it
+  says so plainly ("usually a day or two before kickoff").
+
 ## 2026-11-05: receptions
 
 - **Receptions props** for football: over/under on catches, plus the alternate "5+ / 7+ catches" ladder (migration

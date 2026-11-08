@@ -9,7 +9,7 @@ test.afterAll(async () => {
   await admin.from("events").update({ commence_time: new Date(Date.now() - 86_400_000).toISOString() }).eq("id", eventId);
 });
 
-test("rules lead the page, a bet can't break the minimum, and props are searchable and ordered", async ({ browser }) => {
+test("rules lead the page, a slip must meet the minimum, and props are searchable and ordered", async ({ browser }) => {
   test.setTimeout(150_000);
   const { error } = await admin.from("events").insert({
     id: eventId,
@@ -39,15 +39,13 @@ test("rules lead the page, a bet can't break the minimum, and props are searchab
   expect(rulesTop).toBeLessThan(gamesTop);
   await expect(host.getByText("3+ bets")).toBeVisible();
 
-  // Three bets are required: the whole bankroll on one is refused before it's sent.
+  // Three bets are required: a slip with one can't be placed, and the slip says what's missing.
   await host.locator('article button[aria-pressed="false"]').first().click();
   await host.getByRole("button", { name: /Bet slip/ }).click();
   await host.getByLabel(/^Stake on/).fill("100");
   const slip = host.getByRole("dialog");
-  await expect(slip.getByText(/leaves too little to make the minimum number of bets/)).toBeVisible();
-  await expect(slip.getByRole("button", { name: "Fix your slip" })).toBeDisabled();
-  await slip.getByLabel(/^Stake on/).fill("98");
-  await expect(slip.getByText(/leaves too little/)).toHaveCount(0);
+  await expect(slip.getByRole("button", { name: "Add 2 more picks to place" })).toBeDisabled();
+  await expect(slip.getByRole("list", { name: "House rules for this slip" })).toContainText("1 of 3");
   await host.keyboard.press("Escape");
 
   // Props: search narrows the list.

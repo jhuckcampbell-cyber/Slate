@@ -22,6 +22,7 @@ type Action =
   | { type: "mode"; mode: SlipMode }
   | { type: "stake"; oddsId: number; value: string }
   | { type: "stakeAll"; value: string }
+  | { type: "stakeEach"; values: Record<number, string> }
   | { type: "parlayStake"; value: string }
   | { type: "accept"; updates: { oddsId: number; priceAmerican: number; point: number | null }[] }
   | { type: "open"; open: boolean };
@@ -60,6 +61,8 @@ function reducer(state: State, action: Action): State {
         ...state,
         stakes: Object.fromEntries(state.entries.map((e) => [e.oddsId, action.value])),
       };
+    case "stakeEach":
+      return { ...state, stakes: { ...state.stakes, ...action.values } };
     case "parlayStake":
       return { ...state, parlayStake: action.value };
     case "accept": {

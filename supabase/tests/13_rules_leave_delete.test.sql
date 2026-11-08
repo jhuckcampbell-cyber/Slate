@@ -25,6 +25,12 @@ create function pg_temp.bet(p_tid uuid, p_amount bigint, p_team text) returns vo
                        from public.odds_cache c where c.event_id = 'rl-g1' and c.market_key = 'h2h' and c.outcome_name = p_team)))));
 $$;
 
+create function pg_temp.bet2(p_tid uuid) returns void language sql as $$
+  select public.place_wagers(p_tid, (select jsonb_agg(jsonb_build_object('amount_cents', 5000, 'legs',
+    jsonb_build_array(jsonb_build_object('odds_id', c.id, 'price_american', c.price_american, 'point', c.point))))
+    from public.odds_cache c where c.event_id = 'rl-g1' and c.market_key = 'h2h'));
+$$;
+
 -- ---------- the rules are stored ----------
 select pg_temp.as_user('a4000000-0000-0000-0000-00000000000a');
 create temp table t1 as select * from public.create_tournament('All In', array['rl-g1'], 'AI', null, 10000, null,
@@ -86,12 +92,16 @@ select is(public.removed_from((select code from t2)), false, '...and only for Oz
 select pg_temp.as_user('a4000000-0000-0000-0000-00000000000a');
 
 -- ---------- qualification on the leaderboard ----------
--- t1: all in + 2 bets. Hank bets all $100 in two bets; Pia bets $50 once (holding $50 would otherwise put her ahead).
-select pg_temp.bet((select id from t1), 5000, 'Boston Celtics');
-select pg_temp.bet((select id from t1), 5000, 'New York Knicks');
+-- t1: all in + 2 bets. Hank bets all $100 in two bets. Pia does too, then cancels one before lock (allowed), so she
+-- ends with one $50 bet (holding $50 would otherwise put her ahead). Submitting can't break a rule (migration 0022);
+-- cancelling can, and the leaderboard still ranks that last.
+select pg_temp.bet2((select id from t1));
 select pg_temp.as_user('b4000000-0000-0000-0000-00000000000b');
 select public.join_tournament((select code from t1));
-select pg_temp.bet((select id from t1), 5000, 'Boston Celtics');
+select pg_temp.bet2((select id from t1));
+select public.cancel_wager((select w.id from public.wagers w join public.tournament_participants p on p.id = w.participant_id
+   where w.tournament_id = (select id from t1) and p.user_id = 'b4000000-0000-0000-0000-00000000000b'
+     and w.potential_payout_cents > 0 limit 1));
 
 reset role;
 update public.tournaments set lock_time = now() - interval '1 second' where id = (select id from t1);

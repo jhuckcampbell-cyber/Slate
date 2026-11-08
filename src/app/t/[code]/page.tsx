@@ -117,6 +117,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
     maxBetCents: t.max_bet_cents === null ? null : Number(t.max_bet_cents),
     sameGameParlays: allowed.same_game_parlays ?? true, // mirrors place_wagers' default
     minBets: Number(allowed.min_bets ?? 0),
+    allIn: Boolean(allowed.all_in),
   };
   const isLocked = Boolean(t.is_locked);
   const isHost = t.host_id === viewer.userId;

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildWagers,
-  reserveCents,
+  houseRuleShortfall,
+  splitEvenly,
   parlayEligibility,
   slipTotals,
   validateSlip,
@@ -129,37 +130,38 @@ describe("validateSlip", () => {
   });
 });
 
-describe("minimum-bets budget", () => {
-  const picks2 = [sel(1, "a"), sel(2, "b")];
+describe("house rules on submit (mirrors place_wagers, migration 0022)", () => {
+  const picks3 = [sel(1, "a"), sel(2, "b"), sel(3, "c")];
 
-  it("keeps $1 back for every bet the rules still require", () => {
-    expect(reserveCents(5, 0, 1)).toBe(400);
-    expect(reserveCents(5, 2, 1)).toBe(200);
-    expect(reserveCents(2, 3, 1)).toBe(0);
-    expect(reserveCents(0, 0, 4)).toBe(0);
-  });
-
-  it("blocks one bet on the whole bankroll when the host wants several bets", () => {
-    const drafts = buildWagers("singles", [sel(1, "a")], { 1: 10_000 }, undefined);
+  it("a slip short of the minimum number of bets can't be placed", () => {
+    const drafts = buildWagers("singles", [sel(1, "a")], { 1: 1_000 }, undefined);
     expect(validateSlip(drafts, { rules: { ...rules, minBets: 3 }, bankrollCents: 10_000, betsPlaced: 0 })).toEqual([
-      { code: "LEAVES_TOO_LITTLE" },
+      { code: "HOUSE_RULE_MIN_BETS" },
     ]);
   });
 
-  it("allows a stake that leaves enough for the remaining required bets", () => {
-    const drafts = buildWagers("singles", [sel(1, "a")], { 1: 9_800 }, undefined);
-    expect(validateSlip(drafts, { rules: { ...rules, minBets: 3 }, bankrollCents: 10_000, betsPlaced: 0 })).toEqual([]);
+  it("counts bets already placed", () => {
+    const drafts = buildWagers("singles", [sel(1, "a")], { 1: 1_000 }, undefined);
+    expect(validateSlip(drafts, { rules: { ...rules, minBets: 3 }, bankrollCents: 8_000, betsPlaced: 2 })).toEqual([]);
   });
 
-  it("counts bets already placed and bets in this slip", () => {
-    const drafts = buildWagers("singles", picks2, { 1: 5_000, 2: 4_950 }, undefined);
-    // 1 placed + 2 in slip = 3 of 4 required: $1 must stay back, but only $0.50 would.
-    expect(validateSlip(drafts, { rules: { ...rules, minBets: 4 }, bankrollCents: 10_000, betsPlaced: 1 })).toEqual([
-      { code: "LEAVES_TOO_LITTLE" },
+  it("all in: money left unbet blocks the slip", () => {
+    const drafts = buildWagers("singles", picks3, { 1: 3_000, 2: 3_000, 3: 3_000 }, undefined);
+    expect(validateSlip(drafts, { rules: { ...rules, allIn: true }, bankrollCents: 10_000 })).toEqual([
+      { code: "HOUSE_RULE_ALL_IN" },
     ]);
+    expect(houseRuleShortfall({ allIn: true, minBets: 4 }, { bankrollCents: 10_000, betsPlaced: 0 }, drafts)).toEqual({
+      betsShort: 1,
+      leftCents: 1_000,
+    });
   });
 
-  it("does nothing when no minimum is set", () => {
+  it("all in and enough bets: fine", () => {
+    const drafts = buildWagers("singles", picks3, { 1: 3_400, 2: 3_300, 3: 3_300 }, undefined);
+    expect(validateSlip(drafts, { rules: { ...rules, allIn: true, minBets: 3 }, bankrollCents: 10_000 })).toEqual([]);
+  });
+
+  it("does nothing when there are no house rules", () => {
     const drafts = buildWagers("singles", [sel(1, "a")], { 1: 10_000 }, undefined);
     expect(validateSlip(drafts, { rules, bankrollCents: 10_000 })).toEqual([]);
   });
@@ -169,5 +171,18 @@ describe("minimum-bets budget", () => {
     expect(validateSlip(drafts, { rules: { ...rules, minBets: 3 }, bankrollCents: 10_000, betsPlaced: 0 })).toEqual([
       { code: "INSUFFICIENT_BANKROLL" },
     ]);
+  });
+});
+
+describe("splitEvenly", () => {
+  it("splits to the cent, whole dollars first", () => {
+    expect(splitEvenly(10_000, 3)).toEqual([3_400, 3_300, 3_300]);
+    expect(splitEvenly(10_050, 2)).toEqual([5_000, 5_050]);
+    expect(splitEvenly(10_000, 1)).toEqual([10_000]);
+    expect(splitEvenly(0, 3)).toEqual([]);
+  });
+
+  it("respects the host's max bet", () => {
+    expect(splitEvenly(10_000, 2, 2_500)).toEqual([2_500, 2_500]);
   });
 });

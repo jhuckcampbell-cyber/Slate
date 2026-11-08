@@ -146,7 +146,9 @@ supabase/tests/              pgTAP: every RLS policy and RPC has tests
 - Unwagered bankroll counts toward final score. House rules (allowed_bet_types.all_in / min_bets, migration 0017):
   players who miss them rank below everyone who met them (leaderboard.qualified, standing 'disqualified');
   min_total_wager_cents is legacy and unused.
-  With min_bets, place_wagers also keeps $1 back per bet still owed (migration 0020, LEAVES_TOO_LITTLE; slip.ts reserveCents).
+  House rules are checked ON SUBMIT (migration 0022): a slip only goes through if, once placed, the player meets them
+  (HOUSE_RULE_MIN_BETS / HOUSE_RULE_ALL_IN; slip.ts houseRuleShortfall). Cancelling can still break them (ranked last).
+- Props are merged across books PER PLAYER (normalize.ts pickPropBooks): never one book for a whole prop market.
 - Leave (player) / delete (host) only before lock: leave_tournament / delete_tournament. A 'tournament' signal with
   status 'deleted' sends open lobbies home.
 - Live game feed (migration 0018): odds-sync job `live` reads ESPN's free scoreboard once a minute for NBA/NFL games

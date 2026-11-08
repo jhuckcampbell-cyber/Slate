@@ -47,43 +47,68 @@ export function normalizeOddsResponse(apiEvents: readonly ApiEvent[], opts: Norm
     });
 
     for (const marketKey of opts.markets) {
-      const pick = pickBook(ev, marketKey, opts.bookmakers);
-      if (!pick) {
+      const picks = isPropMarket(marketKey)
+        ? pickPropBooks(ev, marketKey, opts.bookmakers)
+        : [pickBook(ev, marketKey, opts.bookmakers)].filter((p) => p !== null);
+      if (picks.length === 0) {
         if (ev.bookmakers?.length) out.skippedMarkets++;
         continue;
       }
-      out.markets.push({ event_id: ev.id, market_key: marketKey, bookmaker: pick.book });
-      for (const o of pick.market.outcomes) {
-        out.outcomes.push({
-          event_id: ev.id,
-          market_key: marketKey,
-          outcome_name: o.name,
-          participant_name: o.description ?? "",
-          point: o.point ?? null,
-          price_american: o.price,
-          bookmaker: pick.book,
-        });
+      // The market row names the book that priced the most (first, on a tie) of it.
+      out.markets.push({ event_id: ev.id, market_key: marketKey, bookmaker: picks[0]!.book });
+      for (const pick of picks) {
+        for (const o of pick.market.outcomes) {
+          out.outcomes.push({
+            event_id: ev.id,
+            market_key: marketKey,
+            outcome_name: o.name,
+            participant_name: o.description ?? "",
+            point: o.point ?? null,
+            price_american: o.price,
+            bookmaker: pick.book,
+          });
+        }
       }
     }
   }
   return out;
 }
 
-function pickBook(
-  ev: ApiEvent,
-  marketKey: string,
-  priority: readonly string[],
-): { book: string; market: ApiMarket } | null {
+type Pick = { book: string; market: ApiMarket };
+
+function orderedBooks(ev: ApiEvent, priority: readonly string[]) {
   const books = ev.bookmakers ?? [];
-  const ordered = priority.length
-    ? priority.flatMap((key) => books.filter((b) => b.key === key))
-    : books;
-  for (const book of ordered) {
-    const found = book.markets.find((m) => m.key === marketKey);
-    const market = found && isPropMarket(marketKey) ? cleanProp(marketKey, found) : found;
+  return priority.length ? priority.flatMap((key) => books.filter((b) => b.key === key)) : books;
+}
+
+function pickBook(ev: ApiEvent, marketKey: string, priority: readonly string[]): Pick | null {
+  for (const book of orderedBooks(ev, priority)) {
+    const market = book.markets.find((m) => m.key === marketKey);
     if (market && isUsableMarket(marketKey, market)) return { book: book.key, market };
   }
   return null;
+}
+
+/**
+ * Props, player by player: each player comes from the first book in priority order that prices them cleanly.
+ * Books post props gradually (early in the week one book may list only the starting QB), so taking one book
+ * for the whole market hid everyone else. A player's lines never mix books (one ladder, one book).
+ */
+function pickPropBooks(ev: ApiEvent, marketKey: string, priority: readonly string[]): Pick[] {
+  const taken = new Set<string>();
+  const picks: Pick[] = [];
+  for (const book of orderedBooks(ev, priority)) {
+    const found = book.markets.find((m) => m.key === marketKey);
+    if (!found) continue;
+    const cleaned = cleanProp(marketKey, found);
+    const outcomes = cleaned.outcomes.filter((o) => !taken.has(o.description ?? ""));
+    const market = { ...cleaned, outcomes };
+    if (outcomes.length === 0 || !isUsableMarket(marketKey, market)) continue;
+    for (const o of outcomes) taken.add(o.description ?? "");
+    picks.push({ book: book.key, market });
+  }
+  // Primary book (for odds_markets) = the one that priced the most players.
+  return picks.sort((a, b) => b.market.outcomes.length - a.market.outcomes.length);
 }
 
 function isPropMarket(marketKey: string): boolean {

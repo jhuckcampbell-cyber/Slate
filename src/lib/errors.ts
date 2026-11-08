@@ -34,6 +34,8 @@ const MESSAGES: Record<string, string> = {
   MISSING_STAKE: "Enter a stake for every pick.",
   INVALID_AMOUNT: "Minimum bet is $1.",
   OVER_MAX_BET: "That's over this tournament's max bet.",
+  HOUSE_RULE_MIN_BETS: "House rules: this tournament needs more bets. Add picks until you reach the minimum.",
+  HOUSE_RULE_ALL_IN: "House rules: bet your whole bankroll. Raise your stakes until nothing is left.",
   LEAVES_TOO_LITTLE:
     "That leaves too little to make the minimum number of bets this tournament requires. Bet a bit less.",
   INSUFFICIENT_BANKROLL: "Not enough bankroll for that slip.",

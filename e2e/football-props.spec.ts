@@ -42,13 +42,19 @@ test("football: team-grouped props, alternate yards and anytime TD, graded by th
   const code = new URL(host.url()).pathname.split("/").pop()!;
   await waitForOdds(host);
 
-  // Who plays for whom: the board groups players under their team.
-  await host.getByRole("button", { name: /^Player props/ }).click();
+  // Tap the game for its page (Popular, Game lines, one tab per stat). Players are grouped under their team.
+  await host.getByRole("button", { name: /^More bets/ }).click();
+  await expect(host.getByRole("button", { name: "Popular", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(host.getByRole("button", { name: "All rushing yards" })).toBeVisible({ timeout: 60_000 });
+  // Opening the game lands on it (viewport shot: the page is scrolled to the game, not the lobby's top).
+  if (SHOTS) await host.screenshot({ path: `${SHOTS}/18a-game-page.png` });
   // Receptions (catches) are a prop tab too: over/under on a pass catcher, never the quarterback.
   await host.getByRole("button", { name: "Receptions", exact: true }).click();
   await expect(host.getByRole("button", { name: / Over [\d.]+ Rec / }).first()).toBeEnabled({ timeout: 60_000 });
   await expect(host.getByRole("button", { name: new RegExp(`^${fakePlayer(AWAY, 0)}.* Over `) })).toHaveCount(0);
-  await host.getByRole("button", { name: "Alt rushing yards" }).click();
+  // Rushing yards holds the over/under AND the milestones (50+, 75+, ...) under each player.
+  await host.getByRole("button", { name: "Rushing yards", exact: true }).click();
+  await expect(host.getByRole("button", { name: / Over [\d.]+ Rush Yds / }).first()).toBeVisible();
   const rb = fakePlayer(AWAY, 1); // slot 0 is the QB (passing only); 1-2 run the ball
   // Labels name the team too ("Malik Reed (Foxes) 57+ Rush Yds"), here and in the slip, My picks, reveal.
   const milestone = host.getByRole("button", { name: new RegExp(`^${rb} \\(Foxes\\) \\d+\\+ Rush Yds`) }).first();
@@ -61,15 +67,20 @@ test("football: team-grouped props, alternate yards and anytime TD, graded by th
 
   const gina = await newPage(browser);
   await joinAs(gina, code, "Gina");
-  await gina.getByRole("button", { name: /^Player props/ }).click();
-  await gina.getByRole("button", { name: "Anytime TD" }).click();
+  await gina.getByRole("button", { name: /^More bets/ }).click();
+  await gina.getByRole("button", { name: "Anytime TD", exact: true }).click();
   const scorer = fakePlayer(HOME, 1);
   const td = new RegExp(`^${scorer} \\(Hawks\\) Anytime TD`);
   await placeSingle(gina, gina.getByRole("button", { name: td }), 20);
 
   // Same-game parlay (on by default): Foxes moneyline + the same scorer, both from this one game.
+  await gina.getByRole("button", { name: "Game lines", exact: true }).click();
   await gina.getByRole("button", { name: /^Foxes to win / }).click();
+  await gina.getByRole("button", { name: "Anytime TD", exact: true }).click();
   await gina.getByRole("button", { name: td }).click();
+  // The phone's back button closes the game page.
+  await gina.goBack();
+  await expect(gina.getByRole("button", { name: /^More bets/ })).toBeVisible();
   await gina.getByRole("button", { name: /Bet slip/ }).click();
   await gina.getByRole("tab", { name: /Parlay \(2\)/ }).click();
   await gina.getByLabel("Parlay stake").fill("5");

@@ -95,7 +95,7 @@ supabase/migrations/         SQL (source of truth for schema, RLS, RPCs)
 supabase/functions/          Deno Edge Functions. Entrypoints (*/index.ts) are excluded from the Node
                              toolchain: add each new function dir to tsconfig "exclude".
 supabase/functions/_shared/  PURE TS shared by functions (import with .ts extensions); Vitest-tested
-src/components/sportsbook/   board (event cards), slip store + drawer, my picks
+src/components/sportsbook/   board (event cards → game page with Popular / Game lines / one tab per stat, ?game=ID), slip store + drawer, my picks
 src/components/tournament/   lobby pieces: countdown, live channel, squad list, host tools
 src/components/game/         live game card (score, clock, last play from game_live)
 src/components/settings/     Settings sheet (odds as American or %, stored per phone in src/lib/prefs.ts)

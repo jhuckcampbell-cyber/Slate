@@ -3,15 +3,14 @@
 import { Odds } from "@/components/odds";
 import { TeamMark } from "@/components/team-mark";
 import { LocalTime } from "@/components/local-time";
-import { ChevronDown, Clock, Search, X } from "lucide-react";
+import { ChevronRight, Clock } from "lucide-react";
 import { Fragment, useState } from "react";
-import { isAlternateMarket, isPropMarket } from "@/lib/core/props";
+import { isAlternateMarket, isPropMarket, statMarket } from "@/lib/core/props";
 import { matchesQuery, orderPlayers } from "@/lib/prop-order";
 import { oldestCheck, type BoardRow } from "@/lib/core/board";
 import { useServerNow } from "@/lib/hooks/use-server-now";
 import {
   MARKET_LABELS,
-  PROP_TAB_LABELS,
   formatAmerican,
   formatCheckedAgo,
   formatSpread,
@@ -48,21 +47,56 @@ type Props = {
   locked: boolean;
   selected: ReadonlySet<number>;
   onToggle: (row: BoardRow) => void;
+  /** Open this game's page (props, ladders, every line). */
+  onOpen?: () => void;
 };
 
-/** Classic sportsbook card: away row over home row × Spread / Total / Moneyline. */
-export function EventCard({ event, markets, allowedMarkets, locked, selected, onToggle }: Props) {
+/** Classic sportsbook card: away row over home row × Spread / Total / Winner. Tap "More bets" for the game page. */
+export function EventCard({ event, markets, allowedMarkets, locked, selected, onToggle, onOpen }: Props) {
+  const hasProps = allowedMarkets.some(isPropMarket);
+  const propCount = propTabs(allowedMarkets, markets).length;
+  const matchup = `${shortTeam(event.away_team)} @ ${shortTeam(event.home_team)}`;
+  return (
+    <article className="rounded-2xl bg-card p-3.5 ring-1 ring-border" aria-label={`${event.away_team} at ${event.home_team}`}>
+      <GameLines
+        event={event}
+        markets={markets}
+        allowedMarkets={allowedMarkets}
+        locked={locked}
+        selected={selected}
+        onToggle={onToggle}
+      />
+      {hasProps && (
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label={`More bets, ${matchup}`}
+          className="mt-2 flex h-11 w-full items-center justify-between rounded-xl bg-surface-2/60 px-3 text-sm font-semibold"
+        >
+          <span>
+            Player props &amp; more
+            <span className="ml-1.5 font-normal text-muted-foreground">
+              {propCount > 0 ? `${propCount} ${propCount === 1 ? "stat" : "stats"}` : "not posted yet"}
+            </span>
+          </span>
+          <ChevronRight className="size-4 text-muted-foreground" />
+        </button>
+      )}
+    </article>
+  );
+}
+
+/** The game's own lines (Spread / Total / Winner) for the two teams, with how fresh the prices are. */
+export function GameLines({ event, markets, allowedMarkets, locked, selected, onToggle }: Omit<Props, "onOpen">) {
   const columns = COLUMN_ORDER.filter((m) => allowedMarkets.includes(m));
-  const propKeys = allowedMarkets.filter(isPropMarket);
   const grid = GRID[columns.length] ?? GRID[3];
   const hasOdds = columns.some((m) => (markets?.get(m)?.length ?? 0) > 0);
   const sides = [
     { team: event.away_team, totalsSide: "Over" },
     { team: event.home_team, totalsSide: "Under" },
   ];
-
   return (
-    <article className="rounded-2xl bg-card p-3.5 ring-1 ring-border" aria-label={`${event.away_team} at ${event.home_team}`}>
+    <div>
       <header className={cn("mb-1 grid items-end gap-1.5 text-[11px] text-muted-foreground", grid)}>
         <span className="flex items-center gap-1">
           <Clock className="size-3" />
@@ -74,7 +108,6 @@ export function EventCard({ event, markets, allowedMarkets, locked, selected, on
           </span>
         ))}
       </header>
-
       {sides.map((side) => (
         <div key={side.team} className={cn("grid items-center gap-1.5 py-1", grid)}>
           <span className="flex min-w-0 items-center gap-1.5" title={side.team}>
@@ -95,182 +128,112 @@ export function EventCard({ event, markets, allowedMarkets, locked, selected, on
           })}
         </div>
       ))}
-
       {hasOdds ? (
         <Freshness rows={columns.flatMap((m) => markets?.get(m) ?? [])} />
       ) : (
         <p className="mt-1 text-center text-xs text-muted-foreground">Lines post shortly…</p>
       )}
-
-      {propKeys.length > 0 && (
-        <PropsPanel
-          event={event}
-          propKeys={propKeys}
-          markets={markets}
-          locked={locked}
-          selected={selected}
-          onToggle={onToggle}
-        />
-      )}
-    </article>
+    </div>
   );
 }
 
-/** Player props, folded away until asked for so the game lines stay scannable. */
-function PropsPanel({
+/**
+ * The prop stats a game page gets a tab for: one per stat, its alternate ladder folded in ("Rushing yards" holds the
+ * over/under and the 50+ / 75+ / 100+ milestones). Only stats the books have priced: an empty tab reads as broken.
+ */
+export function propTabs(allowedMarkets: readonly string[], markets: Map<string, BoardRow[]> | undefined): string[] {
+  const posted = new Set(
+    allowedMarkets.filter((k) => isPropMarket(k) && (markets?.get(k)?.length ?? 0) > 0).map(statMarket),
+  );
+  return [...new Set(allowedMarkets.filter(isPropMarket).map(statMarket))].filter((b) => posted.has(b));
+}
+
+/**
+ * Everyone with a line for one stat, likeliest first, grouped by team: the main over/under (or anytime-TD price) on
+ * the right and their milestones underneath. `limit` keeps the top few, without teams or milestones (Popular tab).
+ */
+export function PlayerList({
   event,
-  propKeys,
+  base,
   markets,
+  allowedMarkets,
   locked,
   selected,
   onToggle,
-}: {
-  event: SportsbookEvent;
-  propKeys: string[];
-  markets: Map<string, BoardRow[]> | undefined;
-  locked: boolean;
-  selected: ReadonlySet<number>;
-  onToggle: (row: BoardRow) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  // Only prop types the books have actually priced get a tab: an empty tab read as "broken".
-  const postedKeys = propKeys.filter((k) => (markets?.get(k)?.length ?? 0) > 0);
-  const [picked, setMarket] = useState<string | null>(null);
-  const market = picked && postedKeys.includes(picked) ? picked : (postedKeys[0] ?? propKeys[0]!);
-  const rows = markets?.get(market) ?? [];
-  const [query, setQuery] = useState("");
-  // Likeliest first (see prop-order.ts), then filtered by the search box.
-  const teamOf = (player: string) => rows.find((r) => r.participantName === player)?.participantTeam ?? null;
-  const allPlayers = orderPlayers(rows, market);
-  const players = allPlayers.filter((p) => matchesQuery(p, teamOf(p), query));
+  query = "",
+  limit,
+}: Omit<Props, "onOpen"> & { base: string; query?: string; limit?: number }) {
+  const alt = `${base}_alternate`;
+  const mainRows = markets?.get(base) ?? [];
+  const altRows = allowedMarkets.includes(alt) ? (markets?.get(alt) ?? []) : [];
+  const all = [...mainRows, ...altRows];
+  const teamOf = (player: string) => all.find((r) => r.participantName === player)?.participantTeam ?? null;
+  const ordered = [...new Set([...orderPlayers(mainRows, base), ...orderPlayers(altRows, alt)])];
+  const matching = ordered.filter((p) => matchesQuery(p, teamOf(p), query));
+  const players =
+    limit === undefined ? matching : matching.filter((p) => mainRows.some((r) => r.participantName === p)).slice(0, limit);
+  if (players.length === 0) {
+    return query.trim() && ordered.length > 0 ? (
+      <p className="py-2 text-center text-xs text-muted-foreground">No players match &ldquo;{query.trim()}&rdquo;.</p>
+    ) : null;
+  }
   // Group by team (away, home, then unknown) so it's clear who plays for whom. No headings if no team is known.
-  const groups = [event.away_team, event.home_team, null]
-    .map((team) => ({ team, players: players.filter((p) => teamOf(p) === team) }))
-    .filter((g) => g.players.length > 0);
-  const showTeams = groups.some((g) => g.team !== null);
-  const matchup = `${shortTeam(event.away_team)} @ ${shortTeam(event.home_team)}`;
-
+  const groups: { team: string | null; players: string[] }[] =
+    limit !== undefined
+      ? [{ team: null, players }]
+      : [event.away_team, event.home_team, null]
+          .map((team) => ({ team, players: players.filter((p) => teamOf(p) === team) }))
+          .filter((g) => g.players.length > 0);
+  const showTeams = limit === undefined && groups.some((g) => g.team !== null);
+  const sides = base === "player_anytime_td" ? ["Yes"] : ["Over", "Under"];
+  const button = (row: BoardRow | undefined, key: string) => (
+    <OddsButton
+      key={key}
+      row={row}
+      selected={row ? selected.has(row.id) : false}
+      disabled={locked || !row || row.isStale}
+      onClick={() => row && onToggle(row)}
+    />
+  );
   return (
-    <div className="mt-2 border-t border-border pt-1">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-label={`Player props, ${matchup}`}
-        onClick={() => setOpen((o) => !o)}
-        className="flex h-11 w-full items-center justify-between text-sm font-medium"
-      >
-        Player props
-        <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", open && "rotate-180")} />
-      </button>
-      {open && (
-        <div className="pb-1">
-          {/* Wraps instead of scrolling sideways: every prop type is visible at once. */}
-          {postedKeys.length === 0 && (
-            <p className="pb-2 text-center text-sm text-muted-foreground">
-              No player props posted for this game yet. Sportsbooks usually post them a day or two before kickoff.
-            </p>
+    <ul>
+      {groups.map((g) => (
+        <Fragment key={g.team ?? "other"}>
+          {showTeams && (
+            <li className="flex items-center gap-1.5 pt-3 pb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              {g.team && <TeamMark team={g.team} sportKey={event.sport_key} className="size-5" />}
+              {g.team ? shortTeam(g.team) : "Other"}
+            </li>
           )}
-          <div className="flex flex-wrap gap-1.5 pb-2">
-            {postedKeys.map((k) => (
-              <button
-                key={k}
-                type="button"
-                aria-pressed={k === market}
-                aria-label={MARKET_LABELS[k] ?? k}
-                onClick={() => setMarket(k)}
-                className={cn(
-                  "h-9 rounded-full px-3 text-xs font-semibold",
-                  k === market ? "bg-foreground text-background" : "bg-surface-2 text-muted-foreground",
-                )}
-              >
-                {PROP_TAB_LABELS[k] ?? MARKET_LABELS[k] ?? k}
-              </button>
-            ))}
-          </div>
-          {allPlayers.length > 0 && (
-            <div className="relative pb-2">
-              <Search aria-hidden className="pointer-events-none absolute top-2.5 left-3 size-4 text-muted-foreground" />
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search players"
-                aria-label={`Search players, ${matchup}`}
-                autoComplete="off"
-                className="h-10 w-full rounded-xl border border-border bg-surface-2/60 pr-10 pl-9 text-base outline-none focus-visible:border-brand [&::-webkit-search-cancel-button]:hidden"
-              />
-              {query && (
-                <button
-                  type="button"
-                  aria-label="Clear search"
-                  onClick={() => setQuery("")}
-                  className="absolute top-0 right-0 flex size-10 items-center justify-center text-muted-foreground"
-                >
-                  <X className="size-4" />
-                </button>
-              )}
-            </div>
-          )}
-          {allPlayers.length === 0 ? null : players.length === 0 ? (
-            <p className="py-2 text-center text-xs text-muted-foreground">No players match &ldquo;{query.trim()}&rdquo;.</p>
-          ) : (
-            <ul>
-              {groups.map((g) => (
-                <Fragment key={g.team ?? "other"}>
-                  {showTeams && (
-                    <li className="flex items-center gap-1.5 pt-3 pb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                      {g.team && <TeamMark team={g.team} sportKey={event.sport_key} className="size-5" />}
-                      {g.team ? shortTeam(g.team) : "Other"}
-                    </li>
+          {g.players.map((player) => {
+            const team = teamOf(player);
+            const main = mainRows.filter((r) => r.participantName === player);
+            const ladder = limit === undefined ? altRows.filter((r) => r.participantName === player) : [];
+            return (
+              <li key={player} className="py-1">
+                <div
+                  className={cn(
+                    "grid items-center gap-1.5",
+                    main.length === 0
+                      ? "grid-cols-1"
+                      : sides.length === 1
+                        ? "grid-cols-[1fr_4.25rem]"
+                        : "grid-cols-[1fr_4.25rem_4.25rem]",
                   )}
-                  {g.players.map((player) => {
-                    const own = rows.filter((r) => r.participantName === player);
-                    const button = (row: BoardRow | undefined, key: string) => (
-                      <OddsButton
-                        key={key}
-                        row={row}
-                        selected={row ? selected.has(row.id) : false}
-                        disabled={locked || !row || row.isStale}
-                        onClick={() => row && onToggle(row)}
-                      />
-                    );
-                    if (isAlternateMarket(market)) {
-                      return (
-                        <Ladder
-                          key={player}
-                          player={player}
-                          team={g.team}
-                          sportKey={event.sport_key}
-                          rows={own}
-                          selected={selected}
-                          render={(r) => button(r, String(r.id))}
-                        />
-                      );
-                    }
-                    const sides = market === "player_anytime_td" ? ["Yes"] : ["Over", "Under"];
-                    return (
-                      <li
-                        key={player}
-                        className={cn(
-                          "grid items-center gap-1.5 py-1",
-                          sides.length === 1 ? "grid-cols-[1fr_4.25rem]" : "grid-cols-[1fr_4.25rem_4.25rem]",
-                        )}
-                      >
-                        <span className="flex min-w-0 items-center gap-1.5" title={g.team ? `${player} (${g.team})` : player}>
-                          {g.team && <TeamMark team={g.team} sportKey={event.sport_key} />}
-                          <span className="truncate text-sm font-medium">{player}</span>
-                        </span>
-                        {sides.map((name) => button(own.find((r) => r.outcomeName === name), name))}
-                      </li>
-                    );
-                  })}
-                </Fragment>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-    </div>
+                >
+                  <span className="flex min-w-0 items-center gap-1.5" title={team ? `${player} (${team})` : player}>
+                    {team && <TeamMark team={team} sportKey={event.sport_key} />}
+                    <span className="truncate text-sm font-medium">{player}</span>
+                  </span>
+                  {main.length > 0 && sides.map((name) => button(main.find((r) => r.outcomeName === name), name))}
+                </div>
+                {ladder.length > 0 && <Ladder rows={ladder} selected={selected} render={(r) => button(r, String(r.id))} />}
+              </li>
+            );
+          })}
+        </Fragment>
+      ))}
+    </ul>
   );
 }
 
@@ -279,16 +242,10 @@ const LADDER_BAND = 500;
 
 /** One player's alternate ladder: milestone buttons ("50+", "75+", "100+"), lowest first. */
 function Ladder({
-  player,
-  team,
-  sportKey,
   rows,
   selected,
   render,
 }: {
-  player: string;
-  team: string | null;
-  sportKey?: string;
   rows: BoardRow[];
   selected: ReadonlySet<number>;
   render: (row: BoardRow) => React.ReactNode;
@@ -299,18 +256,14 @@ function Ladder({
   const trimmed = inBand.length > 0 && inBand.length < ladder.length;
   const shown = all || !trimmed ? ladder : inBand;
   return (
-    <li className="py-1.5">
-      <span className="flex min-w-0 items-center gap-1.5" title={team ? `${player} (${team})` : player}>
-        {team && <TeamMark team={team} sportKey={sportKey} />}
-        <span className="truncate text-sm font-medium">{player}</span>
-      </span>
-      <div className="mt-1 grid grid-cols-4 gap-1.5">{shown.map(render)}</div>
+    <div className="mt-1.5">
+      <div className="grid grid-cols-4 gap-1.5">{shown.map(render)}</div>
       {trimmed && (
         <button type="button" onClick={() => setAll((v) => !v)} className="mt-1 h-9 text-xs font-medium text-brand">
           {all ? "Fewer lines" : `Show all ${ladder.length} lines`}
         </button>
       )}
-    </li>
+    </div>
   );
 }
 
@@ -327,7 +280,7 @@ function Freshness({ rows }: { rows: BoardRow[] }) {
   );
 }
 
-function OddsButton({
+export function OddsButton({
   row,
   selected,
   disabled,

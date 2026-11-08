@@ -38,7 +38,9 @@ test("host-enabled player props are bet, then graded by the host's stat entry", 
   await waitForOdds(host);
 
   // Host: first player's Over on points.
-  await host.getByRole("button", { name: /^Player props/ }).click();
+  // Tap the game for its page: every prop, by stat.
+  await host.getByRole("button", { name: /^More bets/ }).click();
+  await host.getByRole("button", { name: "Points", exact: true }).click();
   const over = host.getByRole("button", { name: / Over [\d.]+ Pts / }).first();
   await expect(over).toBeEnabled({ timeout: 60_000 });
   // The label may or may not carry the team yet ("Name (Pilots) Over ..."): the roster can land mid-test.
@@ -49,7 +51,8 @@ test("host-enabled player props are bet, then graded by the host's stat entry", 
   // Gina: same player's Under.
   const gina = await newPage(browser);
   await joinAs(gina, code, "Gina");
-  await gina.getByRole("button", { name: /^Player props/ }).click();
+  await gina.getByRole("button", { name: /^More bets/ }).click();
+  await gina.getByRole("button", { name: "Points", exact: true }).click();
   await placeSingle(gina, gina.getByRole("button", { name: new RegExp(`^${player}( \\([^)]*\\))? Under [\\d.]+ Pts`) }), 20);
 
   // Lock, play, final.

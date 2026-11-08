@@ -49,7 +49,8 @@ test("rules lead the page, a slip must meet the minimum, and props are searchabl
   await host.keyboard.press("Escape");
 
   // Props: search narrows the list.
-  await host.getByRole("button", { name: /^Player props/ }).click();
+  await host.getByRole("button", { name: /^More bets/ }).click();
+  await host.getByRole("button", { name: "Points", exact: true }).click();
   const overs = host.getByRole("button", { name: / Over [\d.]+ Pts / });
   await expect(overs.first()).toBeEnabled({ timeout: 60_000 });
   const labels = await overs.evaluateAll((els) => els.map((e) => e.getAttribute("aria-label") ?? ""));

@@ -4,6 +4,16 @@ Product and design decisions, newest first. Each entry says what changed and why
 Guardrails that never move: $100 play money, private friend groups, SMS-link join, blind picks until lock,
 live sweat. See "Creative enhancements" in CLAUDE.md for the running backlog.
 
+## 2026-11-08: a page for every game
+
+- **Tap a game to see everything you can bet on it**, like a real sportsbook. The board stays clean (each game's
+  spread, total and winner, plus "Player props & more"); the game page has tabs: **Popular** (the game lines and the
+  top three players for each stat), **Game lines**, then one tab per stat. Each stat's tab holds both the over/under and
+  the milestones (50+, 75+, 100+) under each player, so there are no separate "Alt" tabs to hunt through.
+- The phone's back button closes it, a reload keeps it open (`?game=` in the URL), and picks from the board and any
+  game page build one slip.
+- Alternate spreads and totals are not offered yet: they would cost extra Odds API credits.
+
 ## 2026-11-08: football props move during the game
 
 - **Yards, catches and touchdowns now update live.** The box-score job only ran for basketball, so a football prop

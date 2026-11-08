@@ -1,7 +1,8 @@
 "use client";
 
 import { CircleCheck, CircleDashed, Lock } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useMemo, useRef, useState } from "react";
 import { indexBoard, type BoardRow } from "@/lib/core/board";
 import type { Rules } from "@/lib/core/slip";
 import { formatCents, shortTeam } from "@/lib/format";
@@ -12,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { TabSwitch } from "../tab-switch";
 import { BetSlip } from "./bet-slip";
 import { EventCard, type SportsbookEvent } from "./event-card";
+import { GamePage } from "./game-page";
 import { MyPicks } from "./my-picks";
 import { SlipProvider, useSlip } from "./slip-store";
 
@@ -62,6 +64,30 @@ function SportsbookInner({
   const selected = useMemo(() => new Set(state.entries.map((e) => e.oddsId)), [state.entries]);
   const atRiskCents = wagers.data.reduce((sum, w) => sum + (w.status === "pending" ? w.amount_cents : 0), 0);
 
+  // The game page lives in the URL (?game=ID) so the phone's back button closes it and a reload keeps it open.
+  const searchParams = useSearchParams();
+  const openGame = eventsById.get(searchParams.get("game") ?? "") ?? null;
+  const pushedGame = useRef(false);
+  const boardScroll = useRef(0);
+  function showGame(id: string) {
+    boardScroll.current = window.scrollY;
+    const url = new URL(window.location.href);
+    url.searchParams.set("game", id);
+    window.history.pushState(null, "", url);
+    pushedGame.current = true;
+  }
+  function closeGame() {
+    if (pushedGame.current) {
+      pushedGame.current = false;
+      window.history.back();
+    } else {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("game");
+      window.history.replaceState(null, "", url);
+    }
+    requestAnimationFrame(() => window.scrollTo({ top: boardScroll.current }));
+  }
+
   function toggle(row: BoardRow) {
     const ev = eventsById.get(row.eventId);
     if (!ev || isLocked) return;
@@ -110,7 +136,17 @@ function SportsbookInner({
       />
 
       <div className="mt-4">
-        {tab === "board" ? (
+        {tab === "board" && openGame ? (
+          <GamePage
+            event={openGame}
+            markets={index.get(openGame.id)}
+            allowedMarkets={rules.markets}
+            locked={isLocked}
+            selected={selected}
+            onToggle={toggle}
+            onBack={closeGame}
+          />
+        ) : tab === "board" ? (
           <div className="space-y-3">
             {isLocked && (
               <p className="flex items-center gap-2 rounded-xl bg-warn/10 p-3 text-sm text-warn">
@@ -126,6 +162,7 @@ function SportsbookInner({
                 locked={isLocked}
                 selected={selected}
                 onToggle={toggle}
+                onOpen={() => showGame(ev.id)}
               />
             ))}
           </div>

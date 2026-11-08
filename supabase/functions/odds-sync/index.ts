@@ -345,8 +345,8 @@ async function runStatsJob(
     providerId ??= "fake";
     box = fakeBoxStats([...players.values()], Date.parse(job.commence_time), Date.now());
   } else {
-    providerId ??= findEspnGame(await getJson(espnScoreboardUrl(job.commence_time)), job);
-    if (providerId) box = espnBoxToStats(await getJson(espnSummaryUrl(providerId)));
+    providerId ??= findEspnGame(await getJson(espnScoreboardUrl(job.sport_key, job.commence_time)), job);
+    if (providerId) box = espnBoxToStats(await getJson(espnSummaryUrl(job.sport_key, providerId)), job.sport_key);
   }
   const { data, error } = await supabase.rpc("stats_ingest", {
     p_event_id: job.event_id,

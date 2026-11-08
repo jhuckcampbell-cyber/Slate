@@ -83,6 +83,16 @@ describe("propProgress: a prop pick's live number", () => {
       tone: "win",
     });
   });
+  it("football: yards can be negative, and anytime TD says whether he has scored", () => {
+    expect(propProgress({ ...leg, marketKey: "player_rush_yds", line: 9.5, liveStat: -4 })).toEqual({
+      text: "-4 Rush Yds · needs 14 more",
+      tone: "live",
+    });
+    const td = { marketKey: "player_anytime_td", selection: "Yes", line: null, status: "pending" };
+    expect(propProgress({ ...td, liveStat: 0 })).toEqual({ text: "No TD yet", tone: "live" });
+    expect(propProgress({ ...td, liveStat: 1 })).toEqual({ text: "1 TD · scored", tone: "win" });
+    expect(propProgress({ ...td, liveStat: 2, status: "hit" })).toEqual({ text: "2 TDs", tone: "muted" });
+  });
   it("graded pick: just the number", () => {
     expect(propProgress({ ...leg, status: "hit", liveStat: 31 })).toEqual({ text: "31 Pts", tone: "muted" });
   });

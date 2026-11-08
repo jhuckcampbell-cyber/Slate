@@ -56,6 +56,12 @@ export function propProgress(leg: {
   status: string;
   liveStat: number | null;
 }): { text: string; tone: Tone } | null {
+  if (leg.marketKey === "player_anytime_td" && leg.liveStat !== null) {
+    const tds = leg.liveStat;
+    const now = tds === 1 ? "1 TD" : `${tds} TDs`;
+    if (leg.status !== "pending") return { text: now, tone: "muted" };
+    return tds >= 1 ? { text: `${now} · scored`, tone: "win" } : { text: "No TD yet", tone: "live" };
+  }
   const unit = PROP_STAT_LABELS[leg.marketKey];
   if (leg.liveStat === null || !unit) return null;
   const stat = leg.liveStat;

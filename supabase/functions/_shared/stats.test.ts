@@ -70,10 +70,10 @@ describe("finding the game in the feed", () => {
   });
   it("asks for the game's US Eastern date (a 7:30 PM ET tip is 00:30 UTC the next day)", () => {
     expect(espnDate("2026-11-05T00:30:00Z")).toBe("20261104");
-    expect(espnScoreboardUrl("2026-11-05T00:30:00Z")).toBe(
+    expect(espnScoreboardUrl("basketball_nba", "2026-11-05T00:30:00Z")).toBe(
       "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261104",
     );
-    expect(espnSummaryUrl("401909922")).toBe(
+    expect(espnSummaryUrl("basketball_nba", "401909922")).toBe(
       "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=401909922",
     );
   });
@@ -134,5 +134,96 @@ describe("gameRemaining: share of an NBA game left (4 × 12 min)", () => {
     expect(gameRemaining({ state: "post", period: 4, displayClock: "0:00" })).toBe(0);
     expect(gameRemaining({ state: "in", period: 2, displayClock: "soon" })).toBeNull();
     expect(gameRemaining({})).toBeNull();
+  });
+});
+
+// Shapes from ESPN's public NFL feed (football/nfl/summary, Bears at Seahawks 2026-11-02), trimmed.
+const nflSummary = (state: "in" | "post", period = 3, displayClock = "7:30") => ({
+  header: { competitions: [{ status: { period, displayClock, type: { state, completed: state === "post" } } }] },
+  boxscore: {
+    players: [
+      {
+        team: { displayName: "Chicago Bears" },
+        statistics: [
+          {
+            name: "passing",
+            keys: ["completions/passingAttempts", "passingYards", "yardsPerPassAttempt", "passingTouchdowns", "interceptions",
+              "sacks-sackYardsLost", "adjQBR", "QBRating"],
+            athletes: [{ athlete: { displayName: "Caleb Williams" }, stats: ["24/34", "247", "7.3", "1", "0", "1-10", "68.1", "101.0"] }],
+          },
+          {
+            name: "rushing",
+            keys: ["rushingAttempts", "rushingYards", "yardsPerRushAttempt", "rushingTouchdowns", "longRushing"],
+            athletes: [
+              { athlete: { displayName: "D'Andre Swift" }, stats: ["27", "69", "2.6", "3", "7"] },
+              { athlete: { displayName: "Caleb Williams" }, stats: ["3", "-4", "-1.3", "0", "2"] },
+              { athlete: { displayName: "Rome Odunze" }, stats: ["1", "6", "6.0", "0", "6"] },
+            ],
+          },
+          {
+            name: "receiving",
+            keys: ["receptions", "receivingYards", "yardsPerReception", "receivingTouchdowns", "longReception", "receivingTargets"],
+            athletes: [
+              { athlete: { displayName: "Rome Odunze" }, stats: ["4", "87", "21.8", "1", "24", "6"] },
+              { athlete: { displayName: "D'Andre Swift" }, stats: ["2", "11", "5.5", "0", "8", "2"] },
+            ],
+          },
+          {
+            name: "interceptions",
+            keys: ["interceptions", "interceptionYards", "interceptionTouchdowns"],
+            athletes: [{ athlete: { displayName: "James Lynch" }, stats: ["1", "16", "0"] }],
+          },
+          {
+            name: "puntReturns",
+            keys: ["puntReturns", "puntReturnYards", "yardsPerPuntReturn", "longPuntReturn", "puntReturnTouchdowns"],
+            athletes: [{ athlete: { displayName: "Rome Odunze" }, stats: ["1", "70", "70.0", "70", "1"] }],
+          },
+        ],
+      },
+    ],
+  },
+});
+
+describe("football box score → stats", () => {
+  const stat = (box: ReturnType<typeof espnBoxToStats>, name: string, market: string) =>
+    box.stats.find((s) => s.name === name && s.market_key === market)?.stat;
+
+  it("passing, rushing and receiving yards, receptions and passing TDs", () => {
+    const box = espnBoxToStats(nflSummary("in"), "americanfootball_nfl");
+    expect(stat(box, "Caleb Williams", "player_pass_yds")).toBe(247);
+    expect(stat(box, "Caleb Williams", "player_pass_tds")).toBe(1);
+    expect(stat(box, "D'Andre Swift", "player_rush_yds")).toBe(69);
+    expect(stat(box, "Rome Odunze", "player_reception_yds")).toBe(87);
+    expect(stat(box, "Rome Odunze", "player_receptions")).toBe(4);
+    expect(stat(box, "D'Andre Swift", "player_receptions")).toBe(2);
+  });
+  it("a QB's lost yards on the ground stay negative (not 0)", () => {
+    expect(stat(espnBoxToStats(nflSummary("in"), "americanfootball_nfl"), "Caleb Williams", "player_rush_yds")).toBe(-4);
+  });
+  it("anytime TD adds rushing, receiving and return touchdowns, never passing ones", () => {
+    const box = espnBoxToStats(nflSummary("in"), "americanfootball_nfl");
+    expect(stat(box, "D'Andre Swift", "player_anytime_td")).toBe(3);
+    expect(stat(box, "Rome Odunze", "player_anytime_td")).toBe(2); // 1 receiving + 1 punt return
+    expect(stat(box, "Caleb Williams", "player_anytime_td")).toBe(0);
+    expect(stat(box, "James Lynch", "player_anytime_td")).toBeUndefined(); // a defensive "interceptions" column isn't a prop
+  });
+  it("uses the football clock (4 × 15 min)", () => {
+    expect(espnBoxToStats(nflSummary("in"), "americanfootball_nfl").remaining).toBeCloseTo((7.5 * 60 + 900) / 3600, 4);
+    expect(gameRemaining({ state: "in", period: 2, displayClock: "15:00" }, "americanfootball_nfl")).toBe(0.75);
+    expect(gameRemaining({ state: "in", period: 5, displayClock: "10:00" }, "americanfootball_nfl")).toBeCloseTo(600 / 3600, 4);
+    expect(espnBoxToStats(nflSummary("post"), "americanfootball_nfl")).toMatchObject({ final: true, remaining: 0 });
+  });
+  it("asks the football feed", () => {
+    expect(espnScoreboardUrl("americanfootball_nfl", "2026-11-02T01:20:00Z")).toBe(
+      "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261101",
+    );
+    expect(espnSummaryUrl("americanfootball_nfl", "401873036")).toBe(
+      "https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=401873036",
+    );
+  });
+  it("fake box scores give football-sized numbers locally", () => {
+    const tip = Date.parse("2026-11-05T00:00:00Z");
+    const end = fakeBoxStats([{ name: "Ripley Stone", market_key: "player_pass_yds" }], tip, tip + 4 * 3_600_000);
+    expect(end.stats[0]!.stat).toBeGreaterThan(20);
   });
 });

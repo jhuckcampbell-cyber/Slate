@@ -4,6 +4,16 @@ Product and design decisions, newest first. Each entry says what changed and why
 Guardrails that never move: $100 play money, private friend groups, SMS-link join, blind picks until lock,
 live sweat. See "Creative enhancements" in CLAUDE.md for the running backlog.
 
+## 2026-11-08: football props move during the game
+
+- **Yards, catches and touchdowns now update live.** The box-score job only ran for basketball, so a football prop
+  sat at its pregame chance all game and the projected leaderboard never moved. Now odds-sync reads ESPN's free NFL box
+  score too (passing, rushing and receiving yards, receptions, passing TDs, anytime TD): "62 Rush Yds · needs 13 more",
+  "No TD yet" / "1 TD · scored", and the chance and projected money follow. No Odds API credits.
+- **The live chance fits football.** Yards spread with the line (one long run moves them a lot), so a 30-yard first
+  quarter doesn't look like a lock. Anytime TD fades with the clock until he scores. Negative rushing yards are kept.
+  Migration 0023, pgTAP 16.
+
 ## 2026-11-08: house rules checked on submit, every player's props, honest empty tabs
 
 From the founder's and friends' first real games.

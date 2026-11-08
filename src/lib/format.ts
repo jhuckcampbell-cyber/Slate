@@ -146,6 +146,7 @@ export const PROP_STAT_LABELS: Record<string, string> = {
   player_points: "Pts",
   player_rebounds: "Reb",
   player_assists: "Ast",
+  player_threes: "3PM",
   player_pass_yds: "Pass Yds",
   player_rush_yds: "Rush Yds",
   player_reception_yds: "Rec Yds",

@@ -35,7 +35,8 @@ export type Selection = {
   point: number | null;
 };
 
-export type SlipMode = "singles" | "parlay";
+/** "mixed" (token mode): the picks in `parlayIds` make one parlay, every other pick is a single. */
+export type SlipMode = "singles" | "parlay" | "mixed";
 
 export type WagerDraft = { amountCents: number; legs: Selection[] };
 
@@ -83,10 +84,19 @@ export function buildWagers(
   selections: readonly Selection[],
   stakes: Readonly<Record<number, number | undefined>>,
   parlayStakeCents: number | undefined,
+  parlayIds: readonly number[] = [],
 ): WagerDraft[] {
   if (selections.length === 0) return [];
   if (mode === "parlay") return [{ amountCents: parlayStakeCents ?? 0, legs: [...selections] }];
-  return selections.map((s) => ({ amountCents: stakes[s.oddsId] ?? 0, legs: [s] }));
+  const singles = (list: readonly Selection[]) => list.map((s) => ({ amountCents: stakes[s.oddsId] ?? 0, legs: [s] }));
+  if (mode === "mixed") {
+    const grouped = selections.filter((s) => parlayIds.includes(s.oddsId));
+    // A "parlay" of one pick is just a single.
+    if (grouped.length < 2) return singles(selections);
+    const rest = selections.filter((s) => !parlayIds.includes(s.oddsId));
+    return [{ amountCents: parlayStakeCents ?? 0, legs: grouped }, ...singles(rest)];
+  }
+  return singles(selections);
 }
 
 export function wagerDecimalE4(legs: readonly Selection[]): number {

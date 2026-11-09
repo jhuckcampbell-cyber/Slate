@@ -791,6 +791,7 @@ export type Database = {
           is_locked: boolean;
           lock_time: string;
           participant_count: number;
+          server_now: string;
           sport_key: string;
           starting_bankroll_cents: number;
           status: Database["public"]["Enums"]["tournament_status"];

@@ -12,6 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { ensureSession } from "@/lib/auth/ensure-session";
 import { codePrefix } from "@/lib/core/codes";
 import { propMarkets } from "@/lib/core/props";
+import { tokenPresets } from "@/lib/core/tokens";
+import { formatCents } from "@/lib/format";
 import { friendlyError } from "@/lib/errors";
 import {
   dollarsToCents,
@@ -56,7 +58,10 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
   const [playerProps, setPlayerProps] = useState(false);
   const [allIn, setAllIn] = useState(false);
   const [minBets, setMinBets] = useState(0);
+  const [tokenKey, setTokenKey] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const presets = tokenPresets(dollarsToCents(bankroll) ?? 0);
+  const tokens = presets.find((p) => p.key === tokenKey)?.tokens ?? null;
   const propsAvailable = propMarkets(sport).length > 0;
 
   const sportEvents = events.filter((e) => e.sport_key === sport);
@@ -101,12 +106,19 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
             max_parlay_legs: 6,
             player_props: propsAvailable && playerProps,
             same_game_parlays: parlays && sameGame,
-            all_in: allIn,
+            all_in: allIn || tokens !== null,
             min_bets: minBets,
           },
         })
         .single();
       if (error) throw error;
+      if (tokens) {
+        const { error: tokenError } = await supabase.rpc("set_tournament_tokens", {
+          p_tournament_id: data.id,
+          p_tokens: tokens,
+        });
+        if (tokenError) toast.error(`Tokens weren't saved: ${friendlyError(tokenError)}`);
+      }
       router.push(`/t/${data.code}?created=1`);
     } catch (err) {
       toast.error(friendlyError(err));
@@ -314,7 +326,11 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
             </label>
           )}
 
-          <HouseRulesFields allIn={allIn} onAllIn={setAllIn} minBets={minBets} onMinBets={setMinBets} />
+          <TokenPicker presets={presets} value={tokenKey} onChange={setTokenKey} />
+
+          {tokens === null && (
+            <HouseRulesFields allIn={allIn} onAllIn={setAllIn} minBets={minBets} onMinBets={setMinBets} />
+          )}
 
           {firstKickoff && (
             <p className="rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
@@ -380,4 +396,62 @@ function suggestTitle(chosen: EventRow[], sport: string): string {
   }
   const day = chosen[0] ? new Date(chosen[0].commence_time).toLocaleDateString("en-US", { weekday: "long" }) : "";
   return `${sportLabel(sport)} ${day} Slate`.trim();
+}
+
+/** "How do players bet?": any amount (default) or a token set. Tokens mean every bet is one token and all get used. */
+function TokenPicker({
+  presets,
+  value,
+  onChange,
+}: {
+  presets: ReturnType<typeof tokenPresets>;
+  value: string | null;
+  onChange: (key: string | null) => void;
+}) {
+  if (presets.length === 0) return null;
+  return (
+    <section aria-labelledby="bet-style" className="space-y-2 rounded-xl border-2 border-foreground p-3">
+      <p id="bet-style" className="text-sm font-medium">How do players bet?</p>
+      <div role="radiogroup" aria-labelledby="bet-style" className="grid gap-2">
+        <TokenOption selected={value === null} onSelect={() => onChange(null)} title="Any amount" detail="Type any stake, like normal." />
+        {presets.map((p) => (
+          <TokenOption
+            key={p.key}
+            selected={value === p.key}
+            onSelect={() => onChange(p.key)}
+            title={`Tokens: ${p.tokens.map((t) => formatCents(t)).join(" + ")}`}
+            detail={`${p.label}. One token per bet, ${p.tokens.length} bets or parlays, every token used.`}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TokenOption({
+  selected,
+  onSelect,
+  title,
+  detail,
+}: {
+  selected: boolean;
+  onSelect: () => void;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      onClick={onSelect}
+      className={cn(
+        "min-h-12 rounded-xl border-2 px-3 py-2 text-left transition-[background-color,transform] motion-safe:active:scale-[0.98]",
+        selected ? "border-foreground bg-tab" : "border-foreground/25 bg-card",
+      )}
+    >
+      <span className="block text-sm font-bold">{title}</span>
+      <span className="block text-xs text-muted-foreground">{detail}</span>
+    </button>
+  );
 }

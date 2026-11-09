@@ -55,6 +55,7 @@ type AllowedBetTypes = {
   same_game_parlays?: boolean;
   all_in?: boolean;
   min_bets?: number;
+  tokens?: number[];
 };
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
@@ -120,6 +121,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
     sameGameParlays: allowed.same_game_parlays ?? true, // mirrors place_wagers' default
     minBets: Number(allowed.min_bets ?? 0),
     allIn: Boolean(allowed.all_in),
+    tokens: Array.isArray(allowed.tokens) ? allowed.tokens.map(Number) : null,
   };
   const isLocked = Boolean(t.is_locked);
   const isHost = t.host_id === viewer.userId;
@@ -191,7 +193,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
             <span className="min-w-0 flex-1 truncate text-sm font-semibold">
               {[
                 `${bankroll} each`,
-                allIn && "Bet it all",
+                rules.tokens ? `Tokens ${rules.tokens.map((c) => formatCents(c)).join(" · ")}` : allIn && "Bet it all",
                 minBets > 0 && `${minBets}+ bets`,
                 rules.maxBetCents && `${formatCents(rules.maxBetCents)} max bet`,
               ]

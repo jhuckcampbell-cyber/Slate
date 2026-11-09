@@ -178,6 +178,7 @@ function SportsbookInner({
         rules={rules}
         bankrollCents={bankroll.data.remainingCents}
         betsPlaced={wagers.data.length}
+        placedCents={wagers.data.map((w) => w.amount_cents)}
         boardById={boardById}
         locked={isLocked}
       />

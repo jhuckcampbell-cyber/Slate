@@ -35,6 +35,9 @@ const MESSAGES: Record<string, string> = {
   INVALID_AMOUNT: "Minimum bet is $1.",
   OVER_MAX_BET: "That's over this tournament's max bet.",
   HOUSE_RULE_MIN_BETS: "House rules: this tournament needs more bets. Add picks until you reach the minimum.",
+  TOKEN_NOT_AVAILABLE: "Token mode: each bet has to be one of your tokens, and each token only once.",
+  TOKENS_LOCKED: "Tokens can't change once someone has placed a bet.",
+  INVALID_TOKENS: "Those tokens don't add up to the starting bankroll.",
   HOUSE_RULE_ALL_IN: "House rules: bet your whole bankroll. Raise your stakes until nothing is left.",
   LEAVES_TOO_LITTLE:
     "That leaves too little to make the minimum number of bets this tournament requires. Bet a bit less.",

@@ -29,6 +29,7 @@ import { queryKeys } from "@/lib/queries/keys";
 import { usePlaceWagers, type MyWager, type SlipPayload } from "@/lib/queries/wagers";
 import { cn } from "@/lib/utils";
 import { useSlip, type SlipEntry } from "./slip-store";
+import { stakesFitTokens, takeTokens } from "@/lib/core/tokens";
 
 type Props = {
   tournamentId: string;
@@ -37,13 +38,15 @@ type Props = {
   bankrollCents: number;
   /** Bets already placed in this tournament (for the minimum-bets rule). */
   betsPlaced?: number;
+  /** Amounts of bets already placed (token mode: which tokens are spent). */
+  placedCents?: number[];
   boardById: ReadonlyMap<number, BoardRow>;
   locked: boolean;
 };
 
 const QUICK_STAKES = [500, 1000, 2500];
 
-export function BetSlip({ tournamentId, participantId, rules, bankrollCents, betsPlaced = 0, boardById, locked }: Props) {
+export function BetSlip({ tournamentId, participantId, rules, bankrollCents, betsPlaced = 0, placedCents = [], boardById, locked }: Props) {
   const { state, dispatch } = useSlip();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -78,9 +81,25 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
   // House rules have their own checklist in the slip; every other problem is listed in red.
   const short = houseRuleShortfall(rules, { bankrollCents, betsPlaced }, drafts);
   const hasHouseRules = (rules.minBets ?? 0) > 0 || Boolean(rules.allIn);
+  // Token mode: what's left to spend, and whether this slip spends each token at most once.
+  const tokens = rules.tokens ?? null;
+  const availableTokens = tokens ? takeTokens(tokens, placedCents) : [];
+  const tokensFit = !tokens || stakesFitTokens(availableTokens, drafts.map((d) => d.amountCents).filter((c) => c > 0));
   const blockingIssues = [
-    ...new Set(issues.filter((i) => i.code !== "MISSING_STAKE" && !i.code.startsWith("HOUSE_RULE_")).map((i) => i.code)),
+    ...new Set([
+      ...issues.filter((i) => i.code !== "MISSING_STAKE" && !i.code.startsWith("HOUSE_RULE_")).map((i) => i.code),
+      ...(tokensFit ? [] : ["TOKEN_NOT_AVAILABLE"]),
+    ]),
   ];
+  /** Token choices for one bet: what's left after the other bets' stakes in this slip. */
+  function tokensFor(oddsId: number | null): number[] {
+    if (oddsId === null) return availableTokens;
+    const others = entries
+      .filter((e) => e.oddsId !== oddsId)
+      .map((e) => dollarsToCents(state.stakes[e.oddsId] ?? "") ?? 0)
+      .filter((c) => c > 0);
+    return takeTokens(availableTokens, others);
+  }
 
   if (entries.length === 0) return null;
 
@@ -242,6 +261,12 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
             </div>
           )}
 
+          {tokens && (
+            <div className="px-4 pb-2">
+              <TokenTray tokens={tokens} placedCents={placedCents} slipCents={drafts.map((d) => d.amountCents)} />
+            </div>
+          )}
+
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 pb-2">
             {live.map(({ entry, row, changed, unavailable }) => (
               <SlipRow
@@ -252,6 +277,7 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
                 unavailable={unavailable}
                 mode={mode}
                 stake={state.stakes[entry.oddsId] ?? ""}
+                tokens={tokens ? tokensFor(entry.oddsId) : null}
                 onStake={(value) => dispatch({ type: "stake", oddsId: entry.oddsId, value })}
                 onRemove={() => dispatch({ type: "remove", oddsId: entry.oddsId })}
               />
@@ -265,6 +291,7 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
                 </div>
                 <StakeInput
                   value={state.parlayStake}
+                  tokens={tokens ? tokensFor(null) : null}
                   onChange={(value) => dispatch({ type: "parlayStake", value })}
                   returnCents={wagerPayoutCents(drafts[0])}
                   label="Parlay stake"
@@ -274,6 +301,7 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
           </div>
 
           <DrawerFooter className="gap-3 border-t border-border pt-3">
+            {tokens ? null : (
             <div className="flex gap-2">
               {QUICK_STAKES.filter((c) => c <= maxStake).map((c) => (
                 <Button key={c} variant="outline" size="sm" className="h-9 flex-1" onClick={() => setQuickStake(c)}>
@@ -284,6 +312,7 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
                 {rules.allIn ? "Bet it all" : "Max"}
               </Button>
             </div>
+            )}
 
             {hasHouseRules && (
               <ul aria-label="House rules for this slip" className="space-y-1 rounded-xl bg-muted/50 p-2.5 text-sm">
@@ -340,6 +369,7 @@ function SlipRow({
   unavailable,
   mode,
   stake,
+  tokens,
   onStake,
   onRemove,
 }: {
@@ -349,6 +379,7 @@ function SlipRow({
   unavailable: boolean;
   mode: "singles" | "parlay";
   stake: string;
+  tokens: number[] | null;
   onStake: (value: string) => void;
   onRemove: () => void;
 }) {
@@ -390,6 +421,7 @@ function SlipRow({
       {mode === "singles" && (
         <StakeInput
           value={stake}
+          tokens={tokens}
           onChange={onStake}
           returnCents={wagerPayoutCents({
             amountCents: dollarsToCents(stake) ?? 0,
@@ -419,15 +451,64 @@ function PickBadge(p: { marketKey: string; outcomeName: string; participantTeam?
 
 function StakeInput({
   value,
+  tokens = null,
   onChange,
   returnCents,
   label,
 }: {
   value: string;
+  /** Token mode: tap a token instead of typing (the ones this bet can still take). */
+  tokens?: number[] | null;
   onChange: (value: string) => void;
   returnCents: number;
   label: string;
 }) {
+  if (tokens) {
+    const current = dollarsToCents(value) ?? 0;
+    const holding = current > 0 && tokens.includes(current);
+    // The free tokens: everything this bet could take, minus the one it's already holding.
+    const free = (holding ? takeTokens(tokens, [current]) : tokens).slice().sort((a, b) => b - a);
+    return (
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div role="radiogroup" aria-label={label} className="flex flex-wrap items-center gap-2">
+          {holding && (
+            <button
+              type="button"
+              role="radio"
+              aria-checked
+              aria-label={`${formatCents(current)} token (tap to take it back)`}
+              onClick={() => onChange("")}
+              className="num flex size-12 items-center justify-center rounded-full border-2 border-foreground bg-foreground text-base font-extrabold text-background transition-transform motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:active:scale-90"
+            >
+              {formatCents(current)}
+            </button>
+          )}
+          {free.map((c, i) => (
+            <button
+              key={`${c}-${i}`}
+              type="button"
+              role="radio"
+              aria-checked={false}
+              aria-label={`${formatCents(c)} token`}
+              onClick={() => onChange(centsToInput(c))}
+              className={cn(
+                "num flex items-center justify-center rounded-full border-2 border-dashed border-foreground/50 bg-card font-extrabold text-foreground/80 transition-transform motion-safe:active:scale-90",
+                holding ? "size-9 text-xs" : "size-12 text-base",
+              )}
+            >
+              {formatCents(c)}
+            </button>
+          ))}
+          {!holding && free.length === 0 && (
+            <span className="text-xs text-muted-foreground">All your tokens are on other bets.</span>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Returns <span className="num text-lg font-bold text-foreground">{formatCents(returnCents)}</span>
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="mt-2 flex items-center gap-3">
       <div className="relative w-28">
@@ -459,4 +540,40 @@ function Summary({ label, value, highlight }: { label: string; value: string; hi
 
 function centsToInput(cents: number): string {
   return cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2);
+}
+
+/** Token mode, top of the slip: the tokens you still have. A token disappears from here once a bet takes it. */
+function TokenTray({ tokens, placedCents, slipCents }: { tokens: readonly number[]; placedCents: number[]; slipCents: number[] }) {
+  const left = takeTokens(takeTokens(tokens, placedCents), slipCents.filter((c) => c > 0)).sort((a, b) => b - a);
+  const done = left.length === 0;
+  return (
+    <div
+      aria-live="polite"
+      className={cn("rounded-2xl border-2 border-foreground p-3", done ? "bg-surface-2" : "bg-tab")}
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="font-display text-lg/none font-extrabold">{done ? "All tokens placed" : "Your tokens"}</p>
+        <p className="text-xs font-semibold">
+          {tokens.length - left.length} of {tokens.length} used
+        </p>
+      </div>
+      {done ? (
+        <p className="mt-1 text-xs text-muted-foreground">Every token is on a bet. You&apos;re ready to place.</p>
+      ) : (
+        <>
+          <p className="mt-1 text-xs">Tap a token under each pick. One token per bet, and every token has to be used.</p>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            {left.map((t, i) => (
+              <span
+                key={`${t}-${i}-${left.length}`}
+                className="num flex size-12 items-center justify-center rounded-full border-2 border-foreground bg-card text-base font-extrabold motion-safe:animate-in motion-safe:zoom-in-90"
+              >
+                {formatCents(t)}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }

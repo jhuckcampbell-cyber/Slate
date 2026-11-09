@@ -20,6 +20,8 @@ export type Rules = {
   minBets?: number;
   /** House rule: everyone bets their whole bankroll. */
   allIn?: boolean;
+  /** Token mode: every bet is exactly one of these amounts (cents), each used once; all must be used. */
+  tokens?: readonly number[] | null;
 };
 
 export type Selection = {

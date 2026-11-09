@@ -951,6 +951,10 @@ export type Database = {
         };
         Returns: string;
       };
+      set_tournament_tokens: {
+        Args: { p_tokens: Json; p_tournament_id: string };
+        Returns: undefined;
+      };
       stats_ingest: {
         Args: {
           p_event_id: string;

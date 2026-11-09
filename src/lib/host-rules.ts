@@ -17,6 +17,8 @@ export type EditableRules = {
   sameGameParlays: boolean;
   allIn: boolean;
   minBets: number;
+  /** Token mode (cents). Bankroll, max bet and all-in are tied to the tokens and not edited here. */
+  tokens?: readonly number[] | null;
 };
 
 /** Form state: strings as typed. maxBet "" = no limit; lockTime is a datetime-local value. */
@@ -97,6 +99,12 @@ export function rulesChanges(r: EditableRules, d: RulesDraft): RulesChangesResul
 
   if (d.markets.length === 0) return { ok: false, error: "INVALID_RULES" };
   if (!Number.isInteger(d.minBets) || d.minBets < 0 || d.minBets > 20) return { ok: false, error: "INVALID_MIN_BETS" };
+  // Token mode: no more bets required than there are tokens, and no max bet below the biggest token (the DB agrees).
+  if (r.tokens) {
+    if (d.minBets > r.tokens.length) return { ok: false, error: "INVALID_TOKENS" };
+    if (maxBet !== null && maxBet < Math.max(...r.tokens)) return { ok: false, error: "INVALID_TOKENS" };
+    if (bankroll !== r.startingBankrollCents) return { ok: false, error: "INVALID_TOKENS" };
+  }
   const markets = sorted(d.markets);
   if (
     markets.join() !== sorted(r.markets).join() ||

@@ -19,7 +19,7 @@ export function TournamentTitle({ title, sections }: { title: string; sections: 
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-full bg-brand/10 px-3 text-sm font-medium text-brand ring-1 ring-brand/30"
+        className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-foreground bg-card px-4 text-sm font-semibold"
       >
         <CircleHelp className="size-4" /> New to this? How it works
       </button>

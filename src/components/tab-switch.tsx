@@ -33,7 +33,7 @@ export function TabSwitch<T extends string>({
           aria-selected={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            "h-10 rounded-full border-2 transition-colors motion-safe:active:scale-[0.97]",
+            "h-11 rounded-full border-2 transition-colors motion-safe:active:scale-[0.97]",
             value === o.value
               ? "border-foreground bg-tab font-bold text-foreground underline decoration-2 underline-offset-4"
               : "border-transparent font-semibold text-muted-foreground hover:text-foreground",

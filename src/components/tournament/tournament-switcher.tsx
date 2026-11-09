@@ -18,7 +18,7 @@ export function TournamentSwitcher({ current, items }: { current: string; items:
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Switch tournament"
-        className="flex h-10 items-center gap-1 rounded-full border-2 border-foreground bg-card pr-2.5 pl-3 font-mono text-sm tracking-widest transition-transform motion-safe:active:scale-95"
+        className="flex h-11 items-center gap-1 rounded-full border-2 border-foreground bg-card pr-2.5 pl-3 font-mono text-sm tracking-widest transition-transform motion-safe:active:scale-95"
       >
         {current}
         <ChevronDown className="size-4 text-muted-foreground" />

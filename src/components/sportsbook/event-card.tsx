@@ -260,7 +260,7 @@ function Ladder({
     <div className="mt-1.5">
       <div className="grid grid-cols-4 gap-1.5">{shown.map(render)}</div>
       {trimmed && (
-        <button type="button" onClick={() => setAll((v) => !v)} className="mt-1 h-9 text-xs font-medium text-brand">
+        <button type="button" onClick={() => setAll((v) => !v)} className="mt-1 h-11 px-1 text-xs font-semibold text-brand underline underline-offset-2">
           {all ? "Fewer lines" : `Show all ${ladder.length} lines`}
         </button>
       )}

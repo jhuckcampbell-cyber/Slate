@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { friendlyError, messageFor } from "@/lib/errors";
-import { toDateTimeLocal } from "@/lib/format";
+import { formatCents, toDateTimeLocal } from "@/lib/format";
 import { draftFromRules, rulesChanges, type EditableRules, type RulesDraft } from "@/lib/host-rules";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -206,6 +206,14 @@ function EditRulesForm({
           />
         </Field>
 
+        {rules.tokens ? (
+          <div className="rounded-xl border border-border p-3">
+            <p className="text-sm font-medium">Tokens: {rules.tokens.map((c) => formatCents(c)).join(" · ")}</p>
+            <p className="text-xs text-muted-foreground">
+              One token per bet, every token used. The bankroll and bet sizes come from the tokens.
+            </p>
+          </div>
+        ) : (
         <div className="grid grid-cols-2 gap-3">
           <Field label="Max bet ($)" htmlFor="edit-maxbet">
             <Input
@@ -232,6 +240,7 @@ function EditRulesForm({
             />
           </Field>
         </div>
+        )}
 
         <div>
           <p className="mb-2 text-sm font-medium">Allowed bets</p>
@@ -245,8 +254,8 @@ function EditRulesForm({
                   aria-pressed={on}
                   onClick={() => set("markets", on ? draft.markets.filter((k) => k !== m.key) : [...draft.markets, m.key])}
                   className={cn(
-                    "h-11 rounded-full border px-4 text-sm font-medium",
-                    on ? "border-brand bg-brand/15 text-brand" : "border-border text-muted-foreground",
+                    "h-11 rounded-full border-2 border-foreground px-4 text-sm font-semibold",
+                    on ? "bg-foreground text-background" : "bg-card text-foreground",
                   )}
                 >
                   {m.label}
@@ -256,8 +265,8 @@ function EditRulesForm({
           </div>
         </div>
 
-        <div className="rounded-xl border border-border p-3">
-          <div className="flex min-h-10 items-center justify-between gap-3">
+        <div className="rounded-xl border-2 border-foreground bg-card p-3">
+          <div className="flex min-h-11 items-center justify-between gap-3">
             <label htmlFor="edit-parlays" className="flex-1">
               <span className="block text-sm font-medium">Parlays</span>
               <span className="text-xs text-muted-foreground">
@@ -267,7 +276,7 @@ function EditRulesForm({
             <Switch id="edit-parlays" checked={draft.parlays} onCheckedChange={(v) => set("parlays", v)} />
           </div>
           {draft.parlays && (
-            <div className="mt-3 flex min-h-10 items-center justify-between gap-3">
+            <div className="mt-3 flex min-h-11 items-center justify-between gap-3">
               <label htmlFor="edit-sgp" className="flex-1 text-sm">
                 Same-game parlays
               </label>
@@ -279,7 +288,7 @@ function EditRulesForm({
               aria-label="Max parlay legs"
               value={draft.maxParlayLegs}
               onChange={(e) => set("maxParlayLegs", Number(e.target.value))}
-              className="mt-3 h-11 w-full appearance-none rounded-lg border border-input bg-muted px-3 text-base text-foreground [color-scheme:dark]"
+              className="mt-3 h-11 w-full appearance-none rounded-lg border-2 border-foreground bg-card px-3 text-base text-foreground"
             >
               {Array.from({ length: 9 }, (_, i) => i + 2).map((n) => (
                 <option key={n} value={n}>
@@ -291,7 +300,7 @@ function EditRulesForm({
         </div>
 
         {propsAvailable && (
-          <div className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border p-3">
+          <div className="flex min-h-12 items-center justify-between gap-3 rounded-xl border-2 border-foreground bg-card p-3">
             <label htmlFor="edit-props" className="flex-1">
               <span className="block text-sm font-medium">Player props</span>
               <span className="text-xs text-muted-foreground">Over/under on player stats. You enter the stats after.</span>
@@ -305,6 +314,7 @@ function EditRulesForm({
           onAllIn={(v) => set("allIn", v)}
           minBets={draft.minBets}
           onMinBets={(v) => set("minBets", v)}
+          tokenCount={rules.tokens?.length ?? null}
         />
       </div>
 

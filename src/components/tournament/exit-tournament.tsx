@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { friendlyError } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/client";
-import { markLeaving } from "@/components/tournament/tournament-live";
+import { markLeaving, unmarkLeaving } from "@/components/tournament/tournament-live";
 
 /**
  * Before lock: a player can leave (joined by accident), the host can delete the whole tournament.
@@ -27,6 +27,7 @@ export function ExitTournament({ tournamentId, isHost, title }: { tournamentId: 
       p_tournament_id: tournamentId,
     });
     if (error) {
+      unmarkLeaving(tournamentId);
       setPending(false);
       toast.error(friendlyError(error));
       return;

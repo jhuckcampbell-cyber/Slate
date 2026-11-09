@@ -272,8 +272,9 @@ function LegResult({ leg }: { leg: Leg }) {
     case "miss":
       return <span className="text-xs font-bold text-loss">Missed</span>;
     case "push":
-    case "void":
       return <span className="text-xs font-semibold text-muted-foreground">Push</span>;
+    case "void":
+      return <span className="text-xs font-semibold text-muted-foreground">Void</span>;
     default:
       return null;
   }

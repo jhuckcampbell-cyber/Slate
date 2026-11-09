@@ -140,6 +140,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
     maxBetCents: rules.maxBetCents,
     allIn,
     minBets,
+    tokens: rules.tokens,
     hostName: isHost ? null : hostName,
   });
   const switcher = mine.map((m) => ({
@@ -165,7 +166,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
           <Link
             href="/"
             aria-label="Home"
-            className="flex size-10 items-center justify-center rounded-full border-2 border-foreground bg-card transition-transform motion-safe:active:scale-95"
+            className="flex size-11 items-center justify-center rounded-full border-2 border-foreground bg-card transition-transform motion-safe:active:scale-95"
           >
             <House className="size-[18px]" aria-hidden />
           </Link>
@@ -204,7 +205,11 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
           </summary>
           <dl className="grid grid-cols-2 gap-x-3 gap-y-2.5 border-t border-border px-3.5 pt-3 pb-3.5 text-sm">
           <Rule label="Bankroll" value={bankroll} />
-          <Rule label="Max bet" value={rules.maxBetCents ? formatCents(rules.maxBetCents) : "No limit"} />
+          {rules.tokens ? (
+            <Rule label="Tokens" value={`${rules.tokens.map((c) => formatCents(c)).join(" · ")}, one per bet`} />
+          ) : (
+            <Rule label="Max bet" value={rules.maxBetCents ? formatCents(rules.maxBetCents) : "No limit"} />
+          )}
           <Rule
             label="Bets"
             value={
@@ -268,6 +273,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
                 sameGameParlays: rules.sameGameParlays,
                 allIn,
                 minBets,
+                tokens: rules.tokens ?? null,
               }}
               firstKickoff={events[0]?.commence_time ?? t.lock_time}
               canEditBankroll={squad.length === 1 && Number(me.total_potential_payout_cents) === 0}

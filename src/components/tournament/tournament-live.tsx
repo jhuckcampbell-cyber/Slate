@@ -23,6 +23,10 @@ const leaving = new Set<string>();
 export function markLeaving(tournamentId: string) {
   leaving.add(tournamentId);
 }
+/** The leave/delete failed: real "removed"/"deleted" signals count again. */
+export function unmarkLeaving(tournamentId: string) {
+  leaving.delete(tournamentId);
+}
 
 const POLL_MS = 20_000;
 const SWEAT_REFRESH_MS = 60_000;

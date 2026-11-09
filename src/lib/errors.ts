@@ -29,6 +29,10 @@ const MESSAGES: Record<string, string> = {
   PLAYER_NOT_FOUND: "That player already left.",
   INVALID_MIN_BETS: "Minimum bets must be between 0 and 20.",
   HOST_CANNOT_LEAVE: "You're the host. Delete the tournament instead.",
+  TOKENS_LOCKED: "Tokens can't change once someone has placed a bet.",
+  INVALID_TOKENS:
+    "Tokens must be 2 to 10 whole-dollar amounts that add up to the bankroll, with no more bets required than tokens and no token over the max bet.",
+  INVALID_STATUS_CHANGE: "That tournament can't move to that stage.",
   // slip
   INVALID_SLIP: "Your slip is empty.",
   MISSING_STAKE: "Enter a stake for every pick.",
@@ -36,8 +40,6 @@ const MESSAGES: Record<string, string> = {
   OVER_MAX_BET: "That's over this tournament's max bet.",
   HOUSE_RULE_MIN_BETS: "House rules: this tournament needs more bets. Add picks until you reach the minimum.",
   TOKEN_NOT_AVAILABLE: "Token mode: each bet has to be one of your tokens, and each token only once.",
-  TOKENS_LOCKED: "Tokens can't change once someone has placed a bet.",
-  INVALID_TOKENS: "Those tokens don't add up to the starting bankroll.",
   HOUSE_RULE_ALL_IN: "House rules: bet your whole bankroll. Raise your stakes until nothing is left.",
   LEAVES_TOO_LITTLE:
     "That leaves too little to make the minimum number of bets this tournament requires. Bet a bit less.",
@@ -54,6 +56,7 @@ const MESSAGES: Record<string, string> = {
   ODDS_STALE: "Odds are refreshing. Try again in a minute.",
   ODDS_CHANGED: "Odds moved. Review the new prices and accept to continue.",
   WAGER_NOT_FOUND: "That bet no longer exists.",
+  WAGER_SETTLED: "That bet is already settled, so it can't be cancelled.",
 };
 
 export function errorCode(error: unknown): string | null {

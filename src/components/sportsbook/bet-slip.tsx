@@ -6,6 +6,7 @@ import { pickTeam } from "@/lib/team-colors";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, CircleCheck, CircleDashed, Loader2, Lock, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
@@ -21,6 +22,7 @@ import {
   wagerAmerican,
   wagerPayoutCents,
   type Rules,
+  type SlipMode,
 } from "@/lib/core/slip";
 import { friendlyError, messageFor, priceUpdatesFrom } from "@/lib/errors";
 import { MARKET_LABELS, dollarsToCents, formatCents, selectionLabel } from "@/lib/format";
@@ -46,11 +48,20 @@ type Props = {
 
 const QUICK_STAKES = [500, 1000, 2500];
 
-export function BetSlip({ tournamentId, participantId, rules, bankrollCents, betsPlaced = 0, placedCents = [], boardById, locked }: Props) {
+type Snapshot = { bankrollCents: number; betsPlaced: number; placedCents: number[] };
+
+export function BetSlip({ tournamentId, participantId, rules, boardById, locked, ...current }: Props) {
   const { state, dispatch } = useSlip();
   const router = useRouter();
   const queryClient = useQueryClient();
   const place = usePlaceWagers({ tournamentId, participantId });
+  // While a slip is sending, the optimistic update already counts its bets as placed but the slip still holds them.
+  // Judge the slip against what the player had when they tapped Place, so nothing flashes red mid-submit.
+  const [submitted, setSubmitted] = useState<Snapshot | null>(null);
+  const { bankrollCents, betsPlaced, placedCents }: Snapshot =
+    place.isPending && submitted
+      ? submitted
+      : { bankrollCents: current.bankrollCents, betsPlaced: current.betsPlaced ?? 0, placedCents: current.placedCents ?? [] };
   const entries = state.entries;
 
   // Compare what the player accepted with what the board says now (Realtime keeps it live).
@@ -66,12 +77,24 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
   const anyChanged = live.some((l) => l.changed);
   const anyUnavailable = live.some((l) => l.unavailable);
 
-  const parlayCheck = parlayEligibility(entries, rules);
-  const mode = state.mode === "parlay" && parlayCheck.ok ? "parlay" : "singles";
+  // Token mode: the tokens can't all go on one parlay, so the multi-bet tab is "Parlay + singles" (some picks grouped
+  // into one parlay on one token, the rest singles), all sent in one submit.
+  const tokens = rules.tokens ?? null;
+  const multiMode: SlipMode = tokens ? "mixed" : "parlay";
+  const parlayCheck = tokens
+    ? rules.parlays
+      ? ({ ok: true } as const)
+      : ({ ok: false, reason: "PARLAYS_DISABLED" } as const)
+    : parlayEligibility(entries, rules);
+  const mode: SlipMode = state.mode !== "singles" && entries.length >= 2 && parlayCheck.ok ? multiMode : "singles";
   const stakeCents = Object.fromEntries(
     entries.map((e) => [e.oddsId, dollarsToCents(state.stakes[e.oddsId] ?? "") ?? 0]),
   );
-  const drafts = buildWagers(mode, entries, stakeCents, dollarsToCents(state.parlayStake) ?? 0);
+  const drafts = buildWagers(mode, entries, stakeCents, dollarsToCents(state.parlayStake) ?? 0, state.parlayIds);
+  const draftCents = drafts.map((d) => d.amountCents);
+  const parlayIndex = drafts.findIndex((d) => d.legs.length > 1);
+  const singleIndex = new Map(drafts.flatMap((d, i) => (d.legs.length === 1 ? [[d.legs[0]!.oddsId, i] as const] : [])));
+  const groupedCount = entries.filter((e) => state.parlayIds.includes(e.oddsId)).length;
   const issues = validateSlip(drafts, { rules, bankrollCents, betsPlaced });
   const totals = slipTotals(drafts);
   // The most one bet can be: the bankroll, split across singles, capped by the host's max bet.
@@ -82,23 +105,19 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
   const short = houseRuleShortfall(rules, { bankrollCents, betsPlaced }, drafts);
   const hasHouseRules = (rules.minBets ?? 0) > 0 || Boolean(rules.allIn);
   // Token mode: what's left to spend, and whether this slip spends each token at most once.
-  const tokens = rules.tokens ?? null;
   const availableTokens = tokens ? takeTokens(tokens, placedCents) : [];
-  const tokensFit = !tokens || stakesFitTokens(availableTokens, drafts.map((d) => d.amountCents).filter((c) => c > 0));
+  const tokensFit = !tokens || stakesFitTokens(availableTokens, draftCents.filter((c) => c > 0));
+  const tokensLeftAfter = tokens ? takeTokens(availableTokens, draftCents.filter((c) => c > 0)).length : 0;
+  const extraBets = tokens ? Math.max(0, drafts.length - availableTokens.length) : 0;
   const blockingIssues = [
     ...new Set([
       ...issues.filter((i) => i.code !== "MISSING_STAKE" && !i.code.startsWith("HOUSE_RULE_")).map((i) => i.code),
       ...(tokensFit ? [] : ["TOKEN_NOT_AVAILABLE"]),
     ]),
   ];
-  /** Token choices for one bet: what's left after the other bets' stakes in this slip. */
-  function tokensFor(oddsId: number | null): number[] {
-    if (oddsId === null) return availableTokens;
-    const others = entries
-      .filter((e) => e.oddsId !== oddsId)
-      .map((e) => dollarsToCents(state.stakes[e.oddsId] ?? "") ?? 0)
-      .filter((c) => c > 0);
-    return takeTokens(availableTokens, others);
+  /** Token choices for one bet (its index in `drafts`): what's left after the other bets in this slip. */
+  function tokensFor(draftIndex: number): number[] {
+    return takeTokens(availableTokens, draftCents.filter((c, i) => i !== draftIndex && c > 0));
   }
 
   if (entries.length === 0) return null;
@@ -153,9 +172,11 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
       })),
     }));
 
+    setSubmitted({ bankrollCents, betsPlaced, placedCents });
     place.mutate(
       { slip, optimistic, stakeCents: totals.stakeCents, returnCents: totals.returnCents },
       {
+        onSettled: () => setSubmitted(null),
         onSuccess: () => {
           dispatch({ type: "clear" });
           toast.success(drafts.length > 1 ? `${drafts.length} bets placed 🔒` : "Bet placed 🔒", {
@@ -179,13 +200,19 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
   }
 
   let action: { label: string; onClick?: () => void; disabled: boolean };
+  const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   if (locked) action = { label: "Picks are locked", disabled: true };
+  else if (place.isPending) action = { label: "Placing…", disabled: true };
   else if (anyUnavailable) action = { label: "Remove unavailable picks", disabled: true };
   else if (anyChanged) action = { label: "Accept new odds", onClick: acceptChanges, disabled: false };
-  else if (missingStake) action = { label: "Enter a stake", disabled: true };
+  else if (extraBets > 0)
+    action = { label: `Too many bets: you have ${count(availableTokens.length, "token", "tokens")}`, disabled: true };
+  else if (missingStake) action = { label: tokens ? "Pick a token for every bet" : "Enter a stake", disabled: true };
   else if (blockingIssues.length) action = { label: "Fix your slip", disabled: true };
   else if (short.betsShort > 0)
     action = { label: `Add ${short.betsShort} more ${short.betsShort === 1 ? "pick" : "picks"} to place`, disabled: true };
+  else if (tokens && tokensLeftAfter > 0)
+    action = { label: `${count(tokensLeftAfter, "token", "tokens")} left: add a pick for each`, disabled: true };
   else if (short.leftCents > 0) action = { label: `Bet ${formatCents(short.leftCents)} more to place`, disabled: true };
   else
     action = {
@@ -226,7 +253,7 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
         <DrawerContent className="mx-auto w-full max-w-md">
           <DrawerHeader className="flex-row items-center justify-between pb-2 text-left">
             <DrawerTitle className="font-display text-2xl font-extrabold uppercase">Bet slip</DrawerTitle>
-            <Button variant="ghost" size="sm" onClick={() => dispatch({ type: "clear" })}>
+            <Button variant="ghost" className="h-11" onClick={() => dispatch({ type: "clear" })}>
               Clear all
             </Button>
           </DrawerHeader>
@@ -234,22 +261,22 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
           {entries.length >= 2 && (
             <div className="px-4 pb-2">
               <div role="tablist" className="grid grid-cols-2 gap-1 rounded-full border-2 border-foreground bg-card p-1 text-sm">
-                {(["singles", "parlay"] as const).map((m) => (
+                {(["singles", multiMode] as const).map((m) => (
                   <button
                     key={m}
                     role="tab"
                     type="button"
                     aria-selected={mode === m}
-                    disabled={m === "parlay" && !parlayCheck.ok}
+                    disabled={m !== "singles" && !parlayCheck.ok}
                     onClick={() => dispatch({ type: "mode", mode: m })}
                     className={cn(
-                      "h-10 rounded-full border-2 capitalize disabled:opacity-40",
+                      "h-11 rounded-full border-2 disabled:opacity-40",
                       mode === m
                         ? "border-foreground bg-tab font-bold underline decoration-2 underline-offset-4"
                         : "border-transparent font-semibold text-muted-foreground",
                     )}
                   >
-                    {m === "parlay" ? `Parlay (${entries.length})` : "Singles"}
+                    {m === "parlay" ? `Parlay (${entries.length})` : m === "mixed" ? "Parlay + singles" : "Singles"}
                   </button>
                 ))}
               </div>
@@ -275,28 +302,37 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
                 row={row}
                 changed={changed}
                 unavailable={unavailable}
-                mode={mode}
+                showStake={singleIndex.has(entry.oddsId)}
+                inParlay={mode === "mixed" ? state.parlayIds.includes(entry.oddsId) : null}
+                onToggleParlay={() => dispatch({ type: "toggleParlayLeg", oddsId: entry.oddsId })}
                 stake={state.stakes[entry.oddsId] ?? ""}
-                tokens={tokens ? tokensFor(entry.oddsId) : null}
+                tokens={tokens ? tokensFor(singleIndex.get(entry.oddsId) ?? -1) : null}
                 onStake={(value) => dispatch({ type: "stake", oddsId: entry.oddsId, value })}
                 onRemove={() => dispatch({ type: "remove", oddsId: entry.oddsId })}
               />
             ))}
 
-            {mode === "parlay" && drafts[0] && (
-              <div className="rounded-2xl border border-brand/40 bg-brand/5 p-3">
+            {parlayIndex >= 0 && drafts[parlayIndex] && (
+              <div className="rounded-2xl border-2 border-foreground bg-card p-3">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="font-semibold">{entries.length}-leg parlay</span>
-                  <span className="num text-xl leading-none font-bold text-brand"><Odds american={wagerAmerican(drafts[0].legs)} /></span>
+                  <span className="font-semibold">{drafts[parlayIndex].legs.length}-leg parlay</span>
+                  <span className="num text-xl leading-none font-bold text-brand"><Odds american={wagerAmerican(drafts[parlayIndex].legs)} /></span>
                 </div>
                 <StakeInput
                   value={state.parlayStake}
-                  tokens={tokens ? tokensFor(null) : null}
+                  tokens={tokens ? tokensFor(parlayIndex) : null}
                   onChange={(value) => dispatch({ type: "parlayStake", value })}
-                  returnCents={wagerPayoutCents(drafts[0])}
+                  returnCents={wagerPayoutCents(drafts[parlayIndex])}
                   label="Parlay stake"
                 />
               </div>
+            )}
+            {mode === "mixed" && parlayIndex < 0 && (
+              <p className="rounded-2xl border-2 border-dashed border-foreground/50 p-3 text-sm text-muted-foreground">
+                {groupedCount === 1
+                  ? "Add one more pick to make a parlay. Until then, every pick is a single."
+                  : "Tap “Add to parlay” on 2 or more picks to group them into one parlay."}
+              </p>
             )}
           </div>
 
@@ -304,17 +340,18 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
             {tokens ? null : (
             <div className="flex gap-2">
               {QUICK_STAKES.filter((c) => c <= maxStake).map((c) => (
-                <Button key={c} variant="outline" size="sm" className="h-9 flex-1" onClick={() => setQuickStake(c)}>
+                <Button key={c} variant="outline" className="h-11 flex-1" onClick={() => setQuickStake(c)}>
                   {formatCents(c)}
                 </Button>
               ))}
-              <Button variant="outline" size="sm" className="h-9 flex-1" onClick={setMax}>
+              <Button variant="outline" className="h-11 flex-1" onClick={setMax}>
                 {rules.allIn ? "Bet it all" : "Max"}
               </Button>
             </div>
             )}
 
-            {hasHouseRules && (
+            {/* Token mode: the token tray is the "use everything" checklist. */}
+            {hasHouseRules && ((rules.minBets ?? 0) > 0 || !tokens) && (
               <ul aria-label="House rules for this slip" className="space-y-1 rounded-xl bg-muted/50 p-2.5 text-sm">
                 {(rules.minBets ?? 0) > 0 && (
                   <RuleLine
@@ -323,7 +360,7 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
                     detail={`${Math.min(betsPlaced + drafts.length, rules.minBets ?? 0)} of ${rules.minBets}`}
                   />
                 )}
-                {rules.allIn && (
+                {rules.allIn && !tokens && (
                   <RuleLine
                     done={short.leftCents === 0}
                     label="Bet your whole bankroll"
@@ -333,7 +370,7 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
               </ul>
             )}
 
-            {blockingIssues.length > 0 && (
+            {blockingIssues.length > 0 && !place.isPending && (
               <ul className="space-y-1 text-sm text-destructive">
                 {blockingIssues.map((code) => (
                   <li key={code}>{messageFor(code)}</li>
@@ -367,7 +404,9 @@ function SlipRow({
   row,
   changed,
   unavailable,
-  mode,
+  showStake,
+  inParlay,
+  onToggleParlay,
   stake,
   tokens,
   onStake,
@@ -377,7 +416,11 @@ function SlipRow({
   row: BoardRow | undefined;
   changed: boolean;
   unavailable: boolean;
-  mode: "singles" | "parlay";
+  /** This pick is a single bet with its own stake. */
+  showStake: boolean;
+  /** Mixed mode: whether this pick is grouped into the parlay (null outside mixed mode). */
+  inParlay: boolean | null;
+  onToggleParlay: () => void;
   stake: string;
   tokens: number[] | null;
   onStake: (value: string) => void;
@@ -413,12 +456,26 @@ function SlipRow({
           type="button"
           aria-label={`Remove ${selectionLabel(entry)}`}
           onClick={onRemove}
-          className="-mt-1 -mr-1 flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+          className="-mt-2 -mr-2 flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
         >
           <X className="size-4" />
         </button>
       </div>
-      {mode === "singles" && (
+      {inParlay !== null && (
+        <button
+          type="button"
+          aria-pressed={inParlay}
+          onClick={onToggleParlay}
+          className={cn(
+            "mt-2 flex h-11 items-center gap-2 rounded-full border-2 border-foreground px-4 text-sm font-semibold",
+            inParlay ? "bg-foreground text-background" : "bg-card",
+          )}
+        >
+          {inParlay ? <CircleCheck className="size-4" /> : <CircleDashed className="size-4" />}
+          {inParlay ? "In parlay" : "Add to parlay"}
+        </button>
+      )}
+      {showStake && (
         <StakeInput
           value={stake}
           tokens={tokens}
@@ -493,7 +550,7 @@ function StakeInput({
               onClick={() => onChange(centsToInput(c))}
               className={cn(
                 "num flex items-center justify-center rounded-full border-2 border-dashed border-foreground/50 bg-card font-extrabold text-foreground/80 transition-transform motion-safe:active:scale-90",
-                holding ? "size-9 text-xs" : "size-12 text-base",
+                holding ? "size-11 text-xs" : "size-12 text-base",
               )}
             >
               {formatCents(c)}

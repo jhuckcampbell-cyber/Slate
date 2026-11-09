@@ -12,6 +12,8 @@ type State = {
   /** Raw dollar strings as typed (parsed with dollarsToCents at render). */
   stakes: Record<number, string>;
   parlayStake: string;
+  /** Mixed mode (token tournaments): the picks grouped into the one parlay. */
+  parlayIds: number[];
   open: boolean;
 };
 
@@ -24,10 +26,11 @@ type Action =
   | { type: "stakeAll"; value: string }
   | { type: "stakeEach"; values: Record<number, string> }
   | { type: "parlayStake"; value: string }
+  | { type: "toggleParlayLeg"; oddsId: number }
   | { type: "accept"; updates: { oddsId: number; priceAmerican: number; point: number | null }[] }
   | { type: "open"; open: boolean };
 
-const initialState: State = { entries: [], mode: "singles", stakes: {}, parlayStake: "", open: false };
+const initialState: State = { entries: [], mode: "singles", stakes: {}, parlayStake: "", parlayIds: [], open: false };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -46,6 +49,7 @@ function reducer(state: State, action: Action): State {
         ...state,
         entries,
         stakes,
+        parlayIds: state.parlayIds.filter((id) => id !== action.oddsId),
         mode: entries.length < 2 ? "singles" : state.mode,
         open: entries.length > 0 && state.open,
       };
@@ -53,7 +57,19 @@ function reducer(state: State, action: Action): State {
     case "clear":
       return initialState;
     case "mode":
-      return { ...state, mode: action.mode };
+      // Entering mixed mode starts with every pick in the parlay; tap a pick out to make it a single.
+      return {
+        ...state,
+        mode: action.mode,
+        parlayIds: action.mode === "mixed" && state.mode !== "mixed" ? state.entries.map((e) => e.oddsId) : state.parlayIds,
+      };
+    case "toggleParlayLeg":
+      return {
+        ...state,
+        parlayIds: state.parlayIds.includes(action.oddsId)
+          ? state.parlayIds.filter((id) => id !== action.oddsId)
+          : [...state.parlayIds, action.oddsId],
+      };
     case "stake":
       return { ...state, stakes: { ...state.stakes, [action.oddsId]: action.value } };
     case "stakeAll":

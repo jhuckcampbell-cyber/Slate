@@ -18,7 +18,7 @@ export function SettingsButton({ className }: { className?: string }) {
         type="button"
         aria-label="Settings"
         onClick={() => setOpen(true)}
-        className={cn("flex size-10 items-center justify-center rounded-full border-2 border-foreground bg-card transition-transform motion-safe:active:scale-95", className)}
+        className={cn("flex size-11 items-center justify-center rounded-full border-2 border-foreground bg-card transition-transform motion-safe:active:scale-95", className)}
       >
         <Settings className="size-[18px]" />
       </button>

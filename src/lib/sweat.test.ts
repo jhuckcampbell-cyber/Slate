@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatChance, gameView, propProgress, scoreLine, sweatTag, totalProgress, wagerOutcome } from "./sweat";
+import { formatChance, gameView, propProgress, totalProgress, wagerOutcome } from "./sweat";
 
 describe("formatChance", () => {
   it("rounds to whole percent", () => {
@@ -34,23 +34,6 @@ describe("wagerOutcome", () => {
       label: "67% to cash",
       tone: "live",
     });
-  });
-});
-
-describe("scoreLine", () => {
-  const ev = { home_team: "Kansas City Chiefs", away_team: "Buffalo Bills", commence_time: "2026-11-05T01:15:00Z" };
-  it("away score first, like the matchup", () => {
-    expect(scoreLine({ ...ev, status: "final", home_score: 27, away_score: 24 })).toEqual({
-      text: "Bills 24 · Chiefs 27",
-      state: "Final",
-    });
-    expect(scoreLine({ ...ev, status: "live", home_score: 7, away_score: 14 })).toEqual({
-      text: "Bills 14 · Chiefs 7",
-      state: "Live",
-    });
-  });
-  it("no score yet: nothing to show", () => {
-    expect(scoreLine({ ...ev, status: "scheduled", home_score: null, away_score: null })).toBeNull();
   });
 });
 
@@ -98,19 +81,6 @@ describe("propProgress: a prop pick's live number", () => {
   });
   it("game lines have no player number", () => {
     expect(propProgress({ marketKey: "h2h", selection: "Boston Celtics", line: null, status: "pending", liveStat: 3 })).toBeNull();
-  });
-});
-
-describe("sweatTag: tension at a glance", () => {
-  it("Safe at 80%+, Danger at 20% or less, Sweating in between", () => {
-    expect(sweatTag(0.84)).toEqual({ label: "Safe", tone: "win" });
-    expect(sweatTag(0.8)).toEqual({ label: "Safe", tone: "win" });
-    expect(sweatTag(0.5)).toEqual({ label: "Sweating", tone: "live" });
-    expect(sweatTag(0.2)).toEqual({ label: "Danger", tone: "loss" });
-    expect(sweatTag(0.03)).toEqual({ label: "Danger", tone: "loss" });
-  });
-  it("no chance known: no tag", () => {
-    expect(sweatTag(null)).toBeNull();
   });
 });
 

@@ -57,7 +57,7 @@ export function MyPicks({ participantId, wagers, eventsById, locked }: Props) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 text-muted-foreground"
+                    className="h-11 text-muted-foreground"
                     disabled={cancel.isPending}
                     onClick={() =>
                       cancel.mutate(w, {

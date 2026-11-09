@@ -99,8 +99,13 @@ export function InstallHint({ className }: { className?: string }) {
           variant="secondary"
           className="h-11"
           onClick={async () => {
-            await prompt?.prompt();
-            setPrompt(null);
+            try {
+              await prompt?.prompt();
+            } catch {
+              // The browser can refuse (already shown, or no longer allowed); just drop the button.
+            } finally {
+              setPrompt(null);
+            }
           }}
         >
           <Download /> Install

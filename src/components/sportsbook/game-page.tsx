@@ -80,8 +80,8 @@ export function GamePage({ event, markets, allowedMarkets, locked, selected, onT
               setQuery("");
             }}
             className={cn(
-              "h-9 rounded-full px-3 text-xs font-semibold",
-              t.key === current ? "bg-foreground text-background" : "bg-surface-2 text-muted-foreground",
+              "h-11 shrink-0 rounded-full border-2 border-foreground px-4 text-xs font-semibold",
+              t.key === current ? "bg-foreground text-background" : "bg-card text-foreground",
             )}
           >
             {t.label}
@@ -103,7 +103,7 @@ export function GamePage({ event, markets, allowedMarkets, locked, selected, onT
                     type="button"
                     onClick={() => setTab(k)}
                     aria-label={`All ${(MARKET_LABELS[k] ?? k).toLowerCase()}`}
-                    className="-mr-1 flex h-9 items-center px-1 text-xs font-medium text-brand"
+                    className="-mr-1 flex h-11 items-center px-1 text-xs font-semibold text-brand"
                   >
                     See all <ChevronRight className="size-3.5" />
                   </button>
@@ -124,7 +124,7 @@ export function GamePage({ event, markets, allowedMarkets, locked, selected, onT
         {stats.includes(current) && (
           <Panel>
             <div className="relative pb-1">
-              <Search aria-hidden className="pointer-events-none absolute top-2.5 left-3 size-4 text-muted-foreground" />
+              <Search aria-hidden className="pointer-events-none absolute top-3.5 left-3 size-4 text-muted-foreground" />
               <input
                 type="search"
                 value={query}
@@ -132,14 +132,14 @@ export function GamePage({ event, markets, allowedMarkets, locked, selected, onT
                 placeholder="Search players"
                 aria-label={`Search players, ${matchup}`}
                 autoComplete="off"
-                className="h-10 w-full rounded-xl border border-border bg-surface-2/60 pr-10 pl-9 text-base outline-none focus-visible:border-brand [&::-webkit-search-cancel-button]:hidden"
+                className="h-11 w-full rounded-xl border-2 border-foreground bg-card pr-11 pl-9 text-base outline-none focus-visible:border-brand [&::-webkit-search-cancel-button]:hidden"
               />
               {query && (
                 <button
                   type="button"
                   aria-label="Clear search"
                   onClick={() => setQuery("")}
-                  className="absolute top-0 right-0 flex size-10 items-center justify-center text-muted-foreground"
+                  className="absolute top-0 right-0 flex size-11 items-center justify-center text-muted-foreground"
                 >
                   <X className="size-4" />
                 </button>

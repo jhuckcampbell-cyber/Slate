@@ -4,7 +4,27 @@
  * references when imported by a server component.
  */
 
-import type { RevealWager } from "@/lib/core/consensus";
+/** A revealed pick (post-lock; the database already decided this viewer may see it). */
+export type RevealLeg = {
+  eventId: string;
+  marketKey: string;
+  selection: string;
+  /** Player name for props; "" for game lines. */
+  participantName: string;
+  /** Props: the player's team in this game (null if unknown or a game line). */
+  participantTeam?: string | null;
+  line: number | null;
+  oddsAmerican: number;
+};
+
+export type RevealWager = {
+  id: string;
+  participantId: string;
+  wagerType: "single" | "parlay";
+  amountCents: number;
+  potentialPayoutCents: number;
+  legs: RevealLeg[];
+};
 
 export const BOARD_COLUMNS =
   "id, event_id, market_key, outcome_name, participant_name, point, price_american, updated_at, last_seen_at, is_stale, participant_team";

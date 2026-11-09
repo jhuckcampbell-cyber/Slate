@@ -57,6 +57,8 @@ export type ExplainInput = {
   maxBetCents: number | null;
   allIn: boolean;
   minBets: number;
+  /** Token mode: the bet sizes everyone gets (cents), one per bet, all used. */
+  tokens?: readonly number[] | null;
   /** null when the viewer IS the host. */
   hostName: string | null;
 };
@@ -78,7 +80,9 @@ export function explainTournament(t: ExplainInput): ExplainSection[] {
       title: "How it works",
       body: [
         `Everyone starts with ${bankroll} of play money.`,
-        "Before the game starts, make your picks: who wins, by how much, and more. Bet as much or as little as you like on each.",
+        t.tokens
+          ? `Before the game starts, make your picks: who wins, by how much, and more. Instead of typing amounts, you get ${t.tokens.length} bet tokens (${list(t.tokens.map((c) => formatCents(c)))}): put one on each bet or parlay, and use them all.`
+          : "Before the game starts, make your picks: who wins, by how much, and more. Bet as much or as little as you like on each.",
         "Your picks are secret. When the game starts they lock and everyone's picks are revealed at once.",
         "Then watch the game together: the leaderboard updates live as plays happen.",
       ],
@@ -94,7 +98,11 @@ export function explainTournament(t: ExplainInput): ExplainSection[] {
   ];
 
   const rules = [
-    ...(t.allIn ? [`Bet your whole ${bankroll} before picks lock.`] : []),
+    ...(t.tokens
+      ? [`Use all ${t.tokens.length} tokens (${list(t.tokens.map((c) => formatCents(c)))}) before picks lock, one per bet.`]
+      : t.allIn
+        ? [`Bet your whole ${bankroll} before picks lock.`]
+        : []),
     ...(t.minBets > 0 ? [`Make at least ${t.minBets} ${t.minBets === 1 ? "bet" : "bets"}.`] : []),
     ...(t.maxBetCents ? [`No single bet over ${formatCents(t.maxBetCents)}.`] : []),
   ];

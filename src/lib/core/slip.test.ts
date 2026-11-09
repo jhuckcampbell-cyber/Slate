@@ -89,6 +89,26 @@ describe("buildWagers + totals", () => {
     expect(slipTotals([draft!]).returnCents).toBe(4772);
     expect(wagerAmerican(draft!.legs)).toBe(377);
   });
+
+  it("mixed (token mode): grouped picks make one parlay, the rest are singles", () => {
+    const three = [sel(1, "a"), sel(2, "b", +150, "h2h"), sel(3, "c")];
+    const drafts = buildWagers("mixed", three, { 1: 2500, 2: 9999, 3: 2500 }, 5000, [2, 3]);
+    expect(drafts.map((d) => [d.amountCents, d.legs.map((l) => l.oddsId)])).toEqual([
+      [5000, [2, 3]],
+      [2500, [1]],
+    ]);
+    expect(validateSlip(drafts, { rules, bankrollCents: 7500 })).toEqual([]);
+  });
+
+  it("mixed with fewer than two grouped picks is all singles", () => {
+    const drafts = buildWagers("mixed", picks, { 1: 1000, 2: 500 }, 5000, [1]);
+    expect(drafts.map((d) => d.amountCents)).toEqual([1000, 500]);
+  });
+
+  it("mixed: the grouped picks still follow the parlay rules", () => {
+    const drafts = buildWagers("mixed", [sel(1, "a"), sel(2, "a", -110, "totals"), sel(3, "b")], { 3: 1000 }, 1000, [1, 2]);
+    expect(validateSlip(drafts, { rules, bankrollCents: 10_000 })).toContainEqual({ code: "SAME_EVENT_PARLAY" });
+  });
 });
 
 describe("validateSlip", () => {

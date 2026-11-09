@@ -9,23 +9,29 @@ export function HouseRulesFields({
   onAllIn,
   minBets,
   onMinBets,
+  tokenCount = null,
 }: {
   allIn: boolean;
   onAllIn: (v: boolean) => void;
   minBets: number;
   onMinBets: (v: number) => void;
+  /** Token mode: every token must be used already (no all-in switch), and no more bets than tokens. */
+  tokenCount?: number | null;
 }) {
+  const maxBets = tokenCount ?? 20;
   return (
     <div className="space-y-2">
       <p className="pt-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">House rules</p>
-      <label className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border p-3">
-        <span>
-          <span className="block text-sm font-medium">Bet the whole bankroll</span>
-          <span className="text-xs text-muted-foreground">No sitting on cash: everyone has to bet it all.</span>
-        </span>
-        <Switch aria-label="Bet the whole bankroll" checked={allIn} onCheckedChange={onAllIn} />
-      </label>
-      <div className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border p-3">
+      {tokenCount === null && (
+        <label className="flex min-h-12 items-center justify-between gap-3 rounded-xl border-2 border-foreground bg-card p-3">
+          <span>
+            <span className="block text-sm font-medium">Bet the whole bankroll</span>
+            <span className="text-xs text-muted-foreground">No sitting on cash: everyone has to bet it all.</span>
+          </span>
+          <Switch aria-label="Bet the whole bankroll" checked={allIn} onCheckedChange={onAllIn} />
+        </label>
+      )}
+      <div className="flex min-h-12 items-center justify-between gap-3 rounded-xl border-2 border-foreground bg-card p-3">
         <span>
           <span className="block text-sm font-medium" id="min-bets-label">
             Minimum bets
@@ -40,7 +46,7 @@ export function HouseRulesFields({
             aria-label="Fewer minimum bets"
             disabled={minBets <= 0}
             onClick={() => onMinBets(Math.max(0, minBets - 1))}
-            className="flex size-10 items-center justify-center rounded-full bg-muted disabled:opacity-40"
+            className="flex size-11 items-center justify-center rounded-full border-2 border-foreground bg-card disabled:opacity-40"
           >
             <Minus className="size-4" />
           </button>
@@ -50,9 +56,9 @@ export function HouseRulesFields({
           <button
             type="button"
             aria-label="More minimum bets"
-            disabled={minBets >= 20}
-            onClick={() => onMinBets(Math.min(20, minBets + 1))}
-            className="flex size-10 items-center justify-center rounded-full bg-muted disabled:opacity-40"
+            disabled={minBets >= maxBets}
+            onClick={() => onMinBets(Math.min(maxBets, minBets + 1))}
+            className="flex size-11 items-center justify-center rounded-full border-2 border-foreground bg-card disabled:opacity-40"
           >
             <Plus className="size-4" />
           </button>

@@ -101,7 +101,7 @@ async function Join({ params, searchParams }: PageProps<"/join/[code]">) {
 
       <div className="mt-4 flex justify-center">
         <span className="rounded-full bg-card px-4 py-2 text-sm ring-1 ring-border">
-          <LockCountdown lockTime={t.lock_time} isLocked={t.is_locked} />
+          <LockCountdown lockTime={t.lock_time} serverNow={t.server_now ?? undefined} isLocked={t.is_locked} />
         </span>
       </div>
 

@@ -80,9 +80,10 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
 
   async function submit() {
     const bankrollCents = dollarsToCents(bankroll);
-    const maxBetCents = maxBet ? dollarsToCents(maxBet) : null;
+    // Token mode: the tokens are the bet sizes, so there's no separate max bet or minimum number of bets.
+    const maxBetCents = maxBet && !tokens ? dollarsToCents(maxBet) : null;
     if (!bankrollCents) return toast.error("Enter a starting bankroll.");
-    if (maxBet && !maxBetCents) return toast.error("Max bet must be a positive amount.");
+    if (maxBet && !tokens && !maxBetCents) return toast.error("Max bet must be a positive amount.");
     if (maxBetCents && maxBetCents > bankrollCents)
       return toast.error("Max bet can't exceed the bankroll.");
     if (markets.length === 0) return toast.error("Allow at least one bet type.");
@@ -106,8 +107,9 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
             max_parlay_legs: 6,
             player_props: propsAvailable && playerProps,
             same_game_parlays: parlays && sameGame,
-            all_in: allIn || tokens !== null,
-            min_bets: minBets,
+            // set_tournament_tokens turns "bet everything" on for token tournaments.
+            all_in: tokens ? false : allIn,
+            min_bets: tokens ? 0 : minBets,
           },
         })
         .single();
@@ -117,7 +119,11 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
           p_tournament_id: data.id,
           p_tokens: tokens,
         });
-        if (tokenError) toast.error(`Tokens weren't saved: ${friendlyError(tokenError)}`);
+        if (tokenError) {
+          // Don't leave a half-made tournament behind: undo it and keep the form so the host can fix it.
+          await supabase.rpc("delete_tournament", { p_tournament_id: data.id });
+          throw tokenError;
+        }
       }
       router.push(`/t/${data.code}?created=1`);
     } catch (err) {
@@ -138,7 +144,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
     <>
       <header className="mb-6 flex items-center gap-3">
         {step === 2 && (
-          <Button variant="ghost" size="icon" aria-label="Back" onClick={() => setStep(1)}>
+          <Button variant="ghost" size="icon" className="size-11" aria-label="Back" onClick={() => setStep(1)}>
             <ArrowLeft />
           </Button>
         )}
@@ -161,10 +167,8 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
                     setSelected([]);
                   }}
                   className={cn(
-                    "h-10 shrink-0 rounded-full border px-4 text-sm font-medium",
-                    s === sport
-                      ? "border-brand bg-brand/15 text-brand"
-                      : "border-border text-muted-foreground",
+                    "h-11 shrink-0 rounded-full border-2 border-foreground px-4 text-sm font-semibold",
+                    s === sport ? "bg-foreground text-background" : "bg-card text-foreground",
                   )}
                 >
                   {sportEmoji(s)} {sportLabel(s)}
@@ -189,14 +193,14 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
                           aria-pressed={on}
                           onClick={() => toggle(e.id)}
                           className={cn(
-                            "flex min-h-14 w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors",
-                            on ? "border-brand bg-brand/10" : "border-border bg-card",
+                            "flex min-h-14 w-full items-center gap-3 rounded-xl border-2 border-foreground p-3 text-left transition-colors",
+                            on ? "bg-surface-2" : "bg-card",
                           )}
                         >
                           <span
                             className={cn(
-                              "flex size-6 shrink-0 items-center justify-center rounded-md border",
-                              on ? "border-brand bg-brand text-brand-foreground" : "border-border",
+                              "flex size-6 shrink-0 items-center justify-center rounded-md border-2 border-foreground",
+                              on ? "bg-foreground text-background" : "bg-card",
                             )}
                           >
                             {on && <Check className="size-4" />}
@@ -247,7 +251,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
             />
           </Field>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className={cn("grid gap-3", tokens ? "grid-cols-1" : "grid-cols-2")}>
             <Field label="Bankroll ($)" htmlFor="bankroll">
               <Input
                 id="bankroll"
@@ -257,16 +261,18 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
                 className="h-12 text-base"
               />
             </Field>
-            <Field label="Max bet ($)" htmlFor="maxbet">
-              <Input
-                id="maxbet"
-                inputMode="decimal"
-                placeholder="No limit"
-                value={maxBet}
-                onChange={(e) => setMaxBet(e.target.value)}
-                className="h-12 text-base"
-              />
-            </Field>
+            {!tokens && (
+              <Field label="Max bet ($)" htmlFor="maxbet">
+                <Input
+                  id="maxbet"
+                  inputMode="decimal"
+                  placeholder="No limit"
+                  value={maxBet}
+                  onChange={(e) => setMaxBet(e.target.value)}
+                  className="h-12 text-base"
+                />
+              </Field>
+            )}
           </div>
 
           <div>
@@ -283,10 +289,8 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
                       setMarkets((cur) => (on ? cur.filter((k) => k !== m.key) : [...cur, m.key]))
                     }
                     className={cn(
-                      "h-11 rounded-full border px-4 text-sm font-medium",
-                      on
-                        ? "border-brand bg-brand/15 text-brand"
-                        : "border-border text-muted-foreground",
+                      "h-11 rounded-full border-2 border-foreground px-4 text-sm font-semibold",
+                      on ? "bg-foreground text-background" : "bg-card text-foreground",
                     )}
                   >
                     {m.label}
@@ -296,7 +300,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
             </div>
           </div>
 
-          <label className="flex min-h-12 items-center justify-between rounded-xl border border-border p-3">
+          <label className="flex min-h-12 items-center justify-between rounded-xl border-2 border-foreground p-3">
             <span>
               <span className="block text-sm font-medium">Parlays</span>
               <span className="text-xs text-muted-foreground">Up to 6 legs</span>
@@ -305,7 +309,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
           </label>
 
           {parlays && (
-            <label className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border p-3">
+            <label className="flex min-h-12 items-center justify-between gap-3 rounded-xl border-2 border-foreground p-3">
               <span>
                 <span className="block text-sm font-medium">Same-game parlays</span>
                 <span className="text-xs text-muted-foreground">Stack picks from one game, like Ravens to win + Henry TD</span>
@@ -315,7 +319,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
           )}
 
           {propsAvailable && (
-            <label className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border p-3">
+            <label className="flex min-h-12 items-center justify-between gap-3 rounded-xl border-2 border-foreground p-3">
               <span>
                 <span className="block text-sm font-medium">Player props</span>
                 <span className="text-xs text-muted-foreground">
@@ -408,7 +412,17 @@ function TokenPicker({
   value: string | null;
   onChange: (key: string | null) => void;
 }) {
-  if (presets.length === 0) return null;
+  if (presets.length === 0) {
+    return (
+      <section className="rounded-xl border border-border p-3">
+        <p className="text-sm font-medium">How do players bet?</p>
+        <p className="text-xs text-muted-foreground">
+          Any amount. For bet tokens ($25 + $25 + $50 style), use a bankroll that splits into whole-dollar quarters,
+          like $100 or $200.
+        </p>
+      </section>
+    );
+  }
   return (
     <section aria-labelledby="bet-style" className="space-y-2 rounded-xl border-2 border-foreground p-3">
       <p id="bet-style" className="text-sm font-medium">How do players bet?</p>
@@ -447,11 +461,11 @@ function TokenOption({
       onClick={onSelect}
       className={cn(
         "min-h-12 rounded-xl border-2 px-3 py-2 text-left transition-[background-color,transform] motion-safe:active:scale-[0.98]",
-        selected ? "border-foreground bg-tab" : "border-foreground/25 bg-card",
+        selected ? "border-foreground bg-foreground text-background" : "border-foreground bg-card",
       )}
     >
       <span className="block text-sm font-bold">{title}</span>
-      <span className="block text-xs text-muted-foreground">{detail}</span>
+      <span className={cn("block text-xs", selected ? "text-background/80" : "text-muted-foreground")}>{detail}</span>
     </button>
   );
 }

@@ -4,6 +4,36 @@ Product and design decisions, newest first. Each entry says what changed and why
 Guardrails that never move: $100 play money, private friend groups, SMS-link join, blind picks until lock,
 live sweat. See "Creative enhancements" in CLAUDE.md for the running backlog.
 
+## 2026-11-08: bolder black and white, Leaderboard | Games, a clearer picks dropdown
+
+The light look was right but too quiet, and "Picks are in" was too much to read.
+
+- **Bold outlines.** Everything you can tap has a thick black outline; picked things go solid black. The only extra
+  color marks the tab you're on (light blue, outlined, underlined).
+- **Leaderboard | Games tabs** after lock. Games is a scoreboard per game. The big "Picks are in" box is gone (the
+  quick full-screen "Picks are in!" moment stays).
+- **Each player's dropdown** shows a box per game: their picks (team names in team colors), stake and payout, a
+  chance bar with an (i) explaining the %, and the score. Totals show points so far against the line.
+- **A bit more fun:** buttons squish, money counts up and down, rows glide when the order changes (with a ▲ chip),
+  odds hop into the slip, the logo slash wiggles on home, and the example join code types itself.
+- **Home:** "Join a friend's tournament · Enter the code they texted you."
+
+## 2026-11-08: Slate goes light ("Ticket stub")
+
+The dark violet look felt heavy. The app is now white paper and black ink, sleeker and easier to read in daylight.
+
+- **Light everywhere.** Warm off-white page, white cards, black text and buttons. Coral is the one spot of color
+  (the logo slash, 1st place, the live dot, the reveal). Violet is retired.
+- **New logo: "slate/".** A lowercase wordmark and a coral slash, like a tally mark. App icons and the invite share
+  card were redrawn to match.
+- **Ticket stubs.** Tournaments on home and players on the leaderboard are tickets with a perforated tear-off side
+  holding the result (your place, their money, Live/Open).
+- **Home, top to bottom:** the name, the catchphrase with a hand-drawn underline, a two-line description, Start /
+  join, your tournaments in play, then past tournaments (your place on each) and a "Bring your squad" account teaser.
+  The 3-step "How it works" list left home (the lobby still explains every tournament).
+- **Leaderboard:** sentence-case title with a live dot, a "You" chip, the winner as a coral ticket, and each
+  player's bets sliding out from under their stub.
+
 ## 2026-11-08: a calmer leaderboard and a lighter lobby
 
 Friends found the leaderboard "too much and confusing".

@@ -80,7 +80,7 @@ export function InstallHint({ className }: { className?: string }) {
   return (
     <aside
       aria-label="Install Slate"
-      className={cn("flex items-center gap-3 rounded-2xl bg-card p-3 ring-1 ring-border", className)}
+      className={cn("flex items-center gap-3 rounded-2xl border border-border bg-card p-3", className)}
     >
       <LogoMark className="size-9 shrink-0" />
       <div className="min-w-0 flex-1 text-sm">

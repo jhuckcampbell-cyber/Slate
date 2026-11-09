@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatOdds, impliedChance, oddsMeaning, requirements, explainTournament } from "./plain-english";
+import { chanceExplainer, formatOdds, impliedChance, oddsMeaning, requirements, explainTournament } from "./plain-english";
 
 describe("odds as a chance (Settings: percent)", () => {
   it("American odds → the chance they imply, rounded", () => {
@@ -88,5 +88,16 @@ describe("explainTournament: the 'what am I getting into' sheet", () => {
       "Miss a house rule and you finish below everyone who followed them.",
     ]);
     expect(s[2]!.body.join(" ")).not.toContain("Money you don't bet still counts");
+  });
+});
+
+describe("chanceExplainer: the (i) next to a live pick's %", () => {
+  it("says what the number means in plain words", () => {
+    const e = chanceExplainer("81%", false);
+    expect(e.title).toBe("Chance to win: 81%");
+    expect(e.body).toContain("about 8 out of 10 times");
+  });
+  it("parlays say every leg has to hit", () => {
+    expect(chanceExplainer("27%", true).body).toContain("Every leg has to hit");
   });
 });

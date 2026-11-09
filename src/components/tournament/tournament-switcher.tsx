@@ -18,7 +18,7 @@ export function TournamentSwitcher({ current, items }: { current: string; items:
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Switch tournament"
-        className="flex h-10 items-center gap-1 rounded-full bg-card pr-2.5 pl-3 font-mono text-sm tracking-widest ring-1 ring-border"
+        className="flex h-10 items-center gap-1 rounded-full border-2 border-foreground bg-card pr-2.5 pl-3 font-mono text-sm tracking-widest transition-transform motion-safe:active:scale-95"
       >
         {current}
         <ChevronDown className="size-4 text-muted-foreground" />
@@ -36,8 +36,8 @@ export function TournamentSwitcher({ current, items }: { current: string; items:
                   onClick={() => setOpen(false)}
                   aria-current={t.code === current ? "page" : undefined}
                   className={cn(
-                    "flex min-h-14 items-center gap-3 rounded-2xl px-3 py-2 ring-1",
-                    t.code === current ? "bg-brand/10 ring-brand/40" : "bg-card ring-border",
+                    "flex min-h-14 items-center gap-3 rounded-2xl border-2 px-3 py-2",
+                    t.code === current ? "border-foreground bg-tab" : "border-foreground/25 bg-card",
                   )}
                 >
                   <span className="text-xl" aria-hidden>
@@ -58,7 +58,7 @@ export function TournamentSwitcher({ current, items }: { current: string; items:
             <Link
               href="/"
               onClick={() => setOpen(false)}
-              className="flex h-12 items-center justify-center gap-2 rounded-xl bg-card text-sm font-medium ring-1 ring-border"
+              className="flex h-12 items-center justify-center gap-2 rounded-xl border-2 border-foreground bg-card text-sm font-medium"
             >
               <House className="size-4" /> Home
             </Link>

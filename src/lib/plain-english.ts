@@ -129,3 +129,19 @@ export function explainTournament(t: ExplainInput): ExplainSection[] {
   });
   return sections;
 }
+
+/** What the % next to a live pick means (the (i) in the leaderboard dropdown). */
+export function chanceExplainer(pct: string, parlay: boolean): { title: string; body: string } {
+  const n = Number.parseInt(pct.replace(/[^0-9]/g, ""), 10);
+  const outOf10 = Number.isFinite(n) ? Math.max(0, Math.min(10, Math.round(n / 10))) : null;
+  const odds = outOf10 === null ? "" : ` ${pct} means picks like this win about ${outOf10} out of 10 times.`;
+  return parlay
+    ? {
+        title: `Chance to win: ${pct}`,
+        body: `How likely this whole parlay is to cash from here. Every leg has to hit, so it's each leg's chance multiplied together.${odds}`,
+      }
+    : {
+        title: `Chance to win: ${pct}`,
+        body: `How likely this pick is to win from here, based on the score and the time left.${odds}`,
+      };
+}

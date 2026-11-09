@@ -22,7 +22,7 @@ export function TabSwitch<T extends string>({
     <div
       role="tablist"
       aria-label={label}
-      className={cn("grid rounded-xl bg-card p-1 text-sm ring-1 ring-border", className)}
+      className={cn("grid gap-1 rounded-full border-2 border-foreground bg-card p-1 text-sm", className)}
       style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
     >
       {options.map((o) => (
@@ -33,8 +33,10 @@ export function TabSwitch<T extends string>({
           aria-selected={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            "h-10 rounded-lg font-semibold transition-colors",
-            value === o.value ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground",
+            "h-10 rounded-full border-2 transition-colors motion-safe:active:scale-[0.97]",
+            value === o.value
+              ? "border-foreground bg-tab font-bold text-foreground underline decoration-2 underline-offset-4"
+              : "border-transparent font-semibold text-muted-foreground hover:text-foreground",
           )}
         >
           {o.label}

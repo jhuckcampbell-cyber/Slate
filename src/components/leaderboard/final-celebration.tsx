@@ -22,7 +22,7 @@ const CONFETTI = Array.from({ length: 36 }, (_, i) => ({
   left: (i * 37) % 100,
   delay: (i % 9) * 0.18,
   duration: 2.6 + ((i * 13) % 10) / 10,
-  color: ["bg-brand", "bg-hype", "bg-warn", "bg-chart-2", "bg-chart-4"][i % 5],
+  color: ["bg-foreground", "bg-hype", "bg-chart-5", "bg-chart-2", "bg-hype"][i % 5],
   rotate: (i * 47) % 360,
 }));
 
@@ -56,7 +56,7 @@ export function FinalCelebration({ tournamentId, finishers }: { tournamentId: st
       role="dialog"
       aria-modal="true"
       aria-label="Tournament over"
-      className="fixed inset-0 z-50 grid place-items-center overflow-hidden bg-background/90 px-6 backdrop-blur-md motion-safe:animate-in motion-safe:fade-in"
+      className="fixed inset-0 z-50 grid place-items-center overflow-hidden bg-background/95 px-6 backdrop-blur-md motion-safe:animate-in motion-safe:fade-in"
     >
       <div aria-hidden className="pointer-events-none absolute inset-0 motion-reduce:hidden">
         {CONFETTI.map((c, i) => (
@@ -69,7 +69,7 @@ export function FinalCelebration({ tournamentId, finishers }: { tournamentId: st
       </div>
 
       <div className="relative w-full max-w-sm text-center">
-        <Trophy className="mx-auto size-16 text-warn drop-shadow-[0_0_24px_var(--warn)] motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:duration-700" />
+        <Trophy className="mx-auto size-16 text-hype motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:duration-700" />
         <p className="mt-3 text-sm font-semibold tracking-[0.2em] text-muted-foreground uppercase">Champion</p>
         <p className="mt-1 font-display text-5xl/[1] font-extrabold text-balance motion-safe:animate-in motion-safe:slide-in-from-bottom-4 motion-safe:fade-in motion-safe:delay-300 motion-safe:fill-mode-both">
           {champs.map((c) => (c.isYou ? "You!" : c.name)).join(" & ")}
@@ -86,15 +86,15 @@ export function FinalCelebration({ tournamentId, finishers }: { tournamentId: st
                 className="flex w-24 flex-col items-center motion-safe:animate-in motion-safe:slide-in-from-bottom-8 motion-safe:fade-in motion-safe:fill-mode-both"
                 style={{ animationDelay: `${500 + i * 150}ms` }}
               >
-                {f.rank === 1 && <Crown className="mb-1 size-5 text-warn" />}
-                <span className={cn("max-w-full truncate text-sm font-semibold", f.isYou && "text-brand")}>
+                {f.rank === 1 && <Crown className="mb-1 size-5 text-hype" />}
+                <span className={cn("max-w-full truncate text-sm font-semibold", f.isYou && "underline decoration-hype decoration-2 underline-offset-4")}>
                   {f.isYou ? "You" : f.name}
                 </span>
                 <span className="num text-xs text-muted-foreground">{formatCents(f.cashCents)}</span>
                 <span
                   className={cn(
                     "mt-1 flex w-full items-start justify-center rounded-t-xl pt-2 font-display text-2xl font-extrabold",
-                    f.rank === 1 ? "h-24 bg-warn/25 text-warn" : f.rank === 2 ? "h-16 bg-muted text-foreground" : "h-12 bg-muted/60 text-muted-foreground",
+                    f.rank === 1 ? "h-24 bg-hype text-hype-foreground" : f.rank === 2 ? "h-16 bg-foreground text-background" : "h-12 bg-surface-2 text-foreground ring-1 ring-border",
                   )}
                 >
                   {f.rank}

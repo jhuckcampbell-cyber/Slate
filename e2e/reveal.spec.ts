@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { admin, createTournament, joinAs, newPage, openPicksByGame, openPlayerBets, placeSingle, tournamentId, waitForOdds } from "./helpers";
+import { admin, createTournament, expectRevealed, joinAs, newPage, openPlayerBets, placeSingle, showTab, tournamentId, waitForOdds } from "./helpers";
 
 // Phase 3: blind until lock, then the reveal reaches every open lobby without a reload.
 
@@ -43,16 +43,18 @@ test("picks stay blind until the host locks, then everyone sees them live", asyn
   await host.getByRole("button", { name: "Lock picks now" }).click();
   await host.getByRole("button", { name: "Lock & reveal" }).click();
   for (const page of [host, guest]) {
-    await expect(page.getByRole("heading", { name: "Picks are in" })).toBeVisible({ timeout: 15_000 });
+    await expectRevealed(page, 15_000);
   }
 
-  // What everyone's on is a dropdown (closed by default); each leaderboard player drops down their bets.
-  await expect(guest.getByText("Split 1–1").first()).toBeHidden();
-  await openPicksByGame(guest);
-  await expect(guest.getByText("Split 1–1").first()).toBeVisible();
+  // Each leaderboard player drops down their bets: a box per game with the live chance and its (i).
   const hank = await openPlayerBets(guest, "Hank");
   await expect(hank).toContainText("$10");
-  await expect(guest.getByRole("tab", { name: "By player" })).toHaveCount(0);
+  await expect(hank.getByLabel(/^Chance to win (\d+%|>99%|<1%)$/).first()).toBeVisible();
+  await hank.getByRole("button", { name: "What does this % mean?" }).first().click();
+  await expect(hank.getByRole("note")).toContainText("Chance to win");
+  // The Games tab lists every game in the tournament.
+  await showTab(guest, "Games");
+  await expect(guest.getByRole("tabpanel", { name: "Games" }).getByRole("article")).toHaveCount(2);
 
   // Betting and host controls are gone.
   await expect(guest.locator("button[data-odds-id]")).toHaveCount(0);
@@ -103,6 +105,6 @@ test("the countdown hitting zero reveals picks on its own", async ({ browser }) 
     .eq("code", code);
   expect(error).toBeNull();
 
-  await expect(gina.getByRole("heading", { name: "Picks are in" })).toBeVisible({ timeout: 30_000 });
-  await expect(host.getByRole("heading", { name: "Picks are in" })).toBeVisible({ timeout: 30_000 });
+  await expectRevealed(gina, 30_000);
+  await expectRevealed(host, 30_000);
 });

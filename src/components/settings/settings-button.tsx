@@ -18,7 +18,7 @@ export function SettingsButton({ className }: { className?: string }) {
         type="button"
         aria-label="Settings"
         onClick={() => setOpen(true)}
-        className={cn("flex size-10 items-center justify-center rounded-full bg-card ring-1 ring-border", className)}
+        className={cn("flex size-10 items-center justify-center rounded-full border-2 border-foreground bg-card transition-transform motion-safe:active:scale-95", className)}
       >
         <Settings className="size-[18px]" />
       </button>
@@ -48,8 +48,8 @@ export function SettingsButton({ className }: { className?: string }) {
                     aria-label={label}
                     onClick={() => setOddsFormat(value)}
                     className={cn(
-                      "rounded-2xl p-3 text-left ring-1 transition-colors",
-                      format === value ? "bg-brand/12 ring-brand" : "bg-card ring-border",
+                      "rounded-2xl border-2 p-3 text-left transition-[background-color,transform] motion-safe:active:scale-[0.97]",
+                      format === value ? "border-foreground bg-tab" : "border-foreground/25 bg-card",
                     )}
                   >
                     <span className="num block text-lg font-bold">{sample}</span>
@@ -66,7 +66,7 @@ export function SettingsButton({ className }: { className?: string }) {
             <Link
               href="/account"
               onClick={() => setOpen(false)}
-              className="flex min-h-12 items-center gap-3 rounded-2xl bg-card px-3 ring-1 ring-border"
+              className="flex min-h-12 items-center gap-3 rounded-2xl border-2 border-foreground bg-card px-3"
             >
               <UserRound className="size-4 text-muted-foreground" />
               <span className="flex-1 text-sm font-medium">Your name & account</span>

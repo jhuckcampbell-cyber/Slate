@@ -102,14 +102,22 @@ export async function tournamentId(code: string) {
 
 /** After lock: tap a player's leaderboard row to drop down their bets. */
 export async function openPlayerBets(page: Page, name: string) {
+  await showTab(page, "Leaderboard");
   const row = page.getByRole("listitem", { name: new RegExp(`^\\d+\\. ${name}`) });
   await row.locator("summary").click();
   return row;
 }
 
-/** After lock: open the "Picks are in" dropdown (what everyone's on, by game). */
-export async function openPicksByGame(page: Page) {
-  await page.getByRole("heading", { name: "Picks are in" }).click();
+/** After lock the page shows two tabs, Leaderboard | Games. Wait for them (the reveal). */
+export async function expectRevealed(page: Page, timeout = 20_000) {
+  await expect(page.getByRole("tab", { name: "Leaderboard" })).toBeVisible({ timeout });
+}
+
+/** After lock: switch to the Leaderboard or Games tab (no-op if it's already open). */
+export async function showTab(page: Page, name: "Leaderboard" | "Games") {
+  const tab = page.getByRole("tab", { name, exact: true });
+  if ((await tab.count()) === 0) return;
+  if ((await tab.getAttribute("aria-selected")) !== "true") await tab.click();
 }
 
 /** After the final: the champion celebration covers the page once; close it to get to the standings. */

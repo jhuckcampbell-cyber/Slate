@@ -12,9 +12,9 @@ describe("web app manifest (installable Slate)", () => {
     expect(m.short_name).toBe("Slate");
   });
 
-  it("matches the app's dark theme so launch has no white flash", () => {
-    expect(m.background_color).toBe("#0e1220");
-    expect(m.theme_color).toBe("#0e1220");
+  it("matches the app's paper background so launch has no color flash", () => {
+    expect(m.background_color).toBe("#fbfaf7");
+    expect(m.theme_color).toBe("#fbfaf7");
   });
 
   it("ships the icons install prompts require (192, 512, and a maskable one)", () => {

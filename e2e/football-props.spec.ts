@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { fakePlayer } from "../supabase/functions/_shared/fake-provider";
-import { admin, joinAs, newPage, nudgeSync, openPlayerBets, placeBet, placeSingle, waitForOdds } from "./helpers";
+import { admin, expectRevealed, joinAs, newPage, nudgeSync, openPlayerBets, placeBet, placeSingle, waitForOdds } from "./helpers";
 
 // Football props: players grouped under their team, an alternate-yards milestone and an anytime TD are
 // bet (plus a same-game parlay), then ONE yards entry grades the ladder and a touchdowns entry grades the TD.
@@ -91,7 +91,7 @@ test("football: team-grouped props, alternate yards and anytime TD, graded by th
 
   await host.getByRole("button", { name: "Lock picks now" }).click();
   await host.getByRole("button", { name: "Lock & reveal" }).click();
-  await expect(host.getByRole("heading", { name: "Picks are in" })).toBeVisible({ timeout: 20_000 });
+  await expectRevealed(host, 20_000);
 
   // In play: the football box score (fake feed locally) moves the yards pick and the TD pick, and their chances.
   await admin.from("events").update({ commence_time: new Date(Date.now() - 60 * 60_000).toISOString() }).eq("id", eventId);
@@ -100,7 +100,7 @@ test("football: team-grouped props, alternate yards and anytime TD, graded by th
     await host.reload();
     const hank = await openPlayerBets(host, "Hank");
     await expect(hank.getByLabel(/^Live stat: -?\d+ Rush Yds · (needs \d+ more|cleared)$/)).toBeVisible({ timeout: 2_000 });
-    await expect(hank.getByText(/^(Safe|Sweating|Danger)$/)).toBeVisible({ timeout: 2_000 });
+    await expect(hank.getByLabel(/^Chance to win (\d+%|>99%|<1%)$/).first()).toBeVisible({ timeout: 2_000 });
     const ginaBets = await openPlayerBets(host, "Gina");
     await expect(ginaBets.getByLabel(/^Live stat: (No TD yet|\d+ TDs? · scored)$/).first()).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 90_000 });

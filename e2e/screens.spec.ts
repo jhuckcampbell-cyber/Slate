@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createTournament, joinAs, newPage, openPicksByGame, openPlayerBets, placeSingle, waitForOdds } from "./helpers";
+import { createTournament, expectRevealed, joinAs, newPage, openPlayerBets, placeSingle, showTab, waitForOdds } from "./helpers";
 
 // Design review tour, not a regression test. Skipped unless SCREENS=<output dir> is set:
 //   SCREENS=./screens npx playwright test e2e/screens.spec.ts
@@ -75,12 +75,15 @@ test("design tour", async ({ browser }) => {
   await shot(host, "10-lock-confirm");
   await host.getByRole("button", { name: "Lock & reveal" }).click();
 
-  await expect(gina.getByRole("heading", { name: "Picks are in" })).toBeVisible({ timeout: 20_000 });
+  await expectRevealed(gina, 20_000);
   await gina.waitForTimeout(300);
   await gina.screenshot({ path: `${OUT}/11-reveal-moment.png` });
   await gina.waitForTimeout(2600);
   await shot(gina, "12-reveal-leaderboard", true);
   await openPlayerBets(gina, "Gina");
-  await openPicksByGame(gina);
   await shot(gina, "13-reveal-open", true);
+  await gina.getByRole("button", { name: "What does this % mean?" }).first().click();
+  await shot(gina, "13b-chance-info", true);
+  await showTab(gina, "Games");
+  await shot(gina, "13c-games-tab", true);
 });

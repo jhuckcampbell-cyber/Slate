@@ -97,12 +97,13 @@ supabase/functions/          Deno Edge Functions. Entrypoints (*/index.ts) are e
 supabase/functions/_shared/  PURE TS shared by functions (import with .ts extensions); Vitest-tested
 src/components/sportsbook/   board (event cards → game page with Popular / Game lines / one tab per stat, ?game=ID), slip store + drawer, my picks
 src/components/tournament/   lobby pieces: countdown, live channel, squad list, host tools
-src/components/game/         live game card (score, clock, last play from game_live)
+src/components/game/         the Games tab: a scoreboard card per game (score, clock, last play from game_live)
 src/components/settings/     Settings sheet (odds as American or %, stored per phone in src/lib/prefs.ts)
 src/lib/plain-english.ts     odds as %, "bet $10 to win", house-rules checklist, the "How it works" explainer
-src/components/reveal/       post-lock: PlayerBets (drops down from each leaderboard row), by-game
-                             consensus as a collapsed "Picks are in" dropdown, sweat outcomes
-src/components/leaderboard/  live/final standings (from the leaderboard view)
+src/components/reveal/       post-lock: the one-time full-screen "Picks are in!" moment
+src/components/leaderboard/  live/final standings (from the leaderboard view; rows glide on rank changes) and
+                             PlayerBets (each row's dropdown: a box per game, chance bar + (i), totals vs the line)
+src/components/tournament/post-lock-tabs.tsx  after lock: Leaderboard | Games tabs (?tab=games)
 tests/integration/           Vitest against the local stack (concurrency, Realtime channel auth)
 supabase/tests/              pgTAP: every RLS policy and RPC has tests
 
@@ -126,7 +127,8 @@ supabase/tests/              pgTAP: every RLS policy and RPC has tests
 9. Regenerate DB types after every migration; never hand-edit database.types.ts.
    RPCs raise stable UPPER_SNAKE error codes; map them to copy in src/lib/errors.ts.
 10. Mobile-first: design at 375px, tap targets ≥44px, bottom-sheet slip.
-11. Visual design follows docs/DESIGN.md (palette since 2026-11-05: violet brand + coral hype, "game night" not
+11. Visual design follows docs/DESIGN.md (since 2026-11-08: light "Ticket stub", paper + black ink, 2px ink outlines on
+    everything tappable, light-blue `tab` only for the selected tab, coral only for logo/1st/live dot; not
     sportsbook; plain words over jargon: Winner not Moneyline, "to win" not ML): semantic color tokens only (brand/hype/win/loss/warn/surface-2,
     never raw palette classes like emerald-400), `font-display` + `num` for titles and numbers, brand
     primitives from src/components/brand.tsx. After UI changes run the screenshot tour

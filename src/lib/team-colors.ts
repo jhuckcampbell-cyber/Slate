@@ -111,3 +111,29 @@ export function pickTeam(p: { marketKey: string; outcomeName: string; participan
   if (p.marketKey === "h2h" || p.marketKey === "spreads") return p.outcomeName;
   return null;
 }
+
+/** WCAG contrast ratio of a #rrggbb color against white. */
+export function contrastOnWhite(hex: string): number {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return 1;
+  const n = parseInt(m[1]!, 16);
+  const lin = (c: number) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  const l = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  return 1.05 / (l + 0.05);
+}
+
+const INK = "#181a21";
+
+/**
+ * A team's color for TEXT on white (team names in the picks dropdown): the primary color if it reads (4.5:1),
+ * else the secondary, else ink. Bright yellows and oranges fall back.
+ */
+export function readableTeamColor(team: string, sportKey?: string): string {
+  const { primary, secondary } = teamLook(team, sportKey);
+  if (contrastOnWhite(primary) >= 4.5) return primary;
+  if (contrastOnWhite(secondary) >= 4.5) return secondary;
+  return INK;
+}

@@ -17,6 +17,7 @@ import {
   selectionLabel,
   shortTeam,
 } from "@/lib/format";
+import { flyToSlip } from "@/lib/fly";
 import { cn } from "@/lib/utils";
 
 export type SportsbookEvent = {
@@ -318,13 +319,14 @@ export function OddsButton({
       data-odds-id={row.id}
       aria-pressed={selected}
       disabled={disabled}
-      onClick={onClick}
+      onClick={(e) => {
+        if (!selected) flyToSlip(e.currentTarget, formatAmerican(row.priceAmerican));
+        onClick();
+      }}
       aria-label={`${selectionLabel(row)} ${formatAmerican(row.priceAmerican)}${row.isStale ? " (updating)" : ""}`}
       className={cn(
-        "num h-13 overflow-hidden rounded-xl border transition-colors active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40",
-        selected
-          ? "border-brand bg-brand text-brand-foreground"
-          : "border-border bg-surface-2/60 hover:bg-surface-2",
+        "num h-13 overflow-hidden rounded-xl border-2 border-foreground transition-[background-color,transform] duration-150 motion-safe:active:scale-[0.95] disabled:cursor-not-allowed disabled:opacity-40",
+        selected ? "bg-foreground text-background" : "bg-card hover:bg-surface-2",
       )}
     >
       {/* Keyed on updatedAt so the flash replays on every Realtime price move. */}

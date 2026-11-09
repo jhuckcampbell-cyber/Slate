@@ -129,3 +129,29 @@ export function gameView(e: ScoredEvent, live: LiveFeed | null): GameView {
     lastPlay: useLive && state === "in" ? (live.last_play ?? null) : null,
   };
 }
+
+/**
+ * A totals pick against the line, for the picks dropdown: "120 points · needs 99 more", "120 points · 98 to spare",
+ * and once final "Final: 239 points". `fill` is points / line (0…1) for the bar; the line is the bar's end tick.
+ */
+export function totalProgress(p: {
+  selection: string;
+  line: number | null;
+  home: number | null;
+  away: number | null;
+  final: boolean;
+}): { points: number; text: string; fill: number; tone: Tone } | null {
+  if (p.line === null || p.home === null || p.away === null || p.line <= 0) return null;
+  if (p.selection !== "Over" && p.selection !== "Under") return null;
+  const points = p.home + p.away;
+  const fill = Math.min(1, points / p.line);
+  const over = points > p.line;
+  const won = p.selection === "Over" ? over : !over;
+  if (p.final) return { points, text: `Final: ${points} points`, fill, tone: won ? "win" : "loss" };
+  if (p.selection === "Over") {
+    if (over) return { points, text: `${points} points · cleared`, fill, tone: "win" };
+    return { points, text: `${points} points · needs ${Math.floor(p.line) + 1 - points} more`, fill, tone: "live" };
+  }
+  if (over) return { points, text: `${points} points · went over`, fill, tone: "loss" };
+  return { points, text: `${points} points · ${Math.ceil(p.line) - 1 - points} to spare`, fill, tone: "live" };
+}

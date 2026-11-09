@@ -1,20 +1,20 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import { ChevronDown, ChevronRight, History } from "lucide-react";
-import { Eyebrow } from "@/components/brand";
+import { cache } from "react";
+import { ChevronDown } from "lucide-react";
+import { Eyebrow, StubTear, stub } from "@/components/brand";
 import { LocalTime } from "@/components/local-time";
-import { shortTeam, sportEmoji } from "@/lib/format";
-import { finishLabel, orderMyTournaments, tournamentStatusLabel, type MyTournament } from "@/lib/my-tournaments";
+import { formatShortDate, shortTeam, sportEmoji } from "@/lib/format";
+import {
+  finishLabel,
+  ordinal,
+  orderMyTournaments,
+  tournamentStatusLabel,
+  type MyTournament,
+} from "@/lib/my-tournaments";
 import { getViewer } from "@/lib/supabase/queries";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
-
-const STATUS_STYLE: Record<string, string> = {
-  Open: "bg-brand/15 text-brand ring-brand/30",
-  Locked: "bg-warn/15 text-warn ring-warn/30",
-  Live: "bg-hype/15 text-hype ring-hype/30",
-  Final: "bg-muted text-muted-foreground ring-border",
-};
 
 type EventRow = {
   home_team: string;
@@ -44,6 +44,9 @@ export type MyTournamentItem = MyTournament & {
   score: string | null;
   /** Final: "🏆 Won", "2nd of 5" */
   finish: string | null;
+  /** Final: your place (null if unknown) and how many played. */
+  place: number | null;
+  players: number;
 };
 
 function scoreText(events: EventRow[]): string | null {
@@ -56,8 +59,8 @@ function scoreText(events: EventRow[]): string | null {
   return `${shortTeam(e.away_team)} ${away} · ${shortTeam(e.home_team)} ${home}${clock}`;
 }
 
-/** This device's player's tournaments, ordered and labeled (RLS: own memberships only). */
-export async function loadMyTournaments(): Promise<MyTournamentItem[]> {
+/** This device's player's tournaments, ordered and labeled (RLS: own memberships only). Once per request. */
+export const loadMyTournaments = cache(async function loadMyTournaments(): Promise<MyTournamentItem[]> {
   await connection(); // per-request: auth cookie + the clock
   const viewer = await getViewer();
   if (!viewer) return [];
@@ -102,82 +105,157 @@ export async function loadMyTournaments(): Promise<MyTournamentItem[]> {
       label,
       score: label === "Live" || label === "Locked" ? scoreText(events) : null,
       finish: label === "Final" ? finishLabel(mine.get(row.id) ?? null, field.get(row.id) ?? 0) : null,
+      place: mine.get(row.id) ?? null,
+      players: field.get(row.id) ?? 0,
     };
   });
-}
+});
 
-/** Home menu: "Playing now" up top, finished ones folded into "Past tournaments". Nothing for first-time visitors. */
+/** Home, under the main buttons: tournaments still in play. Nothing when there are none. */
 export async function MyTournamentsList({ className }: { className?: string }) {
-  const list = await loadMyTournaments();
-  if (list.length === 0) return null;
-  const current = list.filter((t) => t.label !== "Final");
-  const past = list.filter((t) => t.label === "Final");
+  const current = (await loadMyTournaments()).filter((t) => t.label !== "Final");
+  if (current.length === 0) return null;
 
   return (
-    <div className={cn("space-y-6", className)}>
-      {current.length > 0 && (
-        <section aria-labelledby="my-tournaments">
-          <Eyebrow>
-            <span id="my-tournaments">Your tournaments</span>
-          </Eyebrow>
-          <ul className="mt-2 space-y-2">
-            {current.map((t) => (
-              <li key={t.code}>
-                <TournamentRow t={t} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-      {past.length > 0 && (
-        <details className="group rounded-2xl bg-card/60 ring-1 ring-border" open={current.length === 0}>
-          <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-3 [&::-webkit-details-marker]:hidden">
-            <History className="size-4 text-muted-foreground" />
-            <span className="flex-1 text-sm font-semibold">Past tournaments</span>
-            <span className="text-xs text-muted-foreground">{past.length}</span>
-            <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
-          </summary>
-          <ul aria-label="Past tournaments" className="space-y-2 px-2 pb-2">
-            {past.map((t) => (
-              <li key={t.code}>
-                <TournamentRow t={t} />
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-    </div>
+    <section aria-labelledby="my-tournaments" className={className}>
+      <Eyebrow>
+        <span id="my-tournaments">Your tournaments</span>
+      </Eyebrow>
+      <ul className="mt-2.5 space-y-2">
+        {current.map((t) => (
+          <li key={t.code}>
+            <Link href={`/t/${t.code}`} className={stub("default", "transition-transform active:scale-[0.99]")}>
+              <StubMain t={t}>
+                {t.score ? (
+                  <span className="font-medium text-foreground tabular-nums">{t.score}</span>
+                ) : t.label === "Open" ? (
+                  <>
+                    Locks <LocalTime iso={t.lockTime} />
+                  </>
+                ) : (
+                  "Picks locked"
+                )}
+                <span aria-hidden> · </span>
+                <span className="font-mono tracking-wider">{t.code}</span>
+                {t.isHost && <span> · Host</span>}
+              </StubMain>
+              <StubTear>
+                <StatusTag label={t.label} />
+              </StubTear>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
-function TournamentRow({ t }: { t: MyTournamentItem }) {
+const PAST_SHOWN = 3;
+
+/**
+ * Home, near the bottom: finished tournaments, most recent first, each a stub with your place on the tear-off.
+ * First-time visitors see one empty stub saying where these will land.
+ */
+export async function PastTournaments({ className }: { className?: string }) {
+  const past = (await loadMyTournaments()).filter((t) => t.label === "Final");
+  const shown = past.slice(0, PAST_SHOWN);
+  const more = past.slice(PAST_SHOWN);
+
   return (
-    <Link
-      href={`/t/${t.code}`}
-      className="flex min-h-16 items-center gap-3 rounded-2xl bg-card px-3 py-2.5 ring-1 ring-border transition-transform active:scale-[0.99]"
-    >
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-xl" aria-hidden>
+    <section aria-labelledby="past-tournaments" className={className}>
+      <div className="flex items-baseline justify-between">
+        <Eyebrow>
+          <span id="past-tournaments">Past tournaments</span>
+        </Eyebrow>
+        {past.length > 0 && <span className="num text-sm text-muted-foreground">{past.length}</span>}
+      </div>
+      {past.length === 0 ? (
+        <div className={stub("ghost", "mt-2.5")}>
+          <div className="flex min-w-0 flex-1 items-center px-4 py-3 text-sm text-muted-foreground">
+            Your finished tournaments land here, with where you placed.
+          </div>
+          <StubTear>
+            <span className="num text-2xl font-bold text-foreground/25">1st?</span>
+          </StubTear>
+        </div>
+      ) : (
+        <>
+          <PastList items={shown} />
+          {more.length > 0 && (
+            <details className="group mt-2">
+              <summary className="flex h-11 cursor-pointer list-none items-center justify-center gap-1.5 rounded-xl text-sm font-semibold text-muted-foreground [&::-webkit-details-marker]:hidden">
+                <span className="group-open:hidden">Show all {past.length}</span>
+                <span className="hidden group-open:inline">Show fewer</span>
+                <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
+              </summary>
+              <PastList items={more} />
+            </details>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+function PastList({ items }: { items: MyTournamentItem[] }) {
+  return (
+    <ul aria-label="Past tournaments" className="mt-2.5 space-y-2">
+      {items.map((t) => (
+        <li key={t.code}>
+          <Link href={`/t/${t.code}`} className={stub("default", "transition-transform active:scale-[0.99]")}>
+            <StubMain t={t}>
+              {formatShortDate(t.lockTime)}
+              {t.players > 0 && ` · ${t.players} ${t.players === 1 ? "player" : "players"}`}
+              {t.isHost && " · Host"}
+            </StubMain>
+            <StubTear winner={t.place === 1}>
+              {t.place === null ? (
+                <span className="text-xs font-semibold text-muted-foreground">Final</span>
+              ) : (
+                <>
+                  <span className="num text-[1.7rem]/none font-extrabold">{ordinal(t.place)}</span>
+                  {t.players > 1 && (
+                    <span
+                      className={cn(
+                        "mt-0.5 text-[11px] font-medium",
+                        t.place === 1 ? "text-hype-foreground/85" : "text-muted-foreground",
+                      )}
+                    >
+                      of {t.players}
+                    </span>
+                  )}
+                </>
+              )}
+            </StubTear>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** The left side of a tournament stub: sport, title, one line of detail. */
+function StubMain({ t, children }: { t: MyTournamentItem; children: React.ReactNode }) {
+  return (
+    <span className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pr-3 pl-3">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-xl" aria-hidden>
         {sportEmoji(t.sportKey)}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate font-semibold">{t.title}</span>
-        <span className="block truncate text-xs text-muted-foreground">
-          {t.score ? (
-            <span className="font-medium text-foreground tabular-nums">{t.score}</span>
-          ) : t.finish ? (
-            <span className="font-medium text-foreground">{t.finish}</span>
-          ) : t.label === "Open" ? (
-            <>
-              Locks <LocalTime iso={t.lockTime} />
-            </>
-          ) : null}
-          {(t.score || t.finish || t.label === "Open") && " · "}
-          <span className="font-mono tracking-wider">{t.code}</span>
-          {t.isHost && <span> · Host</span>}
-        </span>
+        <span className="block truncate text-xs text-muted-foreground">{children}</span>
       </span>
-      <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1", STATUS_STYLE[t.label])}>{t.label}</span>
-      <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-    </Link>
+    </span>
   );
+}
+
+/** Where a tournament in play stands, on its tear-off side. */
+function StatusTag({ label }: { label: string }) {
+  if (label === "Live")
+    return (
+      <span className="inline-flex items-center gap-1.5 text-sm font-bold">
+        <span className="live-dot" aria-hidden /> Live
+      </span>
+    );
+  return <span className={cn("text-sm font-bold", label === "Locked" ? "text-warn" : "text-foreground")}>{label}</span>;
 }

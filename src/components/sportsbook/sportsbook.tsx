@@ -5,11 +5,12 @@ import { useSearchParams } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { indexBoard, type BoardRow } from "@/lib/core/board";
 import type { Rules } from "@/lib/core/slip";
-import { formatCents, shortTeam } from "@/lib/format";
+import { shortTeam } from "@/lib/format";
 import { requirements, type HouseRules } from "@/lib/plain-english";
 import { useBoard } from "@/lib/queries/board";
 import { useBankroll, useMyWagers, type Bankroll, type MyWager } from "@/lib/queries/wagers";
 import { cn } from "@/lib/utils";
+import { Ticker } from "@/components/ticker";
 import { TabSwitch } from "../tab-switch";
 import { BetSlip } from "./bet-slip";
 import { EventCard, type SportsbookEvent } from "./event-card";
@@ -109,10 +110,10 @@ function SportsbookInner({
 
   return (
     <section className="mt-6" aria-label="Sportsbook">
-      <dl className="grid grid-cols-3 divide-x divide-border rounded-2xl bg-card py-2.5 text-center ring-1 ring-border">
-        <Stat label="Bankroll" value={formatCents(bankroll.data.remainingCents)} highlight />
-        <Stat label="At risk" value={formatCents(atRiskCents)} />
-        <Stat label="Potential" value={formatCents(bankroll.data.potentialPayoutCents)} />
+      <dl className="grid grid-cols-3 divide-x-2 divide-foreground/15 rounded-2xl border-2 border-foreground bg-card py-2.5 text-center">
+        <Stat label="Bankroll" cents={bankroll.data.remainingCents} highlight />
+        <Stat label="At risk" cents={atRiskCents} />
+        <Stat label="Potential" cents={bankroll.data.potentialPayoutCents} />
       </dl>
 
       {houseRules && (
@@ -211,11 +212,13 @@ function HouseRulesChecklist({ items }: { items: ReturnType<typeof requirements>
   );
 }
 
-function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function Stat({ label, cents, highlight }: { label: string; cents: number; highlight?: boolean }) {
   return (
     <div className="px-2">
       <dt className="text-[11px] text-muted-foreground">{label}</dt>
-      <dd className={cn("num mt-0.5 text-2xl leading-none font-bold", highlight && "text-brand")}>{value}</dd>
+      <dd className={cn("num mt-0.5 text-2xl leading-none font-bold", highlight && "text-brand")}>
+        <Ticker cents={cents} />
+      </dd>
     </div>
   );
 }

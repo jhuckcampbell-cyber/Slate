@@ -17,7 +17,9 @@ import { InstallHint } from "@/components/install-hint";
 import { PageSkeleton } from "@/components/page-skeleton";
 import { Leaderboard, type LeaderRow } from "@/components/leaderboard/leaderboard";
 import { PropsDesk, type PropLine, type PropResult } from "@/components/leaderboard/props-desk";
-import { PlayerBets, Reveal, type RevealPlayer } from "@/components/reveal/reveal";
+import { PlayerBets, type BetsPlayer } from "@/components/leaderboard/player-bets";
+import { PicksInMoment } from "@/components/reveal/picks-in-moment";
+import { PostLockTabs } from "@/components/tournament/post-lock-tabs";
 import { Sportsbook } from "@/components/sportsbook/sportsbook";
 import type { SportsbookEvent } from "@/components/sportsbook/event-card";
 import { HostTools } from "@/components/tournament/host-tools";
@@ -161,7 +163,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
           <Link
             href="/"
             aria-label="Home"
-            className="flex size-10 items-center justify-center rounded-full bg-card ring-1 ring-border"
+            className="flex size-10 items-center justify-center rounded-full border-2 border-foreground bg-card transition-transform motion-safe:active:scale-95"
           >
             <House className="size-[18px]" aria-hidden />
           </Link>
@@ -181,7 +183,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
 
       {/* One line with what matters (bankroll and house rules); tap for the rest. */}
       <section className="mt-5" aria-labelledby="rules-heading">
-        <details className="group rounded-2xl bg-card ring-1 ring-border">
+        <details className="group rounded-2xl border-2 border-foreground bg-card">
           <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-3.5 py-2.5 [&::-webkit-details-marker]:hidden">
             <h2 id="rules-heading" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               Rules
@@ -426,7 +428,7 @@ async function RevealSection({
 
   // You first, then everyone in join order (get_roster's order).
   const members = new Map(squad.map((m, joinOrder) => [m.user_id, { ...m, joinOrder }]));
-  const players: RevealPlayer[] = (participants ?? [])
+  const players: BetsPlayer[] = (participants ?? [])
     .map((p) => {
       const member = members.get(p.user_id);
       return {
@@ -434,7 +436,6 @@ async function RevealSection({
         player: {
           participantId: p.id,
           name: member?.display_name ?? "Player",
-          isHost: member?.is_host ?? false,
           isYou: p.user_id === viewerUserId,
           holdingCents: Math.max(0, startingBankrollCents - (staked.get(p.id) ?? 0)),
         },
@@ -442,6 +443,11 @@ async function RevealSection({
     })
     .sort((a, b) => Number(b.player.isYou) - Number(a.player.isYou) || a.joinOrder - b.joinOrder)
     .map((x) => x.player);
+
+  const inPlay = wagers.reduce((sum, w) => sum + w.amountCents, 0);
+  const summary = `${players.length} ${players.length === 1 ? "player" : "players"} · ${wagers.length} ${
+    wagers.length === 1 ? "bet" : "bets"
+  } · ${formatCents(inPlay)} in play`;
 
   return (
     <>
@@ -451,35 +457,37 @@ async function RevealSection({
           finishers={leaders.map((l) => ({ name: l.name, isYou: l.isYou, cashCents: l.cashCents, rank: l.rank }))}
         />
       )}
-      <LiveGames events={events} live={live} />
-      <Leaderboard
-        rows={leaders}
-        settled={settled}
-        startCents={startingBankrollCents}
-        bets={Object.fromEntries(
-          players.map((p) => [
-            p.participantId,
-            <PlayerBets
-              key={p.participantId}
-              player={p}
-              wagers={wagers.filter((w) => w.participantId === p.participantId)}
-              events={events}
-            />,
-          ]),
-        )}
-      />
-      <PropsDesk
-        tournamentId={tournamentId}
-        isHost={squad.some((m) => m.is_host && m.user_id === viewerUserId)}
-        hostName={hostName}
-        pending={propsToGrade}
-        results={propResults}
-      />
-      <Reveal
-        tournamentId={tournamentId}
-        events={events}
-        players={players}
-        wagers={wagers}
+      <PicksInMoment tournamentId={tournamentId} summary={summary} />
+      <PostLockTabs
+        leaderboard={
+          <>
+            <Leaderboard
+              rows={leaders}
+              settled={settled}
+              startCents={startingBankrollCents}
+              bets={Object.fromEntries(
+                players.map((p) => [
+                  p.participantId,
+                  <PlayerBets
+                    key={p.participantId}
+                    player={p}
+                    wagers={wagers.filter((w) => w.participantId === p.participantId)}
+                    events={events}
+                    live={live}
+                  />,
+                ]),
+              )}
+            />
+            <PropsDesk
+              tournamentId={tournamentId}
+              isHost={squad.some((m) => m.is_host && m.user_id === viewerUserId)}
+              hostName={hostName}
+              pending={propsToGrade}
+              results={propResults}
+            />
+          </>
+        }
+        games={<LiveGames events={events} live={live} />}
       />
     </>
   );

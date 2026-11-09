@@ -30,7 +30,8 @@ export function tournamentStatusLabel(t: MyTournament, nowMs: number): string {
   return "Open";
 }
 
-function ordinal(n: number): string {
+/** 1 → "1st", 22 → "22nd". */
+export function ordinal(n: number): string {
   const teen = n % 100 >= 11 && n % 100 <= 13;
   const suffix = teen ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th");
   return `${n}${suffix}`;

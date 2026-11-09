@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickTeam, teamLook } from "./team-colors";
+import { contrastOnWhite, pickTeam, readableTeamColor, teamLook } from "./team-colors";
 
 describe("teamLook: a team's colors and gear for its badge", () => {
   it("NFL teams get a helmet in their colors", () => {
@@ -30,5 +30,29 @@ describe("pickTeam: whose badge goes next to a pick", () => {
     expect(pickTeam({ marketKey: "h2h", outcomeName: "Boston Celtics" })).toBe("Boston Celtics");
     expect(pickTeam({ marketKey: "spreads", outcomeName: "New York Knicks" })).toBe("New York Knicks");
     expect(pickTeam({ marketKey: "totals", outcomeName: "Over" })).toBeNull();
+  });
+});
+
+describe("readableTeamColor: team names in team colors, always readable on white", () => {
+  it("keeps a dark primary", () => {
+    expect(readableTeamColor("Los Angeles Lakers")).toBe("#552583");
+    expect(readableTeamColor("Boston Celtics")).toBe(teamLook("Boston Celtics").primary);
+  });
+  it("falls back to the secondary when the primary is too light", () => {
+    const light = ["Cincinnati Bengals", "Denver Broncos"];
+    for (const team of light) {
+      const { primary, secondary } = teamLook(team);
+      expect(contrastOnWhite(primary)).toBeLessThan(4.5);
+      expect(readableTeamColor(team)).toBe(contrastOnWhite(secondary) >= 4.5 ? secondary : "#181a21");
+    }
+  });
+  it("every color it returns passes 4.5:1", () => {
+    for (const team of ["Golden State Warriors", "Indiana Pacers", "Some New Team", "Miami Dolphins"]) {
+      expect(contrastOnWhite(readableTeamColor(team))).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+  it("contrast math: black is 21, white is 1", () => {
+    expect(contrastOnWhite("#000000")).toBeCloseTo(21, 0);
+    expect(contrastOnWhite("#ffffff")).toBeCloseTo(1, 5);
   });
 });

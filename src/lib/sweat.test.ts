@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatChance, gameView, propProgress, scoreLine, sweatTag, wagerOutcome } from "./sweat";
+import { formatChance, gameView, propProgress, scoreLine, sweatTag, totalProgress, wagerOutcome } from "./sweat";
 
 describe("formatChance", () => {
   it("rounds to whole percent", () => {
@@ -155,5 +155,32 @@ describe("gameView: one game's live card (free live feed, else the official scor
       home: { leading: false },
       away: { leading: false },
     });
+  });
+});
+
+describe("totalProgress: a totals pick against the line", () => {
+  const base = { line: 218.5, home: 56, away: 64, final: false };
+  it("Over: how many more points it needs, bar fills toward the line", () => {
+    const p = totalProgress({ ...base, selection: "Over" })!;
+    expect(p.text).toBe("120 points · needs 99 more");
+    expect(p.fill).toBeCloseTo(120 / 218.5);
+    expect(p.tone).toBe("live");
+  });
+  it("Over cleared and Under went over", () => {
+    expect(totalProgress({ ...base, home: 110, away: 110, selection: "Over" })!.text).toBe("220 points · cleared");
+    expect(totalProgress({ ...base, home: 110, away: 110, selection: "Under" })!.tone).toBe("loss");
+  });
+  it("Under: points to spare (whole points still allowed)", () => {
+    expect(totalProgress({ ...base, selection: "Under" })!.text).toBe("120 points · 98 to spare");
+  });
+  it("final shows the total and the result", () => {
+    const p = totalProgress({ line: 229.5, home: 121, away: 118, final: true, selection: "Under" })!;
+    expect(p.text).toBe("Final: 239 points");
+    expect(p.tone).toBe("loss");
+    expect(p.fill).toBe(1);
+  });
+  it("no score yet, or not a total: null", () => {
+    expect(totalProgress({ ...base, home: null, selection: "Over" })).toBeNull();
+    expect(totalProgress({ ...base, selection: "Knicks" })).toBeNull();
   });
 });

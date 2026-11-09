@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { formatCents } from "../src/lib/format";
-import { admin, closeFinal, createTournament, joinAs, newPage, openPlayerBets, placeSingle, tournamentId, waitForOdds } from "./helpers";
+import { admin, closeFinal, createTournament, expectRevealed, joinAs, newPage, openPlayerBets, placeSingle, showTab, tournamentId, waitForOdds } from "./helpers";
 
 // Phase 5: lock → live scores → leaderboard and chances → final → graded bets, credited
 // bankrolls, winner. Scores are pushed with the service role (what the scores sync does).
@@ -57,20 +57,21 @@ test("live scores move the leaderboard, a final grades bets and crowns a winner"
 
   await host.getByRole("button", { name: "Lock picks now" }).click();
   await host.getByRole("button", { name: "Lock & reveal" }).click();
-  await expect(gina.getByRole("heading", { name: "Picks are in" })).toBeVisible({ timeout: 20_000 });
+  await expectRevealed(gina, 20_000);
 
   // Tip-off, then a live score (ingest first: it also defers the cron's own scores sync).
   await scores(50, 40, false);
   await admin.from("events").update({ commence_time: new Date(Date.now() - 75 * 60_000).toISOString() }).eq("id", eventId);
 
   await expect(gina.getByRole("heading", { name: "Leaderboard" })).toBeVisible({ timeout: 30_000 });
-  // The game card: big score for each side.
-  const game = gina.getByRole("article", { name: "Rockets at Comets" });
+  // The Games tab: big score for each side.
+  await showTab(gina, "Games");
+  const game = gina.getByRole("tabpanel", { name: "Games" }).getByRole("article", { name: "Rockets at Comets" });
   await expect(game).toContainText("40", { timeout: 30_000 });
   await expect(game).toContainText("50");
   await expect(game).toContainText("Live");
   await openPlayerBets(gina, "Gina");
-  await expect(gina.getByText(/\d+% to cash|>99% to cash/).first()).toBeVisible();
+  await expect(gina.getByLabel(/^Chance to win (\d+%|>99%|<1%)$/).first()).toBeVisible();
   // Live order depends on the (fake) prices, so only check both are ranked; the final is exact.
   await expect(gina.getByRole("listitem", { name: /^\d\. Gina/ })).toBeVisible();
   await expect(gina.getByRole("listitem", { name: /^\d\. Hank/ })).toBeVisible();

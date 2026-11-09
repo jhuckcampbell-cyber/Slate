@@ -57,6 +57,11 @@ export function formatDay(iso: string): string {
   });
 }
 
+/** "Nov 2" for past tournaments. Server-rendered, so it pins US Eastern (most players); off by a day only near midnight. */
+export function formatShortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" });
+}
+
 /** ISO → `<input type="datetime-local">` value in the viewer's time zone ("2026-11-03T18:05"). */
 export function toDateTimeLocal(iso: string): string {
   const d = new Date(iso);

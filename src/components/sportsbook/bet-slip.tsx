@@ -181,11 +181,14 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-4 pt-3 pb-[max(env(safe-area-inset-bottom),12px)] backdrop-blur">
           <div className="mx-auto max-w-md">
             <Button
-              className="h-14 w-full justify-between px-4 text-base font-semibold shadow-lg shadow-brand/20"
+              className="h-14 w-full justify-between rounded-2xl px-4 text-base font-semibold"
               onClick={() => dispatch({ type: "open", open: true })}
             >
               <span className="flex items-center gap-2">
-                <span className="flex size-6 items-center justify-center rounded-full bg-background text-xs font-bold text-foreground">
+                <span
+                  data-slip-target
+                  className="flex size-6 items-center justify-center rounded-full bg-background text-xs font-bold text-foreground"
+                >
                   {entries.length}
                 </span>
                 Bet slip
@@ -211,7 +214,7 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
 
           {entries.length >= 2 && (
             <div className="px-4 pb-2">
-              <div role="tablist" className="grid grid-cols-2 rounded-xl bg-card p-1 text-sm ring-1 ring-border">
+              <div role="tablist" className="grid grid-cols-2 gap-1 rounded-full border-2 border-foreground bg-card p-1 text-sm">
                 {(["singles", "parlay"] as const).map((m) => (
                   <button
                     key={m}
@@ -221,8 +224,10 @@ export function BetSlip({ tournamentId, participantId, rules, bankrollCents, bet
                     disabled={m === "parlay" && !parlayCheck.ok}
                     onClick={() => dispatch({ type: "mode", mode: m })}
                     className={cn(
-                      "h-10 rounded-lg font-semibold capitalize disabled:opacity-40",
-                      mode === m ? "bg-foreground text-background shadow-sm" : "text-muted-foreground",
+                      "h-10 rounded-full border-2 capitalize disabled:opacity-40",
+                      mode === m
+                        ? "border-foreground bg-tab font-bold underline decoration-2 underline-offset-4"
+                        : "border-transparent font-semibold text-muted-foreground",
                     )}
                   >
                     {m === "parlay" ? `Parlay (${entries.length})` : "Singles"}

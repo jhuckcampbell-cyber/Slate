@@ -37,14 +37,6 @@ export type ScoredEvent = {
   away_score?: number | null;
 };
 
-export function scoreLine(e: ScoredEvent): { text: string; state: "Final" | "Live" } | null {
-  if (e.home_score == null || e.away_score == null) return null;
-  return {
-    text: `${shortTeam(e.away_team)} ${e.away_score} · ${shortTeam(e.home_team)} ${e.home_score}`,
-    state: e.status === "final" ? "Final" : "Live",
-  };
-}
-
 /**
  * A prop pick's live number during the game (from the box score): "18 Pts · needs 8 more", "28 Pts · went over".
  * Graded picks just show the number. Game lines and picks without a number yet: null.
@@ -78,14 +70,6 @@ export function propProgress(leg: {
     return { text: `${now} · ${spare} to spare`, tone: "live" };
   }
   return null;
-}
-
-/** Tension at a glance for an open bet or leg: Safe (80%+), Danger (20% or less), else Sweating. */
-export function sweatTag(p: number | null): { label: "Safe" | "Sweating" | "Danger"; tone: Tone } | null {
-  if (p === null) return null;
-  if (p >= 0.8) return { label: "Safe", tone: "win" };
-  if (p <= 0.2) return { label: "Danger", tone: "loss" };
-  return { label: "Sweating", tone: "live" };
 }
 
 export type LiveFeed = {

@@ -113,7 +113,7 @@ supabase/tests/              pgTAP: every RLS policy and RPC has tests
    co-participant cannot read it before lock_time.
 2. Clients never write wagers/participants directly. All mutations go through RPCs
    (create_tournament, join_tournament, place_wagers, cancel_wager, replace_wager, update_tournament,
-   lock_tournament_now, remove_participant, grade_prop). Players have
+   lock_tournament_now, remove_participant, grade_prop, set_tournament_tokens). Players have
    no INSERT/UPDATE/DELETE grants on those tables at all.
 3. Never trust client odds or amounts: place_wagers re-reads odds_cache server-side and rejects
    with ODDS_CHANGED (new prices in `details`) on any move; the slip shows "Accept new odds".
@@ -153,13 +153,19 @@ supabase/tests/              pgTAP: every RLS policy and RPC has tests
 - Props are merged across books PER PLAYER (normalize.ts pickPropBooks): never one book for a whole prop market.
 - Leave (player) / delete (host) only before lock: leave_tournament / delete_tournament. A 'tournament' signal with
   status 'deleted' sends open lobbies home.
+- Token mode (migrations 0024/0025): allowed_bet_types.tokens (cents, sum = bankroll) forces all_in; each bet spends one
+  unused token. A trigger keeps tokens consistent with the rules: bankroll = sum, min_bets <= token count, max bet >=
+  biggest token (else INVALID_TOKENS). set_tournament_tokens(null) clears them before anyone bets. The slip's multi-bet
+  tab is "Parlay + singles" (mode "mixed": picks in parlayIds form one parlay, the rest singles, one submit), because
+  all_in is checked per submit and a lone parlay would leave tokens unused.
+- Stale/void legs only settle once a tournament is locked; cancel_wager only cancels pending wagers (WAGER_SETTLED).
 - Live game feed (migration 0018): odds-sync job `live` reads ESPN's free scoreboard once a minute for NBA/NFL games
   in play → game_live (score, clock, down & distance, last play). In-progress scores also update events (live chances);
   a final only ever comes from scores_ingest. Display-only, non-commercial: replace before monetizing.
 
 ## Creative enhancements (log: CHANGELOG.md)
 Built: 1. Live Prop Sweat: prop chance follows the box score + clock (private.prop_live_probability wraps
-leg_probability_base); Safe/Sweating/Danger tags (src/lib/sweat.ts sweatTag). Never use live odds for this:
+leg_probability_base), shown as the chance bar in each player's dropdown. Never use live odds for this:
 it would cost credits and jitter.
 Backlog, in order:
 2. Self-settling props: grade finals from the box score; a player who never played gets his leg voided (parlay drops it).

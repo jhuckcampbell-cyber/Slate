@@ -4,6 +4,22 @@ Product and design decisions, newest first. Each entry says what changed and why
 Guardrails that never move: $100 play money, private friend groups, SMS-link join, blind picks until lock,
 live sweat. See "Creative enhancements" in CLAUDE.md for the running backlog.
 
+## 2026-11-09: token mode that always works, plus a polish pass
+
+A full debug pass. Token tournaments could end up in a state where nobody could place a bet; now they can't.
+
+- **Parlays with tokens.** The slip's second tab is "Parlay + singles": tap "Add to parlay" on the picks you want
+  together, put one token on the parlay and the rest on singles, and place everything at once.
+- **Rules that fit the tokens.** Changing the bankroll, the minimum bets or the max bet in a way the tokens can't
+  meet is refused. Edit rules shows the tokens instead of the bankroll and "bet everything" fields. If saving the
+  tokens fails at create, the half-made tournament is removed and the form stays.
+- **Explained everywhere.** "How it works" and the Rules card describe the tokens.
+- **No flicker while placing.** The slip no longer flashes red errors while a bet is sending.
+- **Safety.** Picks on a game postponed before lock stay cancellable (they're voided after lock), and a settled
+  bet can't be cancelled for a second refund. The join page countdown uses the server's clock.
+- **Polish.** Every tap target is at least 44px; wizard, Edit rules and game-page chips use the bold outlines;
+  the max-legs dropdown is no longer dark; voided picks say "Void", not "Push".
+
 ## 2026-11-08: bolder black and white, Leaderboard | Games, a clearer picks dropdown
 
 The light look was right but too quiet, and "Picks are in" was too much to read.

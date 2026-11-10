@@ -23,7 +23,7 @@ test("picks stay blind until the host locks, then everyone sees them live", asyn
   // Opposite sides of the first game's spread (away row first, home row second).
   await placeSingle(host, host.locator("article").first().locator("button[data-odds-id]").nth(0), 10);
   await placeSingle(guest, guest.locator("article").first().locator("button[data-odds-id]").nth(3), 10);
-  await expect(host.getByText("Squad · 2/2 locked in")).toBeVisible();
+  await expect(host.getByText(/Squad · 2\/2 slips in/)).toBeVisible();
 
   // Nothing identifying Hank's pick reached Gina's browser before lock.
   const { data: wagers, error } = await admin

@@ -36,8 +36,8 @@ export function SettingsButton({ className }: { className?: string }) {
               <div role="radiogroup" aria-labelledby="odds-format" className="mt-2 grid grid-cols-2 gap-2">
                 {(
                   [
-                    ["american", "-110 / +250", "Classic odds"],
                     ["percent", "52% / 29%", "Chance to win"],
+                    ["american", "-110 / +250", "Classic odds"],
                   ] as const
                 ).map(([value, sample, label]) => (
                   <button

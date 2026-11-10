@@ -32,7 +32,7 @@ test("host creates a tournament, guest joins via invite link in <15s", async ({ 
   expect(elapsed, `join took ${elapsed}ms`).toBeLessThan(15_000);
 
   // Roster shows both; guest is not offered host share panel.
-  await expect(guest.getByText("Squad · 0/2 locked in")).toBeVisible();
+  await expect(guest.getByText(/Squad · 0\/2 slips in/)).toBeVisible();
   await expect(guest.getByRole("listitem").filter({ hasText: "Hank" })).toBeVisible();
 
   // ---- Share preview (OG) ----

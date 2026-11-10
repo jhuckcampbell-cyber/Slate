@@ -22,8 +22,8 @@ export async function generateMetadata({ params }: PageProps<"/join/[code]">): P
   return {
     title: `Join ${t.title}`,
     description,
-    openGraph: { title: `${sportEmoji(t.sport_key)} ${t.title}`, description, type: "website" },
-    twitter: { card: "summary_large_image", title: t.title, description },
+    openGraph: { title: `${t.host_name} invited you to ${t.title}`, description, type: "website" },
+    twitter: { card: "summary_large_image", title: `${t.host_name} invited you to ${t.title}`, description },
   };
 }
 

@@ -18,6 +18,8 @@ import {
   shortTeam,
 } from "@/lib/format";
 import { flyToSlip } from "@/lib/fly";
+import { tenDollarWins } from "@/lib/plain-english";
+import { useOddsFormat } from "@/lib/prefs";
 import { cn } from "@/lib/utils";
 
 export type SportsbookEvent = {
@@ -92,6 +94,7 @@ export function GameLines({ event, markets, allowedMarkets, locked, selected, on
   const columns = COLUMN_ORDER.filter((m) => allowedMarkets.includes(m));
   const grid = GRID[columns.length] ?? GRID[3];
   const hasOdds = columns.some((m) => (markets?.get(m)?.length ?? 0) > 0);
+  const format = useOddsFormat();
   const sides = [
     { team: event.away_team, totalsSide: "Over" },
     { team: event.home_team, totalsSide: "Under" },
@@ -106,6 +109,7 @@ export function GameLines({ event, markets, allowedMarkets, locked, selected, on
         {columns.map((m) => (
           <span key={m} className="text-center">
             {MARKET_LABELS[m]}
+            {m === "h2h" && format === "percent" && <span className="block">$10 bet</span>}
           </span>
         ))}
       </header>
@@ -124,6 +128,7 @@ export function GameLines({ event, markets, allowedMarkets, locked, selected, on
                 selected={row ? selected.has(row.id) : false}
                 disabled={locked || !row || row.isStale}
                 onClick={() => row && onToggle(row)}
+                showPayout={m === "h2h"}
               />
             );
           })}
@@ -286,12 +291,16 @@ export function OddsButton({
   selected,
   disabled,
   onClick,
+  showPayout = false,
 }: {
   row: BoardRow | undefined;
   selected: boolean;
   disabled: boolean;
   onClick: () => void;
+  /** Under a % on the Winner column (header says "$10 bet"): what $10 wins. */
+  showPayout?: boolean;
 }) {
+  const format = useOddsFormat();
   if (!row) {
     return (
       <div className="flex h-13 items-center justify-center rounded-xl bg-muted/40 text-xs text-muted-foreground">
@@ -357,6 +366,17 @@ export function OddsButton({
         >
           <Odds american={row.priceAmerican} />
         </span>
+        {/* % alone hides the payout, so the Winner column says what a $10 bet wins. Lines/ladders stay %-only. */}
+        {showPayout && !line && format === "percent" && (
+          <span
+            className={cn(
+              "mt-1 font-sans text-[10px] leading-none font-medium tracking-tight whitespace-nowrap",
+              selected ? "text-brand-foreground/75" : "text-muted-foreground",
+            )}
+          >
+            {tenDollarWins(row.priceAmerican)}
+          </span>
+        )}
       </span>
     </button>
   );

@@ -1,6 +1,8 @@
 "use client";
 
-import { CircleCheck, Crown, Hourglass, Loader2, UserMinus } from "lucide-react";
+import { CircleCheck, Crown, Loader2, Lock, UserMinus } from "lucide-react";
+import { StubTear, stub } from "@/components/brand";
+import { LocalTime } from "@/components/local-time";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -16,6 +18,7 @@ import {
 } from "@/components/ui/drawer";
 import { friendlyError } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 
 export type SquadMember = {
   user_id: string;
@@ -28,14 +31,16 @@ type Props = {
   tournamentId: string;
   members: SquadMember[];
   viewerUserId: string;
-  /** Pre-lock: show who's submitted ("5/8 locked in") without revealing what. */
+  /** Pre-lock: show who's submitted ("5/8 slips in") without revealing what. */
   showStatus: boolean;
   /** Host, pre-lock. */
   canRemove: boolean;
+  /** Lock time: the heading says when everyone's slips are revealed. */
+  revealIso?: string;
   children?: React.ReactNode;
 };
 
-export function SquadList({ tournamentId, members, viewerUserId, showStatus, canRemove, children }: Props) {
+export function SquadList({ tournamentId, members, viewerUserId, showStatus, canRemove, revealIso, children }: Props) {
   const router = useRouter();
   const [removing, setRemoving] = useState<SquadMember | null>(null);
   const [pending, setPending] = useState(false);
@@ -61,42 +66,67 @@ export function SquadList({ tournamentId, members, viewerUserId, showStatus, can
   return (
     <section className="mt-8" aria-labelledby="squad-heading">
       <h2 id="squad-heading" className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-        Squad · {showStatus ? `${submitted}/${members.length} locked in` : members.length}
+        Squad · {showStatus ? `${submitted}/${members.length} slips in` : members.length}
+        {revealIso && (
+          <>
+            {" "}
+            · reveal <LocalTime iso={revealIso} />
+          </>
+        )}
       </h2>
       <ul className="space-y-2">
-        {members.map((m) => (
-          <li key={m.user_id} className="flex min-h-15 items-center gap-3 rounded-xl bg-card p-3 ring-1 ring-border">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand/15 font-semibold text-brand">
-              {m.display_name.slice(0, 1).toUpperCase()}
-            </span>
-            <span className="min-w-0 flex-1 truncate font-medium">
-              {m.display_name}
-              {m.user_id === viewerUserId && <span className="text-muted-foreground"> (you)</span>}
-              {m.is_host && <Crown className="ml-1.5 inline size-4 text-warn" aria-label="Host" />}
-            </span>
-            {showStatus &&
-              (m.has_submitted ? (
-                <span className="flex items-center gap-1 text-xs text-brand">
-                  <CircleCheck className="size-4" /> Picks in
+        {members.map((m) => {
+          const you = m.user_id === viewerUserId;
+          return (
+            <li key={m.user_id} className={stub(you ? "you" : "ghost", "min-h-15")}>
+              <div className="flex min-w-0 flex-1 items-center gap-3 py-2 pl-3 pr-1">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-2 font-semibold">
+                  {m.display_name.slice(0, 1).toUpperCase()}
                 </span>
-              ) : (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Hourglass className="size-4" /> Thinking…
+                <span className={cn("min-w-0 flex-1 truncate font-medium", !you && "text-foreground/80")}>
+                  {m.display_name}
+                  {you && <span className="text-muted-foreground"> (you)</span>}
+                  {m.is_host && <Crown className="ml-1.5 inline size-4 text-warn" aria-label="Host" />}
                 </span>
-              ))}
-            {canRemove && !m.is_host && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="-my-2 -mr-2 size-11 text-muted-foreground"
-                aria-label={`Remove ${m.display_name}`}
-                onClick={() => setRemoving(m)}
-              >
-                <UserMinus />
-              </Button>
-            )}
-          </li>
-        ))}
+                {canRemove && !m.is_host && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-11 shrink-0 text-muted-foreground"
+                    aria-label={`Remove ${m.display_name}`}
+                    onClick={() => setRemoving(m)}
+                  >
+                    <UserMinus />
+                  </Button>
+                )}
+              </div>
+              {showStatus && (
+                <StubTear className="text-xs">
+                  {m.has_submitted ? (
+                    you ? (
+                      <>
+                        <CircleCheck className="size-5" aria-hidden />
+                        <span className="mt-0.5 font-semibold">Slip in</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="size-4" aria-hidden />
+                        <span className="mt-0.5 font-semibold">Sealed</span>
+                        {/* Decoration only: says "there's a slip here", carries no pick data. */}
+                        <span aria-hidden className="mt-1 flex gap-1 opacity-50 blur-[2px]">
+                          <i className="block h-1.5 w-4 rounded-full bg-foreground" />
+                          <i className="block h-1.5 w-6 rounded-full bg-foreground" />
+                        </span>
+                      </>
+                    )
+                  ) : (
+                    <span className="text-muted-foreground">thinking…</span>
+                  )}
+                </StubTear>
+              )}
+            </li>
+          );
+        })}
       </ul>
       {children}
 

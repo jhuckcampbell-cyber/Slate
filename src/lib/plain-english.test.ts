@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { chanceExplainer, formatOdds, impliedChance, oddsMeaning, requirements, explainTournament } from "./plain-english";
+import {
+  chanceExplainer,
+  explainTournament,
+  formatNet,
+  formatOdds,
+  impliedChance,
+  oddsMeaning,
+  requirements,
+  resultText,
+  tenDollarWins,
+  whosIn,
+} from "./plain-english";
 
 describe("odds as a chance (Settings: percent)", () => {
   it("American odds → the chance they imply, rounded", () => {
@@ -99,5 +110,42 @@ describe("chanceExplainer: the (i) next to a live pick's %", () => {
   });
   it("parlays say every leg has to hit", () => {
     expect(chanceExplainer("27%", true).body).toContain("Every leg has to hit");
+  });
+});
+
+describe("quick wins: invite, payout line, final result", () => {
+  it("names only the host on the invite preview", () => {
+    expect(whosIn("Huck", 1)).toBe("Huck is in");
+    expect(whosIn("Huck", 2)).toBe("Huck + 1 other is in");
+    expect(whosIn("Huck", 5)).toBe("Huck + 4 others are in");
+    expect(whosIn("Huck", 0)).toBe("Huck is in");
+  });
+
+  it("says what a $10 bet wins with the slip's floor rounding", () => {
+    expect(tenDollarWins(130)).toBe("wins $13");
+    expect(tenDollarWins(-150)).toBe("wins $6.66"); // floor(1000 × 1.6667) = 1666
+    expect(tenDollarWins(-110)).toBe("wins $9.09");
+    expect(tenDollarWins(1200)).toBe("wins $120");
+  });
+
+  it("formats net up, down and even", () => {
+    expect(formatNet(8400)).toBe("+$84");
+    expect(formatNet(-8050)).toBe("−$80.50");
+    expect(formatNet(0)).toBe("even");
+  });
+
+  it("builds a spoiler-free result: place, net, one square per bet, link", () => {
+    expect(
+      resultText({
+        title: "Tuesday Night Hoops",
+        rank: 2,
+        players: 5,
+        netCents: 8400,
+        bets: ["won", "won", "lost", "void"],
+        url: "https://slate.app/t/K7QX",
+      }),
+    ).toBe("slate / Tuesday Night Hoops\n2nd of 5 · +$84\n🟩🟩🟥⬜\nhttps://slate.app/t/K7QX");
+    // No bets: no empty squares line.
+    expect(resultText({ title: "T", rank: 1, players: 2, netCents: 0, bets: [], url: "u" })).toBe("slate / T\n1st of 2 · even\nu");
   });
 });

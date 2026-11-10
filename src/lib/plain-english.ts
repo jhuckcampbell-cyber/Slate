@@ -2,7 +2,9 @@
  * Words for people who have never bet: odds as a chance, what a price pays, the house-rules checklist, and the
  * "what am I getting into" sheet behind every tournament title. Pure (no React), unit-tested.
  */
+import { americanToDecimalE4, payoutCents } from "./core/odds";
 import { formatCents } from "./format";
+import { ordinal } from "./my-tournaments";
 
 export type OddsFormat = "american" | "percent";
 
@@ -22,6 +24,47 @@ export function formatOdds(american: number, format: OddsFormat): string {
 export function oddsMeaning(american: number): string {
   const profitCents = Math.round(american > 0 ? 10 * american : (1000 * 100) / -american);
   return `Bet $10 to win ${formatCents(profitCents)} (about a ${formatOdds(american, "percent")} chance)`;
+}
+
+/** Invite preview: "Huck is in" / "Huck + 1 other is in" / "Huck + 4 others are in". Only the host's name is public. */
+export function whosIn(host: string, count: number): string {
+  const others = Math.max(0, count - 1);
+  if (others === 0) return `${host} is in`;
+  return `${host} + ${others} other${others === 1 ? " is" : "s are"} in`;
+}
+
+/**
+ * Under a % on a Winner button (the column header says "$10 bet"): "wins $13". Same rounding as the slip and
+ * place_wagers (floor of stake × decimal).
+ */
+export function tenDollarWins(american: number): string {
+  const stake = 1000;
+  return `wins ${formatCents(payoutCents(stake, americanToDecimalE4(american)) - stake)}`;
+}
+
+/** "+$84", "−$80", "even": up or down from the starting bankroll. */
+export function formatNet(cents: number): string {
+  if (cents === 0) return "even";
+  return `${cents > 0 ? "+" : "−"}${formatCents(Math.abs(cents))}`;
+}
+
+/**
+ * The Wordle-style result a player pastes into the group chat after the final. One square per bet (a parlay is one
+ * square): 🟩 won, 🟥 lost, ⬜ push/void. Says nothing about WHICH picks, so it spoils nothing.
+ */
+export function resultText(r: {
+  title: string;
+  rank: number;
+  players: number;
+  netCents: number;
+  /** Each bet's wager_status. */
+  bets: readonly string[];
+  url: string;
+}): string {
+  const squares = r.bets.map((b) => (b === "won" ? "🟩" : b === "lost" ? "🟥" : "⬜")).join("");
+  return [`slate / ${r.title}`, `${ordinal(r.rank)} of ${r.players} · ${formatNet(r.netCents)}`, squares, r.url]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export type HouseRules = { allIn: boolean; minBets: number; bankrollCents: number };

@@ -12,7 +12,7 @@ import { SettingsButton } from "@/components/settings/settings-button";
 import { ExitTournament } from "@/components/tournament/exit-tournament";
 import { TournamentTitle } from "@/components/tournament/explainer";
 import { TournamentSwitcher } from "@/components/tournament/tournament-switcher";
-import { explainTournament } from "@/lib/plain-english";
+import { explainTournament, resultText } from "@/lib/plain-english";
 import { InstallHint } from "@/components/install-hint";
 import { PageSkeleton } from "@/components/page-skeleton";
 import { Leaderboard, type LeaderRow } from "@/components/leaderboard/leaderboard";
@@ -246,6 +246,8 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
           viewerUserId={viewer.userId}
           settled={t.status === "settled"}
           startingBankrollCents={Number(t.starting_bankroll_cents)}
+          title={t.title}
+          resultUrl={`${publicEnv.siteUrl}/t/${t.code}`}
         />
       ) : (
         <>
@@ -301,6 +303,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
             viewerUserId={viewer.userId}
             showStatus
             canRemove={isHost}
+            revealIso={t.lock_time}
           >
             {!created && (
               <ShareButton className="mt-3" code={t.code} url={shareUrl} title={t.title} bankrollLabel={bankroll} />
@@ -366,6 +369,8 @@ async function RevealSection({
   viewerUserId,
   settled,
   startingBankrollCents,
+  title,
+  resultUrl,
 }: {
   supabase: Supabase;
   tournamentId: string;
@@ -374,6 +379,8 @@ async function RevealSection({
   viewerUserId: string;
   settled: boolean;
   startingBankrollCents: number;
+  title: string;
+  resultUrl: string;
 }) {
   const [{ data: wagerRows }, { data: participants }, { data: board }, { data: propRows }, { data: liveRows }] =
     await Promise.all([
@@ -457,6 +464,19 @@ async function RevealSection({
     wagers.length === 1 ? "bet" : "bets"
   } · ${formatCents(inPlay)} in play`;
 
+  const me = leaders.find((l) => l.isYou);
+  const result =
+    settled && me
+      ? resultText({
+          title,
+          rank: me.rank,
+          players: leaders.length,
+          netCents: me.cashCents - startingBankrollCents,
+          bets: wagers.filter((w) => w.participantId === me.participantId).map((w) => w.status),
+          url: resultUrl,
+        })
+      : undefined;
+
   return (
     <>
       {settled && (
@@ -473,6 +493,7 @@ async function RevealSection({
               rows={leaders}
               settled={settled}
               startCents={startingBankrollCents}
+              result={result}
               bets={Object.fromEntries(
                 players.map((p) => [
                   p.participantId,

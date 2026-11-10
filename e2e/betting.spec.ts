@@ -30,7 +30,7 @@ test("blind slip: parlay, live odds change, cancel refund", async ({ browser }) 
   // Guest: sees that Hank submitted, but not what.
   await guest.reload();
   await guest.waitForLoadState("networkidle"); // hydrated, so the tab tap works
-  await expect(guest.getByText(/1\/2 locked in/)).toBeVisible();
+  await expect(guest.getByText(/1\/2 slips in/)).toBeVisible();
   await guest.getByRole("tab", { name: /My picks/ }).click();
   await expect(guest.getByText("No picks yet")).toBeVisible();
 

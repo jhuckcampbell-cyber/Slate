@@ -6,7 +6,9 @@ import { ArrowDown, ArrowUp, ChevronDown, RotateCcw, Trophy } from "lucide-react
 import { StubTear, stub } from "@/components/brand";
 import { Ticker } from "@/components/ticker";
 import { buttonVariants } from "@/components/ui/button";
+import { CopyResult } from "@/components/leaderboard/copy-result";
 import { formatCents } from "@/lib/format";
+import { formatNet } from "@/lib/plain-english";
 import { cn } from "@/lib/utils";
 
 export type LeaderRow = {
@@ -35,12 +37,15 @@ export function Leaderboard({
   settled,
   bets = {},
   startCents,
+  result,
 }: {
   rows: LeaderRow[];
   settled: boolean;
   bets?: Record<string, React.ReactNode>;
   /** Starting bankroll: each row shows how far up or down from it the player is. */
   startCents?: number;
+  /** Final only: the viewer's plain-text result for "Copy result" (resultText). */
+  result?: string;
 }) {
   const sorted = [...rows].sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
   const winners = settled ? sorted.filter((r) => r.rank === 1) : [];
@@ -141,6 +146,14 @@ export function Leaderboard({
                           </span>
                         )}
                       </p>
+                      {settled && change !== null && startCents !== undefined && (
+                        <p className="num text-muted-foreground text-sm">
+                          {formatCents(startCents)} → {formatCents(score)} ·{" "}
+                          <span className={cn("font-bold", change > 0 ? "text-win" : change < 0 ? "text-loss" : "")}>
+                            {formatNet(change)}
+                          </span>
+                        </p>
+                      )}
                       {note && <p className={cn("text-xs font-semibold", note.tone)}>{note.text}</p>}
                     </div>
                     <ChevronDown
@@ -150,7 +163,7 @@ export function Leaderboard({
                   </div>
                   <StubTear className="items-end pr-3">
                     <Ticker cents={score} className={cn("num text-[1.6rem]/none font-bold", out && "text-muted-foreground")} />
-                    {change !== null && <Change cents={change} />}
+                    {change !== null && !settled && <Change cents={change} />}
                   </StubTear>
                 </summary>
                 {/* The back of the ticket: slides out from under the stub. */}
@@ -163,8 +176,9 @@ export function Leaderboard({
         })}
       </ol>
 
+      {settled && result && <CopyResult text={result} className="mt-5 h-12 w-full rounded-2xl text-base font-semibold" />}
       {settled && (
-        <Link href="/create" className={cn(buttonVariants(), "mt-5 h-14 w-full rounded-2xl text-base font-semibold")}>
+        <Link href="/create" className={cn(buttonVariants(), result ? "mt-2" : "mt-5", "h-14 w-full rounded-2xl text-base font-semibold")}>
           <RotateCcw /> Run it back
         </Link>
       )}

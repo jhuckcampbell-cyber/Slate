@@ -10,11 +10,15 @@ import type { OddsFormat } from "./plain-english";
 const KEY = "slate:odds-format";
 const EVENT = "slate:prefs";
 
+/** % chance is the default (plain English for people who've never bet); American odds are opt-in in Settings. */
+export const DEFAULT_ODDS_FORMAT: OddsFormat = "percent";
+
 function read(): OddsFormat {
   try {
-    return localStorage.getItem(KEY) === "percent" ? "percent" : "american";
+    const stored = localStorage.getItem(KEY);
+    return stored === "american" || stored === "percent" ? stored : DEFAULT_ODDS_FORMAT;
   } catch {
-    return "american";
+    return DEFAULT_ODDS_FORMAT;
   }
 }
 
@@ -28,7 +32,7 @@ function subscribe(onChange: () => void) {
 }
 
 export function useOddsFormat(): OddsFormat {
-  return useSyncExternalStore(subscribe, read, () => "american");
+  return useSyncExternalStore(subscribe, read, () => DEFAULT_ODDS_FORMAT);
 }
 
 export function setOddsFormat(format: OddsFormat) {

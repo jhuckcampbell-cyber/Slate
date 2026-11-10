@@ -1,4 +1,5 @@
 /** Display helpers. Money is always integer cents in storage (CLAUDE.md rule 4). */
+import { getTeam } from "./team";
 
 export function formatCents(cents: number, opts: { showCents?: boolean } = {}): string {
   const showCents = opts.showCents ?? cents % 100 !== 0;
@@ -95,7 +96,7 @@ export function matchupLabel(e: { away_team: string; home_team: string }): strin
 
 /** "Boston Celtics" → "Celtics"; "San Francisco 49ers" → "49ers". */
 export function shortTeam(name: string): string {
-  return name.split(" ").pop() ?? name;
+  return getTeam(name).short;
 }
 
 export function formatAmerican(price: number): string {

@@ -10,6 +10,11 @@ describe("teamLook: a team's colors and gear for its badge", () => {
     expect(teamLook("Boston Celtics")).toEqual({ kind: "jersey", primary: "#007A33", secondary: "#BA9653" });
     expect(teamLook("Los Angeles Lakers").kind).toBe("jersey");
   });
+  it("uses neutral college badges with sport-appropriate gear", () => {
+    expect(teamLook("Alabama Crimson Tide", "americanfootball_ncaaf")).toEqual({ kind: "helmet", primary: "#52525b", secondary: "#d4d4d8" });
+    expect(teamLook("Duke Blue Devils", "basketball_ncaab")).toEqual({ kind: "jersey", primary: "#52525b", secondary: "#d4d4d8" });
+    expect(contrastOnWhite(readableTeamColor("Duke Blue Devils", "basketball_ncaab"))).toBeGreaterThanOrEqual(4.5);
+  });
   it("all 62 teams are covered", async () => {
     const { TEAM_COLORS } = await import("./team-colors");
     expect(Object.keys(TEAM_COLORS)).toHaveLength(62);

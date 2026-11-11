@@ -13,14 +13,14 @@
 //   ODDS_API_KEY       required for the-odds-api
 //   ODDS_BOOKMAKERS    priority list, default "draftkings,fanduel,betmgm"
 import type { createClient as ClientFactory, SupabaseClient } from "@supabase/supabase-js";
-import { fakeOddsResponse, fakeRoster } from "../_shared/fake-provider.ts";
+import { fakeCatalog, fakeOddsResponse, fakeRoster } from "../_shared/fake-provider.ts";
 import { normalizeOddsResponse } from "../_shared/normalize.ts";
 import type { ApiEvent } from "../_shared/odds-api.ts";
 import { oddsCallCost, usageFromHeaders, type Usage as HeaderUsage } from "../_shared/budget.ts";
 import { fakeScoresResponse, normalizeScores, SCORES_CALL_COST, type ApiScoreEvent } from "../_shared/scores.ts";
 import { SLEEPER_NFL_PLAYERS_URL, sleeperToRoster } from "../_shared/rosters.ts";
 import { espnLiveUrl, fakeLiveGames, liveGamesFromScoreboard, type LiveGame } from "../_shared/live.ts";
-import { espnBoxToStats, espnScoreboardUrl, espnSummaryUrl, fakeBoxStats, findEspnGame, type BoxStats } from "../_shared/stats.ts";
+import { STATS_SPORTS, espnBoxToStats, espnScoreboardUrl, espnSummaryUrl, fakeBoxStats, findEspnGame, type BoxStats } from "../_shared/stats.ts";
 
 type Job =
   | { kind: "odds"; sport_key: string; markets: string[]; event_ids: string[] }
@@ -190,6 +190,9 @@ async function runPropsJob(
   provider: "fake" | "the-odds-api",
   bookmakers: string[],
 ) {
+  if (job.sport_key === "americanfootball_ncaaf" || job.sport_key === "basketball_ncaab") {
+    return { kind: job.kind, sport_key: job.sport_key, event_id: job.event_id, skipped: "college game lines only" };
+  }
   const fetchedAt = new Date().toISOString();
   let apiEvents: ApiEvent[];
   if (provider === "fake") {
@@ -232,7 +235,7 @@ async function runPropsJob(
  * the props job: a missing roster just means the board can't label teams.
  */
 async function syncRosters(supabase: SupabaseClient, sportKey: string) {
-  if (!sportKey.startsWith("americanfootball_nfl")) return null;
+  if (sportKey !== "americanfootball_nfl") return null;
   try {
     const { data: due, error } = await supabase.rpc("rosters_due", { p_sport_key: sportKey });
     if (error || !due) return null;
@@ -271,7 +274,8 @@ async function runJob(
   let usage: Usage | null = null;
 
   if (job.kind === "catalog") {
-    // /events is free (0 credits) on The Odds API. The fake provider has no catalog: seed.sql is.
+    // /events is free (0 credits) on The Odds API.
+    if (provider === "fake") apiEvents = fakeCatalog(job.sport_key, Date.now());
     if (provider === "the-odds-api") {
       const path = `/sports/${job.sport_key}/events`;
       const res = await oddsApi(path, { dateFormat: "iso" });
@@ -363,6 +367,7 @@ async function runStatsJob(
   job: Extract<Job, { kind: "stats" }>,
   provider: "fake" | "the-odds-api",
 ) {
+  if (!STATS_SPORTS.includes(job.sport_key)) return { kind: job.kind, event_id: job.event_id, skipped: "unsupported sport" };
   let providerId = job.provider_id;
   let box: BoxStats = { final: false, stats: [], remaining: null };
   if (provider === "fake") {
@@ -421,7 +426,7 @@ async function runLiveJob(
     }));
   } else {
     const urls = new Set(job.events.map((e) => espnLiveUrl(job.sport_key, e.commence_time)).filter((u) => u !== null));
-    for (const url of urls) games.push(...liveGamesFromScoreboard(await getJson(url), job.events));
+    for (const url of urls) games.push(...liveGamesFromScoreboard(await getJson(url), job.events, job.sport_key));
   }
   const { data, error } = await supabase.rpc("live_ingest", { p_sport_key: job.sport_key, p_games: games });
   if (error) throw new Error(`live ingest failed: ${error.message}`);

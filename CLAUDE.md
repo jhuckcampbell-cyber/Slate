@@ -48,6 +48,15 @@ odds_sync_claim() [lease + due jobs] → provider → normalize (_shared) → od
   the free tier's 500) would be passed, or the provider's counter is low. Never add a paid call that skips it.
   Operate with `npm run odds -- status|dry-run|sync|enable|disable`. Cadence tiers live in app_settings.
 
+## College sports
+NCAAF (`americanfootball_ncaaf`) and NCAAB (`basketball_ncaab`) are OFF by default
+(`odds_college_enabled=false`). Game lines only: winner, spread, total; no player
+props, Sleeper rosters, or player stats. ESPN scoreboard live is display-only;
+Odds API scores provide final grading. To enable, update `app_settings` keys
+`odds_college_enabled` to `true` and `odds_catalog_sports` to include the desired
+college keys. `odds_college_max_events` defaults to 8. Use a paid plan or replace
+NFL/NBA after reviewing `docs/ODDS_BUDGET.md`.
+
 ## Lock & reveal (Phase 3)
 - Lock guards are TRIGGERS (migration 0006): after lock nothing can add/edit/delete a pick, move the lock,
   change the rules, or add a player, even code that bypasses the RPCs. Grading may only touch outcome

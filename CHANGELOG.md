@@ -17,6 +17,14 @@ live sweat. See "Creative enhancements" in CLAUDE.md for the running backlog.
 - **0028 ? Reliable ingestion.** Older snapshots cannot overwrite newer data, withdrawn prop outcomes are removed, sync leases can be renewed, and run logs plus health summaries expose stale feeds and failures.
 - **Guest sign-in protection.** Turnstile code is built; Cloudflare keys and production Supabase captcha configuration remain pending.
 
+## 2026-11-10: college game lines
+
+NCAAF and NCAAB support winner, spread, and total with school-name labels and neutral
+badges. The wizard explains the scope; prop controls stay limited to NBA/NFL and
+line-only games open directly to Game lines. College is off by default, with ESPN
+live display only and no player stats. The budget model adds capped Saturday slates
+and recommends paid capacity or replacing NFL/NBA before enabling.
+
 ## 2026-11-09: token mode that always works, plus a polish pass
 
 A full debug pass. Token tournaments could end up in a state where nobody could place a bet; now they can't.

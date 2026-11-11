@@ -98,7 +98,7 @@ export function fakeOddsResponse(
     };
 
     for (const key of markets) {
-      if (key.startsWith("player_")) all[key] = fakePropMarket(ev, key, drift, lastUpdate);
+      if (!COLLEGE_TEAMS[ev.sport_key] && key.startsWith("player_")) all[key] = fakePropMarket(ev, key, drift, lastUpdate);
     }
 
     return {
@@ -244,4 +244,24 @@ export function hash(s: string): number {
     h = Math.imul(h, 0x01000193);
   }
   return h >>> 0;
+}
+
+/** College catalog fixtures use full Odds API school and mascot names. */
+export const COLLEGE_TEAMS: Record<string, string[]> = {
+  americanfootball_ncaaf: ["Alabama Crimson Tide", "Georgia Bulldogs", "Ohio State Buckeyes", "Michigan Wolverines", "Texas Longhorns", "Oklahoma Sooners", "Oregon Ducks", "Penn State Nittany Lions", "Notre Dame Fighting Irish", "LSU Tigers", "Clemson Tigers", "Florida State Seminoles"],
+  basketball_ncaab: ["Duke Blue Devils", "North Carolina Tar Heels", "Kansas Jayhawks", "Kentucky Wildcats", "Gonzaga Bulldogs", "UConn Huskies", "Purdue Boilermakers", "Houston Cougars", "Arizona Wildcats", "UCLA Bruins", "Michigan State Spartans", "Villanova Wildcats"],
+};
+
+/** Stable daily local slate; no network requests or player markets. */
+export function fakeCatalog(sportKey: string, nowMs: number): ApiEvent[] {
+  const teams = COLLEGE_TEAMS[sportKey] ?? [];
+  const day = Math.floor(nowMs / 86_400_000);
+  return Array.from({ length: teams.length / 2 }, (_, i) => ({
+    id: `fake-${sportKey}-${day}-${i}`,
+    sport_key: sportKey,
+    sport_title: sportKey === "basketball_ncaab" ? "NCAAB" : "NCAAF",
+    home_team: teams[i * 2]!,
+    away_team: teams[i * 2 + 1]!,
+    commence_time: new Date((day + 1) * 86_400_000 + (18 + i) * 3_600_000).toISOString(),
+  }));
 }

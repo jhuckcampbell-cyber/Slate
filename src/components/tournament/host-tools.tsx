@@ -32,7 +32,7 @@ type Props = {
   canEditBankroll: boolean;
   /** Names of players with no picks yet, for the lock confirmation. */
   waitingOn: string[];
-  /** This sport has player props (NBA/NFL/college). */
+  /** This sport has player props (NBA/NFL). */
   propsAvailable: boolean;
 };
 

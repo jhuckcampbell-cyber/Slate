@@ -48,7 +48,11 @@ const SPORTS: Record<string, Sport> = {
 };
 
 export const STATS_SPORTS = Object.keys(SPORTS);
-const sport = (sportKey: string): Sport => SPORTS[sportKey] ?? SPORTS.basketball_nba;
+const sport = (sportKey: string): Sport => {
+  const s = SPORTS[sportKey];
+  if (!s) throw new Error(`no box-score mapping for sport ${sportKey}`); // never fall back to NBA for an unknown sport
+  return s;
+};
 
 /**
  * Share of a game left, from the feed's period and clock ("8:21", "0:30.4"). Four periods (12 min NBA, 15 min NFL);
@@ -58,6 +62,7 @@ export function gameRemaining(
   status: { state?: unknown; period?: unknown; displayClock?: unknown },
   sportKey = "basketball_nba",
 ): number | null {
+  if (!STATS_SPORTS.includes(sportKey)) return null;
   if (status.state === "post") return 0;
   if (status.state === "pre") return 1;
   const len = sport(sportKey).periodSeconds;
@@ -103,6 +108,7 @@ export function findEspnGame(scoreboard: unknown, game: { home_team: string; awa
 
 /** A game summary's box score -> one row per player per stat we offer props on. */
 export function espnBoxToStats(summary: unknown, sportKey = "basketball_nba"): BoxStats {
+  if (!STATS_SPORTS.includes(sportKey)) return { final: false, stats: [], remaining: null };
   const { markets } = sport(sportKey);
   const clock = obj(obj(arr(obj(obj(summary).header).competitions)[0]).status);
   const status = obj(clock.type);

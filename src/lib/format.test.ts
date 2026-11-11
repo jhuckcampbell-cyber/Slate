@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MARKET_LABELS, formatCheckedAgo, selectionLabel } from "./format";
+import { sportEmoji, sportLabel, MARKET_LABELS, formatCheckedAgo, selectionLabel } from "./format";
 
 describe("formatCheckedAgo", () => {
   const now = Date.parse("2026-11-03T12:00:00Z");
@@ -61,4 +61,11 @@ describe("prop labels", () => {
       selectionLabel({ marketKey: "player_pass_tds", outcomeName: "Over", point: 1.5, participantName: "Trevor Lawrence" }),
     ).toBe("Trevor Lawrence Over 1.5 Pass TDs");
   });
+});
+
+it("labels college sports with their sport emoji", () => {
+  expect(sportLabel("americanfootball_ncaaf")).toBe("NCAAF");
+  expect(sportLabel("basketball_ncaab")).toBe("NCAAB");
+  expect(sportEmoji("americanfootball_ncaaf")).toBe("\u{1F3C8}");
+  expect(sportEmoji("basketball_ncaab")).toBe("\u{1F3C0}");
 });

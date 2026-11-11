@@ -311,3 +311,7 @@ it("certifies a touchdown sum only after all explicit component rows arrive", ()
   expect(box.stats.find((r) => r.market_key === "player_anytime_td"))
     .toMatchObject({ stat: 1, complete: true, provider_player_id: "td" });
 });
+
+it.each(["americanfootball_ncaaf", "basketball_ncaab"])("skips college box scores for %s", (key) => {
+  expect(espnBoxToStats({ header: { competitions: [{ status: { type: { completed: true } } }] } }, key)).toEqual({ final: false, stats: [], remaining: null });
+});

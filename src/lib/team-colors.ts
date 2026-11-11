@@ -99,6 +99,9 @@ function fallback(team: string): [string, string] {
 }
 
 export function teamLook(team: string, sportKey?: string): TeamLook {
+  if (sportKey === "americanfootball_ncaaf" || sportKey === "basketball_ncaab") {
+    return { kind: sportKey === "basketball_ncaab" ? "jersey" : "helmet", primary: "#52525b", secondary: "#d4d4d8" };
+  }
   const known = TEAM_COLORS[team];
   if (known) return { kind: known.gear, primary: known.colors[0], secondary: known.colors[1] };
   const [primary, secondary] = fallback(team);

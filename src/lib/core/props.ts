@@ -18,8 +18,8 @@ const FOOTBALL = [
 ] as const;
 
 export function propMarkets(sportKey: string): string[] {
-  if (sportKey.startsWith("basketball")) return [...BASKETBALL];
-  if (sportKey.startsWith("americanfootball")) return [...FOOTBALL];
+  if (sportKey === "basketball_nba") return [...BASKETBALL];
+  if (sportKey === "americanfootball_nfl") return [...FOOTBALL];
   return [];
 }
 

@@ -1,7 +1,7 @@
 /**
  * Team name forms. PURE TS, no deps (importable by Edge Functions).
  * full "Oklahoma City Thunder" · short "Thunder" · place "Oklahoma City" · abbr "OKC".
- * Unknown teams (other sports) fall back to a last-word heuristic.
+ * Unknown teams use a school-name heuristic; multiword mascots are stripped first.
  */
 export type Team = { full: string; short: string; place: string; abbr: string };
 
@@ -36,6 +36,12 @@ const NICKNAME: Record<string, string> = {
 };
 
 export function getTeam(full: string): Team {
+  if (!ABBR[full]) {
+    // Odds API college names end in a mascot. Keep the school, including State/St.
+    const school = full.trim().replace(/\s+(?:(?:Crimson|Golden|Fighting|Nittany|Scarlet|Blue|Red|Demon|Ragin'|Rainbow)\s+)?\S+$/, "").trim() || full;
+    const short = school.replace(/\bState\b/g, "St");
+    return { full, short, place: school, abbr: school.replace(/[^A-Za-z0-9]/g, "").slice(0, 3).toUpperCase() };
+  }
   const nick = NICKNAME[full] ?? full.split(" ").pop() ?? full;
   const place = full.endsWith(nick) ? full.slice(0, full.length - nick.length).trim() : "";
   const abbr = ABBR[full] ?? (place || full).replace(/[^A-Za-z0-9]/g, "").slice(0, 3).toUpperCase();

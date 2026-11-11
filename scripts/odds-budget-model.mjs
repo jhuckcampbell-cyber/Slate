@@ -41,9 +41,13 @@ const costBody = match(read('supabase/functions/_shared/budget.ts'), /export fun
 const cost = new Function('markets', 'bookmakers', costBody);
 const lines = JSON.parse(match(read('supabase/migrations/20261103000001_core_schema.sql'), /'(\{"markets":\[[^']+)'/)).markets;
 const propsSql = latestFunction('prop_markets');
-const props = (prefix) => [...match(propsSql, new RegExp(`when p_sport_key like '${prefix}%' then array\\[([^]*?)\\]`)).matchAll(/'([^']+)'/g)].map(m => m[1]);
-const nflProps = props('americanfootball');
-const nbaProps = props('basketball');
+// Accept both legacy prefix matching and the exact pro-league keys used by college gating.
+const props = (prefix, key) => {
+  const branch = new RegExp(`when\\s+p_sport_key\\s+(?:like\\s+'${prefix}%'|=\\s+'${key}')\\s+then\\s+array\\[([^]*?)\\]`, 'i');
+  return [...match(propsSql, branch).matchAll(/'([^']+)'/g)].map(m => m[1]);
+};
+const nflProps = props('americanfootball', 'americanfootball_nfl');
+const nbaProps = props('basketball', 'basketball_nba');
 
 // Explicit workload assumptions (not provider constants): minutes relative to first kickoff.
 // 12 NFL Sunday games in three windows; 6 NBA games across a 3-hour start spread.
@@ -108,3 +112,22 @@ assert.ok(rows[8]['5 weeks'] <= cap);
 assert.ok(rows[8].week > rows[9].week && rows[9].week > rows[10].week);
 console.log('Group count does not multiply shared jobs. Different game selections expand props and score windows; staggered creation adds refreshes.');
 console.log('Snapshot rows require scheduler AND freshness-policy changes; these are proposals, not current settings.');
+
+// One Saturday per week. N is the available slate, capped before modeling selected events.
+const collegeMax = Number(sql.match(/\('odds_college_max_events',\s*'(\d+)'/i)?.[1] ?? 8);
+const collegeSlate = (n, duration) => Array.from({ length: Math.min(n, collegeMax) }, (_, i) => ({ start: i * 60, end: i * 60 + duration }));
+const collegeRows = [];
+for (const n of [4, 16]) {
+  for (const [scenario, sports] of [['NCAAF only', [210]], ['NCAAB only', [150]], ['Both college sports', [210, 150]]]) {
+    const results = sports.map(duration => sportModel(collegeSlate(n, duration), []));
+    const line = results.reduce((sum, r) => sum + r.lineCredits, 0);
+    const score = results.reduce((sum, r) => sum + r.scoreCredits, 0);
+    const week = line + score;
+    collegeRows.push({ scenario, N: n, max_events: collegeMax, selected_per_sport: Math.min(n, collegeMax), lines: line, scores: score, week, month: +(week * 52 / 12).toFixed(1), '5 weeks': week * 5, 'NFL/NBA + college (5w)': rows[0]['5 weeks'] + week * 5 });
+  }
+}
+console.log('College OFF by default (odds_college_enabled=false). Incremental weekly Saturday slate; no props or player stats.');
+console.table(collegeRows);
+assert.ok(collegeRows.every(r => r['NFL/NBA + college (5w)'] > cap));
+assert.equal(sportModel(collegeSlate(16, 210), []).scoreCredits, sportModel(collegeSlate(collegeMax, 210), []).scoreCredits);
+console.log('College uses the same cadence: scores 2 credits/sport call, lines 3 credits/sport refresh. Enable on a paid plan or in place of NFL/NBA.');

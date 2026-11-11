@@ -30,7 +30,7 @@ const POPULAR_PLAYERS = 3;
 export function GamePage({ event, markets, allowedMarkets, locked, selected, onToggle, onBack }: Props) {
   const stats = propTabs(allowedMarkets, markets);
   const [tab, setTab] = useState<string>("popular");
-  const current = tab === "popular" || tab === "lines" || stats.includes(tab) ? tab : "popular";
+  const current = !allowedMarkets.some((m) => m.startsWith("player_")) ? "lines" : tab === "popular" || tab === "lines" || stats.includes(tab) ? tab : "popular";
   const [query, setQuery] = useState("");
   // Opened from deep in the board: start at the game page, not at the top of the lobby.
   const top = useRef<HTMLElement>(null);
@@ -41,7 +41,7 @@ export function GamePage({ event, markets, allowedMarkets, locked, selected, onT
   const matchup = `${shortTeam(event.away_team)} @ ${shortTeam(event.home_team)}`;
   const shared = { event, markets, allowedMarkets, locked, selected, onToggle };
   const tabs = [
-    { key: "popular", label: "Popular", name: "Popular" },
+    ...(allowedMarkets.some((m) => m.startsWith("player_")) ? [{ key: "popular", label: "Popular", name: "Popular" }] : []),
     { key: "lines", label: "Game lines", name: "Game lines" },
     ...stats.map((k) => ({ key: k, label: PROP_TAB_LABELS[k] ?? MARKET_LABELS[k] ?? k, name: MARKET_LABELS[k] ?? k })),
   ];

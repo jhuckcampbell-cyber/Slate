@@ -226,6 +226,9 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
             ))}
           </div>
 
+          {(sport === "americanfootball_ncaaf" || sport === "basketball_ncaab") && (
+            <p className="mt-3 text-sm text-muted-foreground">College: game lines only (winner, spread, total).</p>
+          )}
           <StickyFooter>
             <Button className="h-14 w-full text-base font-semibold" disabled={!selected.length} onClick={goToRules}>
               {selected.length

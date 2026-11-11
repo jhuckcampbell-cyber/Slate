@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fakeOddsResponse, fakeRoster } from "./fake-provider.ts";
+import { COLLEGE_TEAMS, fakeCatalog, fakeOddsResponse, fakeRoster } from "./fake-provider.ts";
 
 const ev = {
   id: "fake-tnf",
@@ -54,5 +54,37 @@ describe("fake names are unique across the league", () => {
     const a = fakeRoster(["Jacksonville Jaguars", "Baltimore Ravens"]).filter((p) => p.team === "Baltimore Ravens");
     const b = fakeRoster(["Cincinnati Bengals", "Baltimore Ravens"]).filter((p) => p.team === "Baltimore Ravens");
     expect(a).toEqual(b);
+  });
+});
+
+
+describe("college fake pipeline", () => {
+  it.each(["americanfootball_ncaaf", "basketball_ncaab"])("catalog, game lines and scores for %s", async (key) => {
+    const { normalizeOddsResponse } = await import("./normalize.ts");
+    const { fakeScoresResponse, normalizeScores } = await import("./scores.ts");
+    const { fakeLiveGames } = await import("./live.ts");
+    const now = Date.parse("2026-11-10T12:00:00Z");
+    const catalog = fakeCatalog(key, now);
+    expect(catalog).toHaveLength(6);
+    expect(new Set(catalog.flatMap(e => [e.home_team, e.away_team])).size).toBe(12);
+    expect(COLLEGE_TEAMS[key]).toContain(catalog[0]!.home_team);
+    expect(normalizeOddsResponse(catalog, { markets: [], bookmakers: [] }).events).toHaveLength(6);
+    const markets = ["h2h", "spreads", "totals"];
+    const odds = fakeOddsResponse(catalog, [...markets, "player_points"], { nowMs: now });
+    expect(odds[0]!.bookmakers![0]!.markets.map(m => m.key)).toEqual(markets);
+    const normalized = normalizeOddsResponse(odds, { markets, bookmakers: [] });
+    expect(normalized.outcomes).toHaveLength(36);
+    expect(normalized.skippedMarkets).toBe(0);
+    expect(normalized.outcomes.every(o => o.participant_name === "")).toBe(true);
+    const event = catalog[0]!;
+    const start = Date.parse(event.commence_time);
+    expect(normalizeScores(fakeScoresResponse([event], { nowMs: start - 1 }))).toEqual([]);
+    const mid = start + (key === "basketball_ncaab" ? 65 : 105) * 60_000;
+    expect(normalizeScores(fakeScoresResponse([event], { nowMs: mid }))[0]).toMatchObject({ completed: false });
+    expect(fakeLiveGames([{ ...event, event_id: event.id }], key, mid)[0]!.state).toBe("in");
+    const final = normalizeScores(fakeScoresResponse([event], { nowMs: start + 4 * 3_600_000 }))[0]!;
+    expect(final.completed).toBe(true);
+    expect(final.home_score).not.toBe(final.away_score);
+    expect(final.home_score).toBeGreaterThan(key === "basketball_ncaab" ? 50 : 10);
   });
 });

@@ -4,7 +4,8 @@ import { isPropMarket, propLinesToGrade, propMarkets, statMarket, tournamentMark
 describe("propMarkets (mirrors private.prop_markets)", () => {
   it("basketball: points, rebounds, assists", () => {
     expect(propMarkets("basketball_nba")).toEqual(["player_points", "player_rebounds", "player_assists"]);
-    expect(propMarkets("basketball_ncaab")).toEqual(["player_points", "player_rebounds", "player_assists"]);
+    expect(propMarkets("basketball_ncaab")).toEqual([]);
+    expect(propMarkets("americanfootball_ncaaf")).toEqual([]);
   });
   it("football: yards and receptions (main + alternate ladders), passing TDs, anytime TD", () => {
     expect(propMarkets("americanfootball_nfl")).toEqual([
@@ -34,6 +35,8 @@ describe("tournamentMarkets", () => {
       "player_assists",
     ]);
     expect(tournamentMarkets("basketball_nba", ["h2h"], false)).toEqual(["h2h"]);
+    expect(tournamentMarkets("basketball_ncaab", ["h2h"], true)).toEqual(["h2h"]);
+    expect(tournamentMarkets("americanfootball_ncaaf", ["h2h"], true)).toEqual(["h2h"]);
     expect(tournamentMarkets("icehockey_nhl", ["h2h"], true)).toEqual(["h2h"]);
   });
 });

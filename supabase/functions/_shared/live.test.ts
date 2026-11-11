@@ -105,3 +105,43 @@ describe("fake live feed (local dev)", () => {
     expect(fakeLiveGames([ev], "basketball_nba", tip - 60_000)[0]!.state).toBe("pre");
   });
 });
+
+
+describe("college live feeds", () => {
+  it.each([
+    ["americanfootball_ncaaf", "football/college-football"],
+    ["basketball_ncaab", "basketball/mens-college-basketball"],
+  ])("uses the college scoreboard for %s", (key, path) => {
+    expect(espnLiveUrl(key, "2026-11-06T01:15:00Z")).toContain(`${path}/scoreboard?dates=20261105`);
+  });
+
+  it("matches school locations and punctuation without confusing shared mascots", () => {
+    const event = competition({ home: ["Duke", "42"], away: ["North Carolina", "39"], state: "in", period: 2, shortDetail: "17:00 - 2nd" });
+    const games = liveGamesFromScoreboard({ events: [event] }, [
+      { event_id: "wrong", home_team: "Central Connecticut Blue Devils", away_team: "North Carolina Tar Heels" },
+      { event_id: "duke", home_team: "Duke Blue Devils", away_team: "North Carolina Tar Heels" },
+    ], "basketball_ncaab");
+    expect(games.map(g => g.event_id)).toEqual(["duke"]);
+    const football = competition({ home: ["LSU Tigers", "21"], away: ["Clemson Tigers", "14"], state: "in", shortDetail: "3rd" });
+    expect(liveGamesFromScoreboard({ events: [football] }, [
+      { event_id: "wrong", home_team: "Clemson Tigers", away_team: "LSU Tigers" },
+      { event_id: "lsu", home_team: "LSU Tigers", away_team: "Clemson Tigers" },
+    ], "americanfootball_ncaaf").map(g => g.event_id)).toEqual(["lsu"]);
+    const c = event.competitions[0]!;
+    c.competitors[0]!.team = { displayName: "Duke University Blue Devils", ...{ location: "Duke" } };
+    expect(liveGamesFromScoreboard({ events: [event] }, [{ event_id: "duke", home_team: "Duke Blue Devils", away_team: "North Carolina Tar Heels" }], "basketball_ncaab")).toHaveLength(1);
+  });
+
+  it.each([
+    ["basketball_ncaab", 130, 2, "20:00 - 2nd half", null],
+    ["americanfootball_ncaaf", 210, 3, "15:00 - 3rd", "1st & 10 at midfield"],
+  ] as const)("uses regulation periods for %s", (key, minutes, period, detail, situation) => {
+    const e = { event_id: "college", home_team: "Duke Blue Devils", away_team: "Kansas Jayhawks", commence_time: "2026-11-05T00:00:00Z" };
+    const start = Date.parse(e.commence_time);
+    const live = fakeLiveGames([e], key, start + minutes * 30_000)[0]!;
+    expect(live).toMatchObject({ state: "in", period, detail, situation });
+    expect(live.last_play).toBeTruthy();
+    expect(fakeLiveGames([e], key, start + minutes * 60_000)[0]).toMatchObject({ state: "post", period: key === "basketball_ncaab" ? 2 : 4 });
+    expect(fakeLiveGames([e], key, start - 1)[0]!.state).toBe("pre");
+  });
+});

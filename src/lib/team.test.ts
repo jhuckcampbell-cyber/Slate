@@ -17,8 +17,15 @@ describe("getTeam", () => {
   });
   it("falls back for unknown teams", () => {
     const t = getTeam("Ohio State Buckeyes");
-    expect(t.short).toBe("Buckeyes");
+    expect(t.short).toBe("Ohio St");
     expect(t.abbr).toBe("OHI");
+  });
+  it("uses school names for college mascots", () => {
+    expect(getTeam("Alabama Crimson Tide")).toEqual({ full: "Alabama Crimson Tide", short: "Alabama", place: "Alabama", abbr: "ALA" });
+    expect(teamLabel("Michigan St Spartans")).toBe("Michigan St");
+    expect(teamLabel("Duke Blue Devils")).toBe("Duke");
+    expect(teamLabel("UConn Huskies", "abbr")).toBe("UCO");
+    expect(teamLabel("Duke")).toBe("Duke");
   });
   it("builds compact matchups", () => {
     expect(compactMatchup("Boston Celtics", "New York Knicks")).toBe("BOS @ NYK");

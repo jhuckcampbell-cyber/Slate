@@ -1,6 +1,7 @@
 /** Maps stable error codes (raised in SQL, mirrored by src/lib/core/slip.ts) to user-facing copy. */
 const MESSAGES: Record<string, string> = {
   // auth / tournaments
+  CAPTCHA_FAILED: "Security verification didn't finish. Please try again. If it keeps failing, refresh the page.",
   NOT_AUTHENTICATED: "Your session expired. Refresh and try again.",
   RATE_LIMITED: "Slow down! You've created a lot of tournaments this hour.",
   INVALID_EVENTS: "One of those games already started or isn't available anymore.",

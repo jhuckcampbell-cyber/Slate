@@ -32,7 +32,9 @@ test("football: team-grouped props, alternate yards and anytime TD, graded by th
   const host = await newPage(browser);
   await host.goto("/create");
   await host.waitForLoadState("networkidle");
-  await host.getByRole("button", { name: /NFL/ }).first().click();
+  // The sport chips only render when 2+ sports have upcoming games (a stale local seed can leave just NFL).
+  const nflChip = host.getByRole("button", { name: /NFL/ });
+  if (await nflChip.count()) await nflChip.first().click();
   await host.getByRole("button").filter({ hasText: AWAY }).first().click();
   await host.getByRole("button", { name: /Continue with 1 game/ }).click();
   await host.getByRole("switch", { name: "Player props" }).click();

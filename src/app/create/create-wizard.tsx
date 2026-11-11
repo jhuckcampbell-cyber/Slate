@@ -3,12 +3,13 @@
 import { HouseRulesFields } from "@/components/tournament/house-rules-fields";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Turnstile, type TurnstileHandle } from "@/components/auth/turnstile";
 import { ensureSession } from "@/lib/auth/ensure-session";
 import { codePrefix } from "@/lib/core/codes";
 import { propMarkets } from "@/lib/core/props";
@@ -43,6 +44,7 @@ const MARKETS = [
 
 export function CreateWizard({ events, defaultName }: { events: EventRow[]; defaultName: string }) {
   const router = useRouter();
+  const turnstile = useRef<TurnstileHandle>(null);
   const [step, setStep] = useState<1 | 2>(1);
   const sports = useMemo(() => [...new Set(events.map((e) => e.sport_key))], [events]);
   const [sport, setSport] = useState(sports[0] ?? "");
@@ -91,7 +93,10 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
 
     setSubmitting(true);
     try {
-      await ensureSession(name);
+      await ensureSession(name, () => {
+        if (!turnstile.current) throw new Error("CAPTCHA_FAILED");
+        return turnstile.current.getToken();
+      });
       const finalTitle = title.trim() || suggestTitle(chosen, sport);
       const supabase = createClient();
       const { data, error } = await supabase
@@ -142,6 +147,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
 
   return (
     <>
+      <Turnstile ref={turnstile} />
       <header className="mb-6 flex items-center gap-3">
         {step === 2 && (
           <Button variant="ghost" size="icon" className="size-11" aria-label="Back" onClick={() => setStep(1)}>

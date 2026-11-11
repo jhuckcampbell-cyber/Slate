@@ -2,10 +2,11 @@
 
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Turnstile, type TurnstileHandle } from "@/components/auth/turnstile";
 import { ensureSession } from "@/lib/auth/ensure-session";
 import { friendlyError } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/client";
@@ -19,6 +20,7 @@ import { createClient } from "@/lib/supabase/client";
  */
 export function JoinForm({ code, defaultName }: { code: string; defaultName: string }) {
   const router = useRouter();
+  const turnstile = useRef<TurnstileHandle>(null);
   const [pending, setPending] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -27,7 +29,10 @@ export function JoinForm({ code, defaultName }: { code: string; defaultName: str
     if (!name) return;
     setPending(true);
     try {
-      await ensureSession(name);
+      await ensureSession(name, () => {
+        if (!turnstile.current) throw new Error("CAPTCHA_FAILED");
+        return turnstile.current.getToken();
+      });
       const { error } = await createClient().rpc("join_tournament", { p_code: code });
       if (error) throw error;
       router.replace(`/t/${code}`);
@@ -39,6 +44,7 @@ export function JoinForm({ code, defaultName }: { code: string; defaultName: str
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
+      <Turnstile ref={turnstile} />
       <Input
         name="name"
         aria-label="Your name"

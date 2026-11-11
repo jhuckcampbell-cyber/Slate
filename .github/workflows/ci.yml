@@ -18,6 +18,10 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_build_placeholder
 
   database:
     # Blind-pick RLS tests are the merge gate (see CLAUDE.md rule 1).
@@ -40,3 +44,43 @@ jobs:
             echo "SUPABASE_SECRET_KEY=$SECRET_KEY"
           } > .env.local
           npm run test:integration
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps webkit
+      - run: npx supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor
+      - run: npx supabase db reset
+      - name: Configure local Supabase
+        run: |
+          eval "$(npx supabase status -o env | grep -E '^(API_URL|PUBLISHABLE_KEY|SECRET_KEY)=')"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY"
+            echo "SUPABASE_SECRET_KEY=$SECRET_KEY"
+          } > .env.local
+          printf '%s\n' 'ODDS_PROVIDER=fake' 'ODDS_SYNC_SECRET=local-dev-sync-secret' 'ODDS_BOOKMAKERS=draftkings,fanduel,betmgm' > supabase/functions/.env
+      - name: Serve Edge Functions and wait for readiness
+        run: |
+          npx supabase functions serve --env-file supabase/functions/.env > /tmp/supabase-functions.log 2>&1 &
+          for attempt in {1..60}; do
+            # The function rejects missing sync credentials with 401 once it is ready.
+            status=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:54321/functions/v1/odds-sync || true)
+            if [ "$status" = 401 ]; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/supabase-functions.log
+          exit 1
+      - run: npm run e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: test-results/

@@ -47,6 +47,7 @@ switch (cmd) {
     printBudget(s.budget);
     console.log("Refresh tiers:", JSON.stringify(s.refresh_tiers));
     console.table(s.recent_calls);
+    console.log("Sync health:", JSON.stringify(await rpc("odds_sync_health"), null, 2));
     break;
   }
   case "dry-run":

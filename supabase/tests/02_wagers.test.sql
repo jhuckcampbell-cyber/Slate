@@ -57,9 +57,9 @@ select is((select updated_at from public.odds_cache where event_id = 'tw-ev1' an
            and outcome_name = 'Kansas City Chiefs'), now(), 'unchanged price keeps its updated_at');
 select is((select last_seen_at from public.odds_markets where event_id = 'tw-ev1' and market_key = 'h2h'),
   now() + interval '1 minute', 'market freshness still advances');
-select is((public.odds_sync_ingest('odds', 'americanfootball_nfl', now(), '[]',
+select is((public.odds_sync_ingest('odds', 'americanfootball_nfl', now() + interval '2 minutes', '[]',
            '[{"event_id":"tw-ev3","market_key":"h2h","outcome_name":"Detroit Lions","price_american":-115,"bookmaker":"dk"}]',
-           '[]') ->> 'outcomes_changed')::int,
+           '[{"event_id":"tw-ev3","market_key":"h2h","bookmaker":"dk"}]') ->> 'outcomes_changed')::int,
   1, 'a moved price is written');
 select is((select price_decimal from public.odds_cache where event_id = 'tw-ev1' and market_key = 'spreads'
            and outcome_name = 'Kansas City Chiefs'), 1.9091::numeric, 'decimal derived in SQL (-110 → 1.9091)');

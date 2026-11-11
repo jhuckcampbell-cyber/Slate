@@ -51,10 +51,11 @@ const QUICK_STAKES = [500, 1000, 2500];
 type Snapshot = { bankrollCents: number; betsPlaced: number; placedCents: number[] };
 
 export function BetSlip({ tournamentId, participantId, rules, boardById, locked, ...current }: Props) {
-  const { state, dispatch } = useSlip();
+  const { state, dispatch, submissions } = useSlip();
   const router = useRouter();
   const queryClient = useQueryClient();
   const place = usePlaceWagers({ tournamentId, participantId });
+  const [retryAttempt, setRetryAttempt] = useState<Parameters<typeof place.mutate>[0] | null>(null);
   // While a slip is sending, the optimistic update already counts its bets as placed but the slip still holds them.
   // Judge the slip against what the player had when they tapped Place, so nothing flashes red mid-submit.
   const [submitted, setSubmitted] = useState<Snapshot | null>(null);
@@ -145,10 +146,12 @@ export function BetSlip({ tournamentId, participantId, rules, boardById, locked,
   }
 
   function submit() {
-    const slip: SlipPayload = drafts.map((d) => ({
+    const payload: SlipPayload = drafts.map((d) => ({
       amount_cents: d.amountCents,
       legs: d.legs.map((l) => ({ odds_id: l.oddsId, price_american: l.priceAmerican, point: l.point })),
     }));
+    const submissionId = submissions.forPayload({ tournamentId, payload });
+    const slip = payload.map((wager) => ({ ...wager, submission_id: submissionId }));
     const now = new Date().toISOString();
     const optimistic: MyWager[] = drafts.map((d, i) => ({
       id: `optimistic-${now}-${i}`,
@@ -173,11 +176,14 @@ export function BetSlip({ tournamentId, participantId, rules, boardById, locked,
     }));
 
     setSubmitted({ bankrollCents, betsPlaced, placedCents });
+    const attempt = retryAttempt ?? { slip, optimistic, stakeCents: totals.stakeCents, returnCents: totals.returnCents };
     place.mutate(
-      { slip, optimistic, stakeCents: totals.stakeCents, returnCents: totals.returnCents },
+      attempt,
       {
         onSettled: () => setSubmitted(null),
         onSuccess: () => {
+          setRetryAttempt(null);
+          submissions.clear();
           dispatch({ type: "clear" });
           toast.success(drafts.length > 1 ? `${drafts.length} bets placed 🔒` : "Bet placed 🔒", {
             description: "Hidden from the squad until kickoff.",
@@ -185,6 +191,9 @@ export function BetSlip({ tournamentId, participantId, rules, boardById, locked,
           router.refresh(); // roster "submitted" checkmarks
         },
         onError: (err) => {
+          // A transport failure may follow a committed transaction. Retry the exact payload even
+          // if a bankroll refresh or the lock would otherwise disable the normal Place button.
+          setRetryAttempt(!("code" in err) || !err.code ? attempt : null);
           const updates = priceUpdatesFrom(err);
           if (updates.length) {
             queryClient.setQueryData<BoardRow[]>(queryKeys.board(tournamentId), (rows) =>
@@ -201,8 +210,9 @@ export function BetSlip({ tournamentId, participantId, rules, boardById, locked,
 
   let action: { label: string; onClick?: () => void; disabled: boolean };
   const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-  if (locked) action = { label: "Picks are locked", disabled: true };
-  else if (place.isPending) action = { label: "Placing…", disabled: true };
+  if (place.isPending) action = { label: "Placing…", disabled: true };
+  else if (retryAttempt) action = { label: "Retry submission", onClick: submit, disabled: false };
+  else if (locked) action = { label: "Picks are locked", disabled: true };
   else if (anyUnavailable) action = { label: "Remove unavailable picks", disabled: true };
   else if (anyChanged) action = { label: "Accept new odds", onClick: acceptChanges, disabled: false };
   else if (extraBets > 0)

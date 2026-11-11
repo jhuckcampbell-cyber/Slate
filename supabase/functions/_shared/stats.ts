@@ -7,7 +7,7 @@ import { hash } from "./fake-provider.ts";
 
 const ESPN = "https://site.api.espn.com/apis/site/v2/sports";
 
-export type PlayerStat = { name: string; team: string | null; market_key: string; stat: number };
+export type PlayerStat = { name: string; team: string | null; market_key: string; stat: number | null; did_not_play?: boolean };
 /** remaining: share of the game left (1 = kickoff, 0 = over), null when the clock can't be read. */
 export type BoxStats = { final: boolean; stats: PlayerStat[]; remaining: number | null };
 
@@ -108,6 +108,7 @@ export function espnBoxToStats(summary: unknown, sportKey = "basketball_nba"): B
   const status = obj(clock.type);
   const final = status.state === "post" || status.completed === true;
   const rows = new Map<string, PlayerStat>();
+  const participation = new Map<string, PlayerStat>();
   for (const teamBox of arr(obj(obj(summary).boxscore).players).map(obj)) {
     const team = String(obj(teamBox.team).displayName ?? "") || null;
     for (const group of arr(teamBox.statistics).map(obj)) {
@@ -115,13 +116,19 @@ export function espnBoxToStats(summary: unknown, sportKey = "basketball_nba"): B
       for (const a of arr(group.athletes).map(obj)) {
         const name = String(obj(a.athlete).displayName ?? "");
         const values = arr(a.stats).map(String);
-        if (!name || a.didNotPlay === true || values.length === 0) continue;
+        if (!name) continue;
+        if (a.didNotPlay === true || values.length > 0) {
+          const prior = participation.get(name);
+          participation.set(name, { name, team, market_key: "__participation", stat: null,
+            did_not_play: prior?.did_not_play === false ? false : a.didNotPlay === true });
+        }
+        if (a.didNotPlay === true || values.length === 0) continue;
         keys.forEach((key, i) => {
           const market = markets[`${String(group.name ?? "")}.${key}`] ?? markets[key];
           const stat = parseInt(values[i] ?? "", 10); // "2-3" (made-attempted) -> 2; "-4" rushing yards stays -4
           if (!market || !Number.isFinite(stat)) return;
           const row = rows.get(`${name}|${market}`);
-          if (row) row.stat += stat;
+          if (row && row.stat !== null) row.stat += stat;
           else rows.set(`${name}|${market}`, { name, team, market_key: market, stat });
         });
       }
@@ -130,7 +137,7 @@ export function espnBoxToStats(summary: unknown, sportKey = "basketball_nba"): B
   const remaining = final
     ? 0
     : gameRemaining({ state: status.state, period: clock.period, displayClock: clock.displayClock }, sportKey);
-  return { final, stats: [...rows.values()], remaining };
+  return { final, stats: [...rows.values(), ...participation.values()], remaining };
 }
 
 const GAME_MS = 2.5 * 3_600_000;

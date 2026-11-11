@@ -202,14 +202,14 @@ select is((select (cash_cents, ev_cents, max_cents) from public.leaderboard wher
   row(14154::bigint, 14154::bigint, 14154::bigint), 'when settled, cash = EV = max');
 reset role;
 
--- ---------- a game that never reports a final is voided after 12 hours ----------
+-- ---------- a feed outage stays pending for operator review ----------
 update public.events set commence_time = now() - interval '13 hours' where id = 'gr-g4';
 select private.advance_statuses();  -- open → locked → live
-select private.advance_statuses();  -- voids, refunds, settles
-select is((select w.status::text from public.wagers w where w.tournament_id = (select id from t2)), 'pushed',
-  'no final 12h after kickoff: the bet is voided');
-select is(pg_temp.cash('Ann', (select id from t2)), 10000::bigint, '...and the stake refunded');
-select is((select status::text from public.tournaments where id = (select id from t2)), 'settled', '...and the tournament settles');
+select private.advance_statuses();  -- no refund without explicit cancellation
+select is((select w.status::text from public.wagers w where w.tournament_id = (select id from t2)), 'pending',
+  'no final 12h after kickoff: the bet stays pending');
+select is(pg_temp.cash('Ann', (select id from t2)), 9000::bigint, '...and the stake is not refunded');
+select is((select status::text from public.tournaments where id = (select id from t2)), 'live', '...and the tournament waits for a final');
 
 select * from finish();
 rollback;

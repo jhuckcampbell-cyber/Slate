@@ -48,7 +48,7 @@ export function Leaderboard({
   result?: string;
 }) {
   const sorted = [...rows].sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
-  const winners = settled ? sorted.filter((r) => r.rank === 1) : [];
+  const winners = settled ? sorted.filter((r) => r.rank === 1 && r.standing !== "disqualified") : [];
   const { listRef, climbs } = useRowGlide(sorted);
 
   return (

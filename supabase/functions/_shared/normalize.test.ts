@@ -100,9 +100,9 @@ describe("normalizeOddsResponse", () => {
 
   it("records one market row per (event, market) with its source book", () => {
     expect(n.markets).toEqual([
-      { event_id: "e912304de2b2ce35b473ce2ecd3d1502", market_key: "h2h", bookmaker: "draftkings" },
-      { event_id: "e912304de2b2ce35b473ce2ecd3d1502", market_key: "spreads", bookmaker: "fanduel" },
-      { event_id: "e912304de2b2ce35b473ce2ecd3d1502", market_key: "totals", bookmaker: "draftkings" },
+      { event_id: "e912304de2b2ce35b473ce2ecd3d1502", market_key: "h2h", bookmaker: "draftkings", provider_updated_at: null },
+      { event_id: "e912304de2b2ce35b473ce2ecd3d1502", market_key: "spreads", bookmaker: "fanduel", provider_updated_at: null },
+      { event_id: "e912304de2b2ce35b473ce2ecd3d1502", market_key: "totals", bookmaker: "draftkings", provider_updated_at: null },
     ]);
   });
 
@@ -321,7 +321,7 @@ describe("player props", () => {
       "Trevor Lawrence Over 14.5 draftkings", // priority book wins for a player both books price
       "Trevor Lawrence Under 14.5 draftkings",
     ]);
-    expect(n.markets).toEqual([{ event_id: "tnf", market_key: "player_rush_yds", bookmaker: "fanduel" }]);
+    expect(n.markets).toEqual([{ event_id: "tnf", market_key: "player_rush_yds", bookmaker: "fanduel", provider_updated_at: null }]);
     expect(n.skippedMarkets).toBe(0);
   });
 

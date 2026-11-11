@@ -17,7 +17,7 @@ const MESSAGES: Record<string, string> = {
   NOT_HOST: "Only the host can do that.",
   // player props
   GAME_NOT_FINAL: "Enter stats once the game is final.",
-  INVALID_STAT: "Enter the stat as a number, 0 or more.",
+  INVALID_STAT: "Enter a whole-number stat. Only yards may be negative.",
   ALREADY_GRADED: "That stat was already entered.",
   NOTHING_TO_GRADE: "Nobody has a pick on that line.",
   INVALID_CHANGES: "Those changes aren't allowed.",

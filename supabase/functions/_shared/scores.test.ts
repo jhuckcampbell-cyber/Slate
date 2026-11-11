@@ -44,8 +44,8 @@ const fixture: ApiScoreEvent[] = [
 describe("normalizeScores", () => {
   it("maps team scores to home/away by name, whatever order they come in", () => {
     expect(normalizeScores(fixture)).toEqual([
-      { event_id: "g-final", completed: true, home_score: 111, away_score: 104 },
-      { event_id: "g-live", completed: false, home_score: 55, away_score: 61 },
+      { event_id: "g-final", completed: true, home_score: 111, away_score: 104, provider_updated_at: "2026-11-03T02:40:00Z" },
+      { event_id: "g-live", completed: false, home_score: 55, away_score: 61, provider_updated_at: "2026-11-03T02:00:00Z" },
     ]);
   });
 

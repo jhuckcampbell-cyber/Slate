@@ -45,8 +45,9 @@ export type IngestOutcome = {
   outcome_name: string;
   participant_name: string;
   point: number | null;
+  provider_updated_at?: string | null;
   price_american: number;
   bookmaker: string;
 };
 
-export type IngestMarket = { event_id: string; market_key: string; bookmaker: string };
+export type IngestMarket = { event_id: string; market_key: string; bookmaker: string; provider_updated_at?: string | null };

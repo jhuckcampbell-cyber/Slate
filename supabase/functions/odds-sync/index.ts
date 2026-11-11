@@ -116,36 +116,69 @@ Deno.serve(async (req) => {
       );
       return json({ dry_run: true, provider, plan, budget: status?.budget ?? null });
     } finally {
-      await supabase.rpc("odds_sync_release", { p_holder: claim.holder });
+      await releaseLease(supabase, claim.holder);
     }
   }
 
   const results: unknown[] = [];
+  let failed = false;
   try {
     for (const job of claim.jobs as Job[]) {
+      const { data: renewed, error: renewError } = await supabase.rpc("odds_sync_renew", { p_holder: claim.holder });
+      if (renewError || !renewed) {
+        failed = true;
+        results.push({ error: "LEASE_LOST" });
+        break;
+      }
+      const started = Date.now();
+      const { data: run, error: runError } = await supabase.from("odds_sync_runs").insert({
+        kind: job.kind, sport_key: job.sport_key, event_id: "event_id" in job ? job.event_id : null,
+      }).select("id").single();
+      if (runError) { failed = true; results.push({ error: "run tracking failed" }); break; }
+      // Recheck ownership immediately before each ingest, including jobs with many feed requests.
+      const jobClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", serviceKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+        global: { fetch: async (input, init) => {
+          if (String(input).includes("_ingest")) {
+            const { data, error } = await supabase.rpc("odds_sync_renew", { p_holder: claim.holder });
+            if (error || !data) throw new Error("LEASE_LOST");
+          }
+          return fetch(input, { ...init, signal: AbortSignal.timeout(15_000) });
+        } },
+      });
+      let result: Record<string, unknown>;
       try {
-        results.push(
+        result = (
           job.kind === "scores"
-            ? await runScoresJob(supabase, job, provider)
+            ? await runScoresJob(jobClient, job, provider)
             : job.kind === "stats"
-            ? await runStatsJob(supabase, job, provider)
+            ? await runStatsJob(jobClient, job, provider)
             : job.kind === "live"
-            ? await runLiveJob(supabase, job, provider)
+            ? await runLiveJob(jobClient, job, provider)
             : job.kind === "props"
-            ? await runPropsJob(supabase, job, provider, bookmakers)
-            : await runJob(supabase, job, provider, bookmakers),
+            ? await runPropsJob(jobClient, job, provider, bookmakers)
+            : await runJob(jobClient, job, provider, bookmakers)
         );
       } catch (e) {
         // One sport failing must not block the others; its state isn't advanced, so it retries.
-        console.error(`[odds-sync] ${job.kind}/${job.sport_key} failed:`, e);
-        results.push({ kind: job.kind, sport_key: job.sport_key, error: String(e) });
+        console.error(`[odds-sync] ${job.kind}/${job.sport_key} failed:`, safeError(e));
+        result = { kind: job.kind, sport_key: job.sport_key, error: safeError(e) };
       }
+      const ok = !result.error && !result.blocked && !(result.rosters as { error?: string } | null)?.error;
+      failed ||= !ok;
+      results.push(result);
+      const { error: finishError } = await supabase.from("odds_sync_runs").update({
+        finished_at: new Date().toISOString(), ok,
+        error: ok ? null : safeError(result.error ?? result.blocked ?? (result.rosters as { error: string }).error),
+        counts: result, latency_ms: Date.now() - started,
+      }).eq("id", run.id);
+      if (finishError) { failed = true; results.push({ error: "run tracking failed" }); }
     }
   } finally {
-    await supabase.rpc("odds_sync_release", { p_holder: claim.holder });
+    await releaseLease(supabase, claim.holder);
   }
 
-  return json({ provider, breaker_factor: claim.breaker_factor, results });
+  return json({ provider, breaker_factor: claim.breaker_factor, results }, failed ? 502 : 200);
 });
 
 /** Player props: one game per call on the per-event endpoint (cost = prop markets × regions). */
@@ -423,11 +456,12 @@ async function paidCall<T>(
     throw e;
   } finally {
     // Always settle. A null cost (network error, no headers) keeps the estimate charged.
-    await supabase.rpc("odds_budget_settle", {
+    const { error: settleError } = await supabase.rpc("odds_budget_settle", {
       p_reservation_id: r.reservation_id!,
       p_credits_used: headerUsage.creditsUsed ?? undefined,
       p_credits_remaining: headerUsage.creditsRemaining ?? undefined,
     });
+    if (settleError) throw new Error(`budget settle failed: ${settleError.code ?? "RPC_ERROR"}`);
     if (headerUsage.creditsUsed !== null && headerUsage.creditsUsed > cost) {
       console.warn(`[odds-sync] ${path} cost ${headerUsage.creditsUsed} > reserved ${cost}`);
     }
@@ -443,7 +477,7 @@ async function oddsApi<T = ApiEvent[]>(
   url.searchParams.set("apiKey", key);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 
-  const res = await fetch(url); // never log `url`: it carries the API key
+  const res = await fetch(url, { signal: AbortSignal.timeout(15_000) }); // never log `url`: it carries the API key
   const headerUsage = usageFromHeaders(res.headers);
   if (!res.ok) {
     const text = (await res.text()).slice(0, 200).replaceAll(key, "[redacted]");
@@ -459,4 +493,15 @@ function json(body: unknown, status = 200) {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+async function releaseLease(supabase: SupabaseClient, holder: string) {
+  const { error } = await supabase.rpc("odds_sync_release", { p_holder: holder });
+  if (error) throw new Error(`lease release failed: ${error.code ?? "RPC_ERROR"}`);
+}
+
+function safeError(value: unknown): string {
+  const key = Deno.env.get("ODDS_API_KEY");
+  const text = String(value);
+  return (key ? text.replaceAll(key, "[redacted]") : text).slice(0, 500);
 }

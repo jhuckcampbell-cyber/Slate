@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useMemo, useReducer, type Dispatch, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useReducer, useState, type Dispatch, type ReactNode } from "react";
+import { createSubmissionTracker } from "./submission";
 import { MAX_SLIP_SELECTIONS, type Selection, type SlipMode } from "@/lib/core/slip";
 
 /** A pick in the slip: the accepted price/line plus display context. */
@@ -96,11 +97,16 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-const SlipContext = createContext<{ state: State; dispatch: Dispatch<Action> } | null>(null);
+const SlipContext = createContext<{
+  state: State;
+  dispatch: Dispatch<Action>;
+  submissions: ReturnType<typeof createSubmissionTracker>;
+} | null>(null);
 
 export function SlipProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const value = useMemo(() => ({ state, dispatch }), [state]);
+  const [submissions] = useState(createSubmissionTracker);
+  const value = useMemo(() => ({ state, dispatch, submissions }), [state, submissions]);
   return <SlipContext.Provider value={value}>{children}</SlipContext.Provider>;
 }
 

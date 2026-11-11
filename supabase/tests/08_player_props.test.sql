@@ -1,5 +1,5 @@
 -- Player props: opt-in per tournament, per-game odds sync, host-entered stats grade every leg on
--- that line (results public), ungraded props refund 48h after kickoff.
+-- that line (results public), ungraded props remain pending for operator review.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(32);
@@ -152,17 +152,17 @@ select throws_ok($$ insert into public.prop_results (tournament_id, event_id, ma
   'nobody writes results directly');
 reset role;
 
--- ---------- the tournament waits for ungraded props, then refunds them ----------
+-- ---------- the tournament waits for ungraded props until confirmed results ----------
 select private.advance_statuses();
 select is((select status::text from public.tournaments where id = (select id from tp)), 'live',
   'an ungraded prop keeps the tournament open');
 update public.events set commence_time = now() - interval '49 hours' where id = 'pp-g1';
 select private.advance_statuses();
 select is((select w.status::text from public.wagers w join public.wager_legs l on l.wager_id = w.id
-           where l.market_key = 'player_assists' and w.tournament_id = (select id from tp)), 'pushed',
-  'a prop still ungraded 48h after kickoff is refunded');
-select is(pg_temp.cash('Ann'), (10000 - 3000 + 1869 + 1000 + 1000)::bigint, 'Ann: won points, refunded rebounds push and assists');
-select is((select status::text from public.tournaments where id = (select id from tp)), 'settled', 'then it settles');
+           where l.market_key = 'player_assists' and w.tournament_id = (select id from tp)), 'pending',
+  'a prop still ungraded 48h after kickoff stays pending');
+select is(pg_temp.cash('Ann'), (10000 - 3000 + 1869 + 1000)::bigint, 'Ann: won points and pushed rebounds; assists remain pending');
+select is((select status::text from public.tournaments where id = (select id from tp)), 'live', 'missing host stats do not settle the tournament');
 
 select * from finish();
 rollback;

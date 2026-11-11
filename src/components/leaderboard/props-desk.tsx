@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ClipboardCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ export type PropLine = { eventId: string; marketKey: string; player: string; mat
 function statName(marketKey: string) {
   return marketKey === "player_anytime_td" ? "Touchdowns scored" : (MARKET_LABELS[marketKey] ?? marketKey);
 }
-export type PropResult = PropLine & { stat: number };
+export type PropResult = PropLine & { stat: number | null };
 
 /**
  * Player props are graded by hand (the odds API has no player stats). After a game is final the
@@ -36,6 +36,24 @@ export function PropsDesk({
   pending: PropLine[];
   results: PropResult[];
 }) {
+  // The route's legacy numeric mapping coerces null to zero. Read authoritative results
+  // here so confirmed DNP evidence is displayed correctly even with that older caller.
+  const [recorded, setRecorded] = useState<Record<string, number | null>>({});
+  useEffect(() => {
+    if (results.length === 0) return;
+    let active = true;
+    void createClient().from("prop_results")
+      .select("event_id,market_key,participant_name,stat")
+      .eq("tournament_id", tournamentId)
+      .then(({ data, error }) => {
+        if (!active || error) return;
+        setRecorded(Object.fromEntries((data ?? []).map((r) => [
+          `${tournamentId}|${r.event_id}|${r.market_key}|${r.participant_name}`, r.stat === null ? null : Number(r.stat),
+        ])));
+      });
+    return () => { active = false; };
+  }, [tournamentId, results]);
+
   if (pending.length === 0 && results.length === 0) return null;
   return (
     <section className="mt-6 rounded-2xl bg-card p-4 ring-1 ring-border" aria-labelledby="props-desk-heading">
@@ -69,10 +87,10 @@ export function PropsDesk({
           {results.map((r) => (
             <li key={key(r)} className="flex items-baseline justify-between gap-3">
               <LineLabel line={r} />
-              <span className="num text-lg font-bold">{r.stat}</span>
+              <span className="num text-lg font-bold">{!(`${tournamentId}|${key(r)}` in recorded) ? "Recorded" : recorded[`${tournamentId}|${key(r)}`] === null ? "Did not play: void" : recorded[`${tournamentId}|${key(r)}`]}</span>
             </li>
           ))}
-          <li className="pt-1 text-xs text-muted-foreground">Entered by {hostName}.</li>
+          <li className="pt-1 text-xs text-muted-foreground">Results are final. A confirmed DNP voids all props for that player.</li>
         </ul>
       )}
     </section>
@@ -98,34 +116,42 @@ function GradeRow({ tournamentId, line }: { tournamentId: string; line: PropLine
 
   async function submit(form: FormData) {
     const raw = String(form.get("stat") ?? "").trim();
+    const didNotPlay = form.get("didNotPlay") === "on";
     const stat = Number(raw);
-    if (raw === "" || !Number.isFinite(stat) || stat < 0) {
-      toast.error("Enter the stat as a number, 0 or more.");
+    const yards = ["player_pass_yds", "player_rush_yds", "player_reception_yds"].includes(line.marketKey.replace(/_alternate$/, ""));
+    if (!didNotPlay && (raw === "" || !Number.isInteger(stat) || stat < (yards ? -999 : 0) || stat > 9999)) {
+      toast.error("Enter a whole-number stat. Only yards may be negative.");
       return;
     }
     setPending(true);
-    const { error } = await createClient().rpc("grade_prop", {
+    const args = {
       p_tournament_id: tournamentId,
       p_event_id: line.eventId,
       p_market_key: line.marketKey,
       p_participant_name: line.player,
-      p_stat: stat,
-    });
+      p_stat: didNotPlay ? 0 : stat,
+      p_did_not_play: didNotPlay,
+    };
+    const { error } = await createClient().rpc("grade_prop", args);
     setPending(false);
     if (error) {
       toast.error(friendlyError(error));
       return;
     }
-    toast.success(`${label}: ${stat}. Picks graded.`);
+    toast.success(didNotPlay ? `${line.player} did not play. Picks voided.` : `${label}: ${stat}. Picks graded.`);
     router.refresh();
   }
 
   return (
     <li>
-      <form action={submit} className="flex items-center gap-2">
-        <div className="min-w-0 flex-1 text-sm">
+      <form action={submit} className="flex flex-wrap items-center gap-2">
+        <div className="w-full min-w-0 text-sm">
           <LineLabel line={line} />
         </div>
+        <label className="flex min-h-11 items-center gap-2 text-xs">
+          <input type="checkbox" className="size-5 accent-foreground" name="didNotPlay" aria-label={`${line.player} confirmed did not play`} />
+          Did not play
+        </label>
         <Input
           name="stat"
           inputMode="decimal"

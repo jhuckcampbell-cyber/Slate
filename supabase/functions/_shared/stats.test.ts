@@ -89,8 +89,10 @@ describe("box score → stats", () => {
     expect(stats).toContainEqual({ name: "Joel Embiid", team: "Philadelphia 76ers", market_key: "player_assists", stat: 1 });
     expect(stats).toContainEqual({ name: "Kelly Oubre Jr.", team: "Philadelphia 76ers", market_key: "player_threes", stat: 2 });
     expect(stats).toContainEqual({ name: "Cade Cunningham", team: "Detroit Pistons", market_key: "player_assists", stat: 6 });
-    expect(stats.filter((s) => s.name === "Bench Guy")).toEqual([]);
-    expect(stats).toHaveLength(12);
+    expect(stats.filter((s) => s.name === "Bench Guy")).toEqual([
+      { name: "Bench Guy", team: "Philadelphia 76ers", market_key: "__participation", stat: null, did_not_play: true },
+    ]);
+    expect(stats.filter((s) => s.market_key !== "__participation")).toHaveLength(12);
   });
   it("knows when the game is over", () => {
     expect(espnBoxToStats(summary("post")).final).toBe(true);
@@ -112,7 +114,7 @@ describe("fake box score (local dev, no network)", () => {
     expect(fakeBoxStats(players, tip, tip + 60 * 60_000)).toEqual(mid);
     const end = fakeBoxStats(players, tip, tip + 4 * 3_600_000);
     expect(end.final).toBe(true);
-    expect(end.stats[0]!.stat).toBeGreaterThanOrEqual(mid.stats[0]!.stat);
+    expect(end.stats[0]!.stat).toBeGreaterThanOrEqual(mid.stats[0]!.stat!);
   });
 });
 
@@ -225,5 +227,29 @@ describe("football box score → stats", () => {
     const tip = Date.parse("2026-11-05T00:00:00Z");
     const end = fakeBoxStats([{ name: "Ripley Stone", market_key: "player_pass_yds" }], tip, tip + 4 * 3_600_000);
     expect(end.stats[0]!.stat).toBeGreaterThan(20);
+  });
+});
+
+
+describe("participation evidence", () => {
+  it("retains DNP at the final without inventing numeric zeroes", () => {
+    const box = espnBoxToStats(summary("post"));
+    expect(box.stats).toContainEqual({ name: "Bench Guy", team: "Philadelphia 76ers",
+      market_key: "__participation", stat: null, did_not_play: true });
+    expect(box.stats.filter((s) => s.name === "Bench Guy" && s.stat !== null)).toEqual([]);
+  });
+  it("keeps missing stat cells absent, while preserving a real zero", () => {
+    const box = espnBoxToStats({ boxscore: { players: [{ statistics: [{ keys: ["points", "assists", "rebounds"],
+      athletes: [{ athlete: { displayName: "Player" }, stats: ["--", "", "0"] }] }] }] } });
+    expect(box.stats.filter((s) => s.market_key !== "__participation")).toEqual([
+      { name: "Player", team: null, market_key: "player_rebounds", stat: 0 },
+    ]);
+  });
+  it("participation in any group takes precedence over a DNP marker in another", () => {
+    const box = espnBoxToStats({ boxscore: { players: [{ statistics: [
+      { keys: ["points"], athletes: [{ athlete: { displayName: "Player" }, stats: ["0"] }] },
+      { keys: [], athletes: [{ athlete: { displayName: "Player" }, didNotPlay: true }] },
+    ] }] } });
+    expect(box.stats.find((s) => s.market_key === "__participation")?.did_not_play).toBe(false);
   });
 });

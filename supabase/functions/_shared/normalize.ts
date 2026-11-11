@@ -51,11 +51,18 @@ export function normalizeOddsResponse(apiEvents: readonly ApiEvent[], opts: Norm
         ? pickPropBooks(ev, marketKey, opts.bookmakers)
         : [pickBook(ev, marketKey, opts.bookmakers)].filter((p) => p !== null);
       if (picks.length === 0) {
+        // A successful per-event response can withdraw an entire requested prop market.
+        // Carry an empty snapshot so SQL removes its cached players rather than refreshing them.
+        if (isPropMarket(marketKey)) out.markets.push({
+          event_id: ev.id, market_key: marketKey, bookmaker: "",
+          provider_updated_at: oldestTimestamp(orderedBooks(ev, opts.bookmakers).map((b) =>
+            b.markets.find((m) => m.key === marketKey)?.last_update ?? b.last_update)),
+        });
         if (ev.bookmakers?.length) out.skippedMarkets++;
         continue;
       }
       // The market row names the book that priced the most (first, on a tie) of it.
-      out.markets.push({ event_id: ev.id, market_key: marketKey, bookmaker: picks[0]!.book });
+      out.markets.push({ event_id: ev.id, market_key: marketKey, provider_updated_at: oldestTimestamp(picks.map((p) => p.market.last_update)), bookmaker: picks[0]!.book });
       for (const pick of picks) {
         for (const o of pick.market.outcomes) {
           out.outcomes.push({
@@ -65,6 +72,8 @@ export function normalizeOddsResponse(apiEvents: readonly ApiEvent[], opts: Norm
             participant_name: o.description ?? "",
             point: o.point ?? null,
             price_american: o.price,
+            ...(pick.market.last_update && Number.isFinite(Date.parse(pick.market.last_update))
+              ? { provider_updated_at: pick.market.last_update } : {}),
             bookmaker: pick.book,
           });
         }
@@ -84,7 +93,7 @@ function orderedBooks(ev: ApiEvent, priority: readonly string[]) {
 function pickBook(ev: ApiEvent, marketKey: string, priority: readonly string[]): Pick | null {
   for (const book of orderedBooks(ev, priority)) {
     const market = book.markets.find((m) => m.key === marketKey);
-    if (market && isUsableMarket(marketKey, market)) return { book: book.key, market };
+    if (market && isUsableMarket(marketKey, market)) return { book: book.key, market: { ...market, last_update: market.last_update ?? book.last_update } };
   }
   return null;
 }
@@ -105,7 +114,7 @@ function pickPropBooks(ev: ApiEvent, marketKey: string, priority: readonly strin
     const market = { ...cleaned, outcomes };
     if (outcomes.length === 0 || !isUsableMarket(marketKey, market)) continue;
     for (const o of outcomes) taken.add(o.description ?? "");
-    picks.push({ book: book.key, market });
+    picks.push({ book: book.key, market: { ...market, last_update: market.last_update ?? book.last_update } });
   }
   // Primary book (for odds_markets) = the one that priced the most players.
   return picks.sort((a, b) => b.market.outcomes.length - a.market.outcomes.length);
@@ -171,4 +180,10 @@ export function isUsableMarket(marketKey: string, market: ApiMarket): boolean {
     if (needsLine && !Number.isFinite(o.point)) return false;
   }
   return true;
+}
+
+/** Conservative watermark for markets merged across books. Missing timestamps use fetch time in SQL. */
+export function oldestTimestamp(values: readonly (string | undefined)[]): string | null {
+  const valid = values.filter((v): v is string => !!v && Number.isFinite(Date.parse(v)));
+  return valid.length ? valid.reduce((a, b) => Date.parse(a) <= Date.parse(b) ? a : b) : null;
 }

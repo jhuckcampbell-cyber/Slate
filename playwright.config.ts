@@ -14,7 +14,12 @@ export default defineConfig({
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
   },
-  projects: [{ name: "mobile-safari", use: { ...devices["iPhone 15"] } }],
+  // WebKit is the target (iMessage/Safari users). On Windows dev boxes WebKit lacks system DLLs, so
+  // E2E_BROWSER=chromium runs the same specs in a mobile Chromium (needs `npx playwright install chromium`).
+  projects:
+    process.env.E2E_BROWSER === "chromium"
+      ? [{ name: "mobile-chromium", use: { ...devices["Pixel 7"] } }]
+      : [{ name: "mobile-safari", use: { ...devices["iPhone 15"] } }],
   timeout: 60_000,
   // Production build so timings (e.g. "<15s to join") reflect real users, not dev compiles.
   webServer: {

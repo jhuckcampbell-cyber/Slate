@@ -1,5 +1,5 @@
--- Phase 4: hard Odds API credit budget (free tier: 500/month, our cap 400), paid-call switch,
--- free-tier cadence. Every paid call must reserve credits here first; the DB says no when the
+-- 0032/0033: 20K paid-plan quota, 19K app cap, demand-driven cadence.
+-- Hard Odds API credit budget and paid-call switch. Every paid call must reserve credits here first; the DB says no when the
 -- switch is off, the monthly cap is reached, or the provider's own counter is near empty.
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -12,11 +12,11 @@ update private.job_leases set holder = null, locked_until = '-infinity' where na
 
 create function pg_temp.budget() returns jsonb language sql as $$ select public.odds_budget_status() -> 'budget' $$;
 
--- ---------- defaults: free tier, paid calls OFF until someone turns them on ----------
-select is((pg_temp.budget() ->> 'quota')::int, 500, 'quota defaults to the free tier (500/month)');
-select is((pg_temp.budget() ->> 'cap')::int, 400, 'our hard cap leaves a 100-credit buffer');
+-- 0032 changes defaults but deliberately preserves the paid switch OFF.
+select is((pg_temp.budget() ->> 'quota')::int, 20000, 'quota defaults to the 20K plan (0032)');
+select is((pg_temp.budget() ->> 'cap')::int, 19000, 'our hard cap leaves a 1000-credit buffer (0032)');
 select is((pg_temp.budget() ->> 'enabled')::boolean, false, 'paid calls start disabled (dry run first)');
-select is((pg_temp.budget() ->> 'left')::int, 400, 'nothing used yet: 400 left');
+select is((pg_temp.budget() ->> 'left')::int, 19000, 'nothing used yet: 19000 left');
 
 select is(public.odds_budget_reserve('basketball_nba', '/sports/basketball_nba/odds', 3) ->> 'reason',
   'PAID_CALLS_DISABLED', 'reserve refuses while the switch is off');
@@ -30,12 +30,12 @@ create temp table r1 as select public.odds_budget_reserve('basketball_nba', '/sp
 select is((select (r ->> 'ok')::boolean from r1), true, 'reserve within budget succeeds');
 select is((select credits_used from private.api_usage where id = (select (r ->> 'reservation_id')::bigint from r1)),
   3, 'the estimate is charged up front');
-select is((pg_temp.budget() ->> 'left')::int, 397, 'an unsettled reservation counts against the budget');
+select is((pg_temp.budget() ->> 'left')::int, 18997, 'an unsettled reservation counts against the budget');
 
-select public.odds_budget_settle((select (r ->> 'reservation_id')::bigint from r1), 2, 497);
+select public.odds_budget_settle((select (r ->> 'reservation_id')::bigint from r1), 2, 19998);
 select is((select (credits_used, status) from private.api_usage where id = (select (r ->> 'reservation_id')::bigint from r1)),
   row(2, 'settled'::text), 'settle records the actual cost from the response headers');
-select public.odds_budget_settle((select (r ->> 'reservation_id')::bigint from r1), 0, 500);
+select public.odds_budget_settle((select (r ->> 'reservation_id')::bigint from r1), 0, 20000);
 select is((select credits_used from private.api_usage where id = (select (r ->> 'reservation_id')::bigint from r1)),
   2, 'a reservation settles only once');
 
@@ -51,8 +51,10 @@ select is(public.odds_budget_reserve('basketball_nba', 'x', 11) ->> 'reason', 'I
 -- ---------- monthly cap ----------
 -- Isolate the hard-cap tests from the independently tested settlement pool.
 update private.app_settings set value = '0' where key = 'odds_settlement_credits';
-insert into private.api_usage (endpoint, credits_used, status) values ('filler', 392, 'settled');
-select is((pg_temp.budget() ->> 'left')::int, 3, '2 + 3 + 392 used: 3 left');
+-- 0032 defaults to auto; isolate the hard cap from daily pacing too.
+select public.odds_set_budget_policy('manual','standard');
+insert into private.api_usage (endpoint, credits_used, status) values ('filler', 18992, 'settled');
+select is((pg_temp.budget() ->> 'left')::int, 3, '2 + 3 + 18992 used: 3 left');
 select is(public.odds_budget_reserve('basketball_nba', 'x', 4) ->> 'reason', 'BUDGET_EXHAUSTED',
   'a call that would cross the cap is refused');
 select ok(not exists(select 1 from private.odds_sync_state o where o.sport_key = 'basketball_nba'
@@ -64,11 +66,11 @@ select is((pg_temp.budget() ->> 'left')::int, 0, 'cap reached: 0 left');
 delete from private.api_usage;
 insert into private.api_usage (endpoint, credits_used, credits_remaining, called_at, status)
 values ('old', 450, 5, date_trunc('month', now()) - interval '1 day', 'settled');
-select is((pg_temp.budget() ->> 'left')::int, 400, 'last month''s spend and counter don''t count');
+select is((pg_temp.budget() ->> 'left')::int, 19000, 'last month''s spend and counter don''t count');
 
-insert into private.api_usage (endpoint, credits_used, credits_remaining, status) values ('/sports/x/events', 0, 150, 'settled');
+insert into private.api_usage (endpoint, credits_used, credits_remaining, status) values ('/sports/x/events', 0, 1050, 'settled');
 select is((pg_temp.budget() ->> 'left')::int, 50,
-  'provider says 150 left: we stop at its last 100 even if our own ledger looks fine');
+  'provider says 1050 left: we stop at its last 1000 even if our own ledger looks fine');
 
 -- ---------- due-list respects the back-off ----------
 insert into auth.users (id, aud, role, email, is_anonymous, raw_user_meta_data) values
@@ -83,11 +85,11 @@ select ok(not exists (select 1 from jsonb_array_elements(private.odds_sync_due_j
                       where j ->> 'kind' = 'odds' and j ->> 'sport_key' = 'icehockey_nhl'),
   'a backed-off sport is not due');
 
--- ---------- free-tier cadence ----------
-select is(private.odds_refresh_interval(now() + interval '2 days'), interval '12 hours', '>24h out: every 12h');
-select is(private.odds_refresh_interval(now() + interval '6 hours'), interval '2 hours', '1–24h out: every 2h');
-select is(private.odds_max_age(now() + interval '30 minutes'), interval '46 minutes',
-  'last hour: every 30 min, bets accept prices up to 46 min old');
+-- 0032: only 50 provider credits remain, so critical demand tiers apply.
+select is(private.odds_refresh_interval(now() + interval '2 days'), interval '48 hours', '>24h out: critical far tier every 48h');
+select is(private.odds_refresh_interval(now() + interval '6 hours'), interval '24 hours', '1–24h out: critical day tier every 24h');
+select is(private.odds_max_age(now() + interval '30 minutes'), interval '541 minutes',
+  'critical unpicked close tier: 6h, freshness 9h + 1 min');
 
 -- ---------- only the service role can touch the budget ----------
 set local role authenticated;

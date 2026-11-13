@@ -1,3 +1,4 @@
+import { PAYOUT_CASES } from "./payout-cases";
 import { describe, expect, it } from "vitest";
 import {
   MAX_PARLAY_DECIMAL_E4,
@@ -96,4 +97,30 @@ describe("probabilities", () => {
     expect(a).toBeCloseTo(0.5, 10);
     expect(b).toBeCloseTo(0.5, 10);
   });
+});
+
+
+describe("generated integer payout invariants", () => {
+  it("matches exact rational arithmetic across rounding boundaries and capped parlays", () => {
+    let seed = 39;
+    const next = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0);
+    for (let i = 0; i < 2000; i++) {
+      const legs = Array.from({length: 1 + next() % 10}, () => americanToDecimalE4((next() % 2 ? 1 : -1) * (100 + next() % 5000)));
+      const numerator = legs.reduce((n, leg) => n * BigInt(leg), 1n);
+      const denominator = 10000n ** BigInt(legs.length - 1);
+      const rounded = (numerator * 2n + denominator) / (denominator * 2n);
+      const decimal = Number(rounded > 10010000n ? 10010000n : rounded);
+      expect(parlayDecimalE4(legs)).toBe(decimal);
+      const stake = 100 + next() % 100000000;
+      expect(payoutCents(stake, decimal)).toBe(Number(BigInt(stake) * BigInt(decimal) / 10000n));
+    }
+  });
+});
+
+it("matches the shared SQL booking vectors", () => {
+  for (const c of PAYOUT_CASES) {
+    const decimal = parlayDecimalE4(c.prices.map(americanToDecimalE4));
+    expect(decimal).toBe(c.decimalE4);
+    expect(payoutCents(c.stake, decimal)).toBe(c.payout);
+  }
 });

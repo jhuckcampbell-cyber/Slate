@@ -3,7 +3,7 @@ const MESSAGES: Record<string, string> = {
   // auth / tournaments
   CAPTCHA_FAILED: "Security verification didn't finish. Please try again. If it keeps failing, refresh the page.",
   NOT_AUTHENTICATED: "Your session expired. Refresh and try again.",
-  RATE_LIMITED: "Slow down! You've created a lot of tournaments this hour.",
+  RATE_LIMITED: "You've made too many requests. Wait a minute and try again (tournament creation may take an hour).",
   INVALID_EVENTS: "One of those games already started or isn't available anymore.",
   MIXED_SPORTS: "Pick games from a single sport.",
   INVALID_LOCK_TIME: "Lock time must be in the future and no later than the first kickoff.",
@@ -12,7 +12,7 @@ const MESSAGES: Record<string, string> = {
   TOURNAMENT_LOCKED: "Picks are locked. This tournament already started.",
   TOURNAMENT_FULL: "This tournament is full.",
   NOT_A_PARTICIPANT: "You're not in this tournament yet.",
-  REMOVED_BY_HOST: "The host removed you from this tournament.",
+  REMOVED_BY_HOST: "The host removed you from this tournament. This account cannot rejoin, including with the same verified email.",
   // host controls
   NOT_HOST: "Only the host can do that.",
   // player props

@@ -41,13 +41,13 @@ select is((select count(*)::int from jsonb_array_elements(private.odds_sync_due_
            where j ->> 'kind' = 'catalog'), 2, 'catalog refresh due for both catalog sports');
 
 select public.odds_sync_ingest('odds', 'icehockey_nhl', now());
-select ok(pg_temp.nhl_odds_job() is null, 'just-synced sport is not due (12h tier for games 2 days out)');
+select ok(pg_temp.nhl_odds_job() is null, 'just-synced sport is not due (12h demand tier for games 2 days out)');
 
 select public.odds_sync_ingest('catalog', 'americanfootball_nfl', now());
 select is((select count(*)::int from jsonb_array_elements(private.odds_sync_due_jobs()) j
            where j ->> 'kind' = 'catalog'), 1, 'catalog sync clears that sport for 6 hours');
 
--- A second tournament on a game 30 minutes out: union of markets, 3-minute tier.
+-- A second tournament on a game 30 minutes out: union of markets, 2-hour unpicked demand tier.
 select * from public.create_tournament('Sync Test 2', array['ts-ev2'], 'ST', null, 10000, null,
   '{"markets":["h2h","spreads"]}'::jsonb);
 update private.odds_sync_state set last_odds_sync_at = now() - interval '1 minute'
@@ -55,27 +55,28 @@ update private.odds_sync_state set last_odds_sync_at = now() - interval '1 minut
 select is(pg_temp.nhl_odds_job() -> 'markets', '["h2h", "spreads"]'::jsonb,
   'a tournament created after the last sync makes its sport due now, with the union of markets');
 update public.tournaments set created_at = now() - interval '1 hour' where title like 'Sync Test%';
-select ok(pg_temp.nhl_odds_job() is null, '...but not again once synced (30-minute tier not yet elapsed)');
-update private.odds_sync_state set last_odds_sync_at = now() - interval '31 minutes'
+select ok(pg_temp.nhl_odds_job() is null, '...but not again once synced (2-hour unpicked tier not yet elapsed)');
+update private.odds_sync_state set last_odds_sync_at = now() - interval '121 minutes'
  where sport_key = 'icehockey_nhl';
-select ok(pg_temp.nhl_odds_job() is not null, 'imminent game puts the sport on the 30-minute tier');
+select ok(pg_temp.nhl_odds_job() is not null, 'unpicked imminent game uses the 2-hour demand tier (0033)');
 
 -- ---------- ingest guards ----------
 select is((public.odds_sync_ingest('odds', 'icehockey_nhl', now(), '[]',
   '[{"event_id":"ts-ev3","market_key":"h2h","outcome_name":"Dallas Stars","price_american":-120,"bookmaker":"dk"}]',
   '[]') ->> 'outcomes_changed')::int, 0, 'in-play prices for started games are not stored as pregame');
 
+-- 0032/0033: 20K quota, 1000-credit provider buffer, demand-based freshness.
 -- ---------- cadence + credit breaker ----------
-select is(private.odds_refresh_interval(now() + interval '2 days'), interval '12 hours', '>24h out: every 12h (free tier)');
-select is(private.odds_max_age(now() + interval '30 minutes'), interval '46 minutes',
-  'bets accept prices up to 1.5 intervals + 1 min old');
+select is(private.odds_refresh_interval(now() + interval '2 days'), interval '12 hours', '>24h out: normal far demand tier every 12h');
+select is(private.odds_max_age(now() + interval '30 minutes'), interval '181 minutes',
+  '0033: unpicked close freshness is 1.5 x 2h + 1 min');
 
 insert into private.api_usage (endpoint, credits_used, credits_remaining) values ('odds', 3, 90);
-select is(private.odds_refresh_interval(now() + interval '2 days'), interval '24 hours',
-  'under 20% of quota: cadence halves');
+select is(private.odds_refresh_interval(now() + interval '2 days'), interval '48 hours',
+  '0032: exhausted provider buffer selects critical far cadence');
 insert into private.api_usage (endpoint, credits_used, credits_remaining, called_at)
   values ('odds', 3, 20, now() + interval '1 second');
-select is(private.odds_breaker_factor(), 4, 'under 5% of quota: cadence quarters');
+select is(private.odds_breaker_factor(), 1, '0033: demand tiers replace the legacy breaker multiplier');
 
 select * from finish();
 rollback;

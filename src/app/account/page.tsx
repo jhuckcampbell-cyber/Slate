@@ -40,7 +40,7 @@ async function Account({ searchParams }: PageProps<"/account">) {
       <h1 className="text-2xl font-bold">Account</h1>
       {authError && (
         <p className="mt-3 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
-          That link expired or was already used. Request a new one.
+          We couldn&apos;t sign you in. That link may have expired or been used already. Try again below.
         </p>
       )}
 
@@ -58,7 +58,7 @@ async function Account({ searchParams }: PageProps<"/account">) {
           <ul className="divide-y divide-border rounded-xl border border-border">
             {tournaments.map((t) => (
               <li key={t.code}>
-                <Link href={`/t/${t.code}`} className="flex justify-between p-3 text-sm">
+                <Link href={`/t/${t.code}`} className="flex min-h-12 justify-between p-3 text-sm">
                   <span className="font-medium">{t.title}</span>
                   <span className="font-mono text-muted-foreground">{t.code}</span>
                 </Link>

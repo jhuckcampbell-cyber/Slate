@@ -1,100 +1,76 @@
-﻿# Closed-beta Odds API budget
+# Demand-driven Odds API budget
 
-Run `node scripts/odds-budget-model.mjs` offline (no credentials, DB or API calls).
-Migration `20261110000031_budget_pacing.sql` adds opt-in automatic pacing and a
-narrow beta profile. Defaults remain manual / standard / paid OFF.
+Migrations 20261111000032?0034 upgrade the plan to **20,000 credits/month**,
+with a **19,000 app cap**, 1,000 provider buffer, and a settlement reserve of
+12% of the cap (2,280 initially, less recorded scores spend). The paid switch
+remains OFF on a new installation; migration never enables it. Existing operator
+switch state is preserved. Budget mode defaults to auto after this upgrade.
 
-| Profile / workload | Credits/week | Average month | Five weeks |
-|---|---:|---:|---:|
-| Legacy manual standard, props off | 226 | 979.3 | 1,130 |
-| Legacy standard, one prop game/sport | 434 | 1,880.7 | 2,170 |
-| Legacy standard, all props | 2,290 | 9,923.3 | 11,450 |
-| Auto standard, normal tier, props off | 76 | 329.3 | 380 |
-| Beta, six NBA games on one night/week, normal | 33 | 143.0 | 165 |
-| Beta, same slate, tight tier | 18 | 78.0 | 90 |
-| Beta, same slate, critical tier | 13 | 56.3 | 65 |
+Every paid request reserves through odds_budget_reserve before fetch and settles
+through odds_budget_settle, including failed requests. Unknown cost retains the
+estimate. Reservations count immediately, serialized by the existing advisory
+lock. The latest provider x-requests-remaining observation overrides optimistic
+ledger capacity; outstanding reservations also subtract from that counter.
+Response observations are ordered by settlement time, not reservation start.
+The monthly ledger and provider buffer both constrain available capacity.
 
-These are uncapped demand estimates. Pacing can further reduce calls and delay
-finals. The app cap is 400 of the provider's 500 credits, preserving a 100-credit
-provider buffer. Average month = weekly cost * 52/12; five weeks is conservative
-calendar planning. Legacy props-off spend is 96 odds + 130 scores per week;
-auto standard normal demand is 42 odds + 34 scores. Beta normal is 21 odds + 12
-scores. Groups share cache jobs; distinct slates, sports, later locks and creation
-times can expand the workload.
+Auto pacing divides available funds across remaining UTC days and calendar weeks.
+Unused daily capacity redistributes through month-end. Lower priorities cannot
+consume the monthly settlement pool or today's protected scores share. Exhausted
+daily allowance stops calls until capacity becomes available; freshness does not
+promise fresh odds after a budget refusal. Manual mode is an explicit operator
+override of daily/weekly pacing, retaining the cap, reserve and kill switch.
 
-## Workload and source facts
+| Demand | Normal | Tight | Critical |
+|---|---|---|---|
+| Pending tournament pick, in play or within 30m | 15s | 1m | 5m |
+| Other live tournament game | 2m | 5m | 5m |
+| Other game within 1h | 2h | 4h | 6h |
+| Game within 24h | 6h | 12h | 24h |
+| Further out | 12h | 24h | 48h |
 
-The original model uses 12 NFL Sunday games (seven at 13:00, four at 16:05, one at
-20:20) plus six NBA games spread over three hours, each week. NFL games last 3.5h,
-NBA games 2.5h. Groups open 48h ahead and lock at the earliest start. Beta uses
-only the six NBA games on one weekly night. Six games across multiple sports or
-nights cost more. Final delays, overtime, failures, retries, manual calls and other
-API consumers need extra allowance. Models include a terminal poll when aligned
-with cadence and assume timely finals; they are not settlement guarantees.
+Tight starts below 30% of monthly capacity or today's allowance; critical
+starts below 10% of either pool. Thresholds use
+configured cap, never the old 400/500 limits. Settings live in
+private.app_settings.odds_demand_tiers. Only unfinished tournament events in the
+12h live window are eligible. Per-event due filtering precedes sport batching,
+so a hot game does not add all far-away games to its request. Prices are shared
+across tournaments. No global all-sports fast polling.
 
-The model reads source constants: default odds are three markets with three books
-(one billing group), costing 3 credits per sport call. Scores cost 2 credits with
-`daysFrom=1`. NBA props are three markets; NFL props are ten markets, each billed
-per event. Catalog, ESPN live/stats and Sleeper are free. ESPN live display does
-not replace authoritative Odds API finals. Legacy cadence is 12h/2h/30m odds and
-15m scores. The proposed snapshot rows in the offline model are comparisons only;
-there is no snapshot-only production mode. The model does not simulate reservation
-denials or the pacing controller. Review extractor assumptions when SQL changes.
+Cadence and freshness share private.odds_event_interval / odds_refresh_interval.
+The existing odds_max_age signature serves both odds_board and wager validation
+(ODDS_STALE / ODDS_CHANGED). Freshness is interval ? 1.5 + min(60s, interval/3):
+a 15s cadence accepts up to 27.5s. Started games ingest separate is_live=true rows;
+frozen pregame closing lines remain unchanged. Wager RPCs still reject live prices.
+Props use the per-event endpoint only for tournaments enabling player_props,
+remain pregame, and use the same event demand interval. Tight/critical auto tiers drop
+props first. Beta's explicit slate and props restrictions remain in force.
 
-## Operating the profiles
+Three featured markets ? one region cost 3 credits/call. One sport at 15s costs
+720/hour, at 20s costs 540/hour, at 2m costs 90/hour. A 30-day month permits about
+633 app credits/day before reserve priority; fast polling is intentionally brief
+and budget-limited, never a continuous service guarantee. Scores cost 2/call;
+props cost their market count per region. Catalog and ESPN display feeds are free.
 
-`npm run odds -- beta EVENT_ID ...` selects beta + auto with at most six explicit
-IDs. An empty list safely schedules no paid pregame jobs. Replace IDs for each
-weekly slate; expired IDs do not roll forward. Only allowlisted games within 48h
-enter pregame jobs. Paid props are disabled in the due-list and reserve RPC even
-if a host enables them. Existing settlement exposure remains eligible, including
-games removed from the allowlist.
+Run `npm run odds -- status` for effective demand tiers, allowance, provider
+counter and projected month-end trend; `dry-run` shows the next batch and spend
+rates without provider calls. `enable` and `disable` control the independent paid
+switch. `standard`, `beta EVENT_ID ...`, `auto`, and `manual` retain their operator
+semantics. Projection is a trend, not a guarantee or permission to exceed the cap.
+The legacy offline odds-budget-model.mjs compares historical beta workloads and
+does not simulate these demand tiers; use status/dry-run for the deployed policy.
 
-`npm run odds -- standard` selects standard + auto. Standard admits all tournament
-slates and normal-tier props; requested demand can exceed 400. `manual` disables
-pacing while retaining the profile; `auto` restores pacing. Beta's slate/props
-restrictions and slower cadence remain active in manual mode. None of these
-commands enable paid calls. Review `status` and `dry-run`, then `enable` when ready.
-`disable` always blocks every paid reservation, including scores.
+The preferred runner is workers/odds-worker (Node 24 ESM). It shares the Edge
+engine, including fake provider support, normalization, single-writer lease,
+run tracking, budget settlement and change-only cache writes. SQL heartbeat is
+service-only and uses the DB clock; GET /health reports worker health. Cron keeps
+its existing minute schedule but skips while a successful worker heartbeat is
+less than 45s old. Worker failure automatically restores Edge fallback. Multiple
+workers and cron still contend on the same lease. No API keys enter SQL or logs.
 
-## Pacing and settlement priority
-
-Auto computes today's ceiling from (remaining credits + today's spend) / remaining
-UTC days, rounded up so small calls can proceed. A calendar-week ceiling uses
-funds at the start of that week, prorated through month-end. Both subtract spend
-already recorded, including unsettled reservations. Unused daily allowance is
-redistributed over the remaining month; it cannot accumulate into a weekend burst.
-The cap/provider buffer still apply. A crash retains its reservation; settle
-replaces the estimate with charged usage. Once today's allowance is spent,
-authoritative finals can wait until the next UTC day. No reserve can guarantee a
-final once the monthly pool is exhausted; inspect missing finals in sync health.
-
-Both modes protect **240 monthly credits for scores**, minus score spend/reservations
-already recorded. Lower priorities cannot consume this pool. Auto also leaves at
-least two credits, or the protected pool / remaining days rounded up, in today's
-allowance. Scores may spend these credits; lower-priority refusals never set a
-sport-wide backoff. Manual disables daily/weekly pacing but preserves the monthly
-settlement pool, hard cap and provider buffer.
-
-Claims sort scores/live first, then free stats, odds, props, catalog, with stable
-sport/event ties. Every paid call still uses reserve/settle. No operator command
-prints keys. `status` shows daily/weekly allowance remaining, settlement reserve,
-profile, cadence and projected month-end usage. Projection scales month-to-date
-usage by UTC calendar days elapsed; it is a trend estimate, not scheduled demand,
-and can exceed the cap even though reservations stay capped. In manual mode the
-allowances are informational.
-
-Cadences live in `private.app_settings.odds_pacing_tiers`:
-
-| Tier | Remaining monthly capacity | Odds >24h / >1h / close | Scores | Paid props |
-|---|---|---|---|---|
-| normal | at least 30% | 12h / 6h / 1h | 1h | standard only |
-| tight | 10% to below 30% | 24h / 12h / 2h | 2h | dropped |
-| critical | below 10% | 48h / 24h / 6h | 3h | dropped |
-
-Bet freshness uses the same effective interval; slower cadence widens accepted
-price age. Other service-only settings are `odds_budget_mode`,
-`odds_budget_profile`, `odds_settlement_credits`, `odds_beta_event_ids`.
-`odds_set_budget_policy` validates and atomically configures mode/profile/slate.
-No migration enables auto or paid calls. For broader slates or faster guaranteed
-settlement, increase the configured allowance rather than rely on this free beta.
+Validation in the Docker-free sandbox: lint, typecheck, Vitest only. Claude must
+apply migrations to a disposable Supabase DB and run pgTAP, including 23_fast_odds,
+then verify concurrent reservations, closing/live separation and cron takeover.
+Legacy pgTAP files asserting free-tier defaults (400 cap, manual mode and old
+cadences) need updated expectations in their owning task; they were not edited.
+DB generated types require regeneration by the owner of src after DB application.

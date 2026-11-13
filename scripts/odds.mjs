@@ -59,9 +59,17 @@ switch (cmd) {
     console.log("Sync health:", JSON.stringify(await rpc("odds_sync_health"), null, 2));
     break;
   }
-  case "dry-run":
-    console.log(JSON.stringify(await sync({ dry_run: true }), null, 2));
+  case "dry-run": {
+    const status = await rpc("odds_budget_status");
+    printBudget(status.budget);
+    printPacing(status.budget);
+    console.log("Demand tiers:", JSON.stringify(status.refresh_tiers));
+    const preview = await sync({ dry_run: true });
+    console.log(JSON.stringify(preview, null, 2));
+    const cost = (preview.body?.plan ?? []).reduce((sum, job) => sum + job.cost, 0);
+    console.log(`Next batch: ${cost} credits; hot featured sport: 720/hour at 15s, live sport: 90/hour at 2m (3 markets, one region). Daily governor limits actual spend.`);
     break;
+  }
   case "sync":
     console.log(JSON.stringify(await sync({}), null, 2));
     break;

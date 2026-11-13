@@ -9,7 +9,18 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import type { Database } from "@/lib/supabase/database.types";
 
-type Budget = { enabled: boolean; left: number; settlement_reserved: number };
+type Budget = {
+  enabled: boolean;
+  cap: number;
+  used_this_month: number;
+  left: number;
+  settlement_reserved: number;
+  mode: string;
+  profile: string;
+  today_left: number;
+  week_left: number;
+  days_left: number;
+};
 type Reserve = { ok: boolean; reason?: string; reservation_id?: number };
 
 let admin: SupabaseClient<Database>;
@@ -44,9 +55,17 @@ afterAll(async () => {
 it("concurrent reservations never reserve more than the budget has left", async () => {
   const initial = await budget();
   const before = initial.left;
-  const available = before - initial.settlement_reserved;
-  const cost = 3;
-  const attempts = Math.floor(before / cost) + 20; // more callers than the budget can serve
+  // Status exposes app_settings and odds_budget()'s provider, settlement and pacing limits.
+  // Non-score calls must leave both the monthly and daily settlement pools intact.
+  const monthlyAvailable = Math.max(0, Math.min(before, initial.cap - initial.used_this_month)
+    - initial.settlement_reserved);
+  const dailyReserve = Math.max(2, Math.ceil(initial.settlement_reserved / initial.days_left));
+  const available = initial.profile === "beta" ? 0 : initial.mode === "auto"
+    ? Math.max(0, Math.min(monthlyAvailable, initial.today_left - dailyReserve, initial.week_left - dailyReserve))
+    : monthlyAvailable;
+  const cost = 10; // Maximum valid estimate; avoid thousands of HTTP requests on larger plans.
+  const expectedGrants = Math.floor(available / cost);
+  const attempts = expectedGrants + 5; // race more callers than the current policy can serve
 
   const results = await Promise.all(
     Array.from({ length: attempts }, () =>
@@ -56,8 +75,13 @@ it("concurrent reservations never reserve more than the budget has left", async 
   const granted = results.map((r) => r.data as Reserve | null).filter((r): r is Reserve => !!r?.ok);
   reservations.push(...granted.map((r) => r.reservation_id!));
 
-  expect(results.every((r) => !r.error)).toBe(true);
-  expect(granted.length * cost).toBeLessThanOrEqual(before);
-  expect(granted.length).toBe(Math.floor(available / cost));
+  expect(results.map((r) => r.error).filter(Boolean)).toEqual([]);
+  const refused = results.map((r) => r.data as Reserve).filter((r) => !r.ok);
+  expect(refused).toHaveLength(attempts - expectedGrants);
+  for (const result of refused) {
+    expect(["BUDGET_EXHAUSTED", "SETTLEMENT_RESERVED", "PACING_LIMIT", "PROFILE_BLOCKED"]).toContain(result.reason);
+  }
+  expect(granted.length * cost).toBeLessThanOrEqual(available);
+  expect(granted.length).toBe(expectedGrants);
   expect((await budget()).left).toBe(before - granted.length * cost);
 });

@@ -15,6 +15,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm run audit
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
@@ -34,6 +35,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor
+      - name: Lint migrations against the reset database
+        run: npx supabase db lint --local --level warning --fail-on warning
       - run: npx supabase test db
       - name: Integration tests (parallel RPCs against the local stack)
         run: |
@@ -84,3 +87,13 @@ jobs:
         with:
           name: playwright-results
           path: test-results/
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

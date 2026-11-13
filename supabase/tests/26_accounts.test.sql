@@ -1,0 +1,61 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(24);
+insert into auth.users (id, aud, role, is_anonymous, raw_user_meta_data) values
+ ('aaaaaaaa-0038-0000-0000-000000000001','authenticated','authenticated',true,'{"display_name":"Host"}'),
+ ('bbbbbbbb-0038-0000-0000-000000000002','authenticated','authenticated',true,'{"display_name":"Guest"}');
+update public.profiles set avatar_url='https://example.test/private-avatar' where id='aaaaaaaa-0038-0000-0000-000000000001';
+insert into public.events(id,sport_key,home_team,away_team,commence_time)
+values ('auth-38','basketball_nba','Home','Away',now()+interval '2 days');
+select set_config('request.jwt.claims','{"sub":"aaaaaaaa-0038-0000-0000-000000000001","role":"authenticated"}',true);
+create temp table account_t as select * from public.create_tournament('Account test',array['auth-38'],'AUTH');
+insert into public.wagers(tournament_id,participant_id,wager_type,amount_cents,odds_american,odds_decimal,potential_payout_cents)
+select tournament_id,id,'single',100,100,2,200 from public.tournament_participants
+where tournament_id=(select id from account_t);
+grant select on account_t to authenticated;
+set local role authenticated;
+select throws_ok('select public.delete_my_account()','P0001','ACCOUNT_HOSTS_ACTIVE_TOURNAMENT','open host blocked');
+reset role;
+select throws_ok($$delete from auth.users where id='aaaaaaaa-0038-0000-0000-000000000001'$$,'P0001','ACCOUNT_HOSTS_ACTIVE_TOURNAMENT','admin cannot bypass host guard');
+select set_config('request.jwt.claims','{"sub":"bbbbbbbb-0038-0000-0000-000000000002","role":"authenticated"}',true);
+set local role authenticated;
+select public.join_tournament((select code from account_t));
+select is((select count(*)::int from public.profiles where id='aaaaaaaa-0038-0000-0000-000000000001'),0,'co-participant cannot read host profile metadata');
+select is((select display_name from public.get_roster((select id from account_t)) where user_id='aaaaaaaa-0038-0000-0000-000000000001'),'Host','roster exposes display name');
+select is((select avatar_url from public.get_roster((select id from account_t)) where user_id='aaaaaaaa-0038-0000-0000-000000000001'),null::text,'roster does not leak profile avatar');
+select is((select count(*)::int from public.leaderboard where user_id='aaaaaaaa-0038-0000-0000-000000000001'),0,'leaderboard remains blind before lock');
+select is((select count(*)::int from public.tournament_participants where user_id='aaaaaaaa-0038-0000-0000-000000000001'),0,'bankroll remains blind');
+select is((select count(*)::int from public.wagers where participant_id in (select participant_id from public.leaderboard where user_id='aaaaaaaa-0038-0000-0000-000000000001')),0,'wagers remain blind');
+select is((select count(*)::int from public.wagers where tournament_id=(select id from account_t)),0,'co-participant cannot read real host wager before lock');
+select lives_ok('select public.delete_my_account()','non-host can prepare deletion');
+reset role;
+select lives_ok($$delete from auth.users where id='bbbbbbbb-0038-0000-0000-000000000002'$$,'Auth deletion succeeds');
+select is((select display_name from public.profiles where id='bbbbbbbb-0038-0000-0000-000000000002'),'Deleted player','profile anonymized');
+select is((select count(*)::int from public.tournament_participants where user_id='bbbbbbbb-0038-0000-0000-000000000002'),1,'participant and bankroll retained');
+update public.tournaments set status='locked' where id=(select id from account_t);
+select set_config('request.jwt.claims','{"sub":"aaaaaaaa-0038-0000-0000-000000000001","role":"authenticated"}',true);
+set local role authenticated;
+select throws_ok('select public.delete_my_account()','P0001','ACCOUNT_HOSTS_ACTIVE_TOURNAMENT','locked host blocked');
+reset role;
+update public.tournaments set status='settled' where id=(select id from account_t);
+update public.wagers set status='won',settled_at=now() where tournament_id=(select id from account_t);
+create temp table saved_standings as select participant_id,cash_cents,rank from public.leaderboard where tournament_id=(select id from account_t);
+set local role authenticated;
+select lives_ok('select public.delete_my_account()','settled host allowed');
+reset role;
+select lives_ok($$delete from auth.users where id='aaaaaaaa-0038-0000-0000-000000000001'$$,'settled host Auth deletion succeeds');
+select is((select count(*)::int from public.tournaments where id=(select id from account_t)),1,'settled tournament retained');
+select is((select count(*)::int from public.wagers where tournament_id=(select id from account_t) and status='won'),1,'settled wager retained');
+select results_eq('select participant_id,cash_cents,rank from public.leaderboard where tournament_id=(select id from account_t) order by participant_id', 'select participant_id,cash_cents,rank from saved_standings order by participant_id','settled rank and bankroll unchanged');
+set local role authenticated;
+select is((select count(*)::int from public.leaderboard where tournament_id=(select id from account_t)),2,'all settled standings retained');
+select is((select count(*)::int from public.leaderboard where display_name='Deleted player' and tournament_id=(select id from account_t)),2,'leaderboard names anonymized');
+reset role;
+select ok(not has_function_privilege('anon','public.delete_my_account()','EXECUTE'),'anon cannot execute');
+select ok(has_function_privilege('authenticated','public.delete_my_account()','EXECUTE'),'authenticated can execute');
+select set_config('request.jwt.claims','{}',true);
+set local role authenticated;
+select throws_ok('select public.delete_my_account()','P0001','NOT_AUTHENTICATED','missing identity rejected');
+reset role;
+select * from finish();
+rollback;

@@ -4,7 +4,11 @@ select no_plan();
 delete from private.api_usage;
 delete from private.odds_sync_state;
 
-select is(private.odds_setting('odds_budget_mode') #>> '{}','manual','auto starts off');
+select is(private.odds_setting('odds_budget_mode') #>> '{}','auto','0032 defaults to auto pacing; paid calls still start off');
+-- Keep the legacy 400-credit policy fixture explicit after the 0032 plan upgrade.
+update private.app_settings set value='400' where key='odds_monthly_cap';
+update private.app_settings set value='500' where key='odds_monthly_quota';
+select public.odds_set_budget_policy('manual','standard');
 select public.odds_set_paid_calls(true);
 update private.app_settings set value='400' where key='odds_settlement_credits';
 select is(public.odds_budget_reserve('basketball_nba','/sports/basketball_nba/odds',3)->>'reason',
@@ -89,12 +93,14 @@ select is((select j->'event_ids' from jsonb_array_elements(private.odds_sync_due
 select ok(not exists(select 1 from jsonb_array_elements(private.odds_sync_due_jobs()) j where j->>'kind'='props'),
  'beta never schedules paid props');
 select public.odds_set_budget_policy('auto','standard');
-insert into private.api_usage(endpoint,credits_used,status) values('filler',300,'reserved');
+-- 0032 also drains cadence on daily spend: use provider headroom to isolate monthly tiers.
+insert into private.api_usage(endpoint,credits_used,credits_remaining,status) values('filler',0,200,'settled');
 select is(private.odds_budget()->>'cadence_tier','tight','low remaining budget selects tight tier');
 select is(private.odds_scores_interval(),interval '2 hours','tight tier slows scores');
 select ok(not exists(select 1 from jsonb_array_elements(private.odds_sync_due_jobs()) j where j->>'kind'='props'),
  'tight tier drops props first');
-insert into private.api_usage(endpoint,credits_used,status) values('filler',70,'reserved');
+insert into private.api_usage(endpoint,credits_used,credits_remaining,status,observed_at)
+values('filler',0,130,'settled',now()+interval '1 second');
 select is(private.odds_refresh_interval(now()+interval '6 hours'),interval '24 hours','critical tier slows pregame further');
 
 -- Inject deliberately unordered due work to exercise the actual claim path, rolled back below.

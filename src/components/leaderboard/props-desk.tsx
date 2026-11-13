@@ -83,12 +83,19 @@ export function PropsDesk({
       {results.length > 0 && (
         <ul className="mt-3 space-y-1 border-t border-border pt-3 text-sm">
           {results.map((r) => (
-            <li key={key(r)} className="flex items-baseline justify-between gap-3">
+            <li key={key(r)} className="flex flex-wrap items-baseline justify-between gap-3">
               <LineLabel line={r} />
               <span className="num text-lg font-bold">{!(`${tournamentId}|${key(r)}` in recorded) ? "Recorded" : recorded[`${tournamentId}|${key(r)}`] === null ? "Did not play: void" : recorded[`${tournamentId}|${key(r)}`]}</span>
+              {isHost && recorded[`${tournamentId}|${key(r)}`] != null && (
+                <details className="w-full">
+                  <summary className="min-h-11 cursor-pointer py-3">Correct stat</summary>
+                  <p className="text-xs text-muted-foreground">Corrections are saved with a history. Once an affected bet has settled, the result requires review.</p>
+                  <ul><GradeRow tournamentId={tournamentId} line={r} correction /></ul>
+                </details>
+              )}
             </li>
           ))}
-          <li className="pt-1 text-xs text-muted-foreground">Results are final. A confirmed DNP voids all props for that player.</li>
+          <li className="pt-1 text-xs text-muted-foreground">Settled bets are final. Stats can be corrected while all affected bets are pending. A confirmed DNP voids all props for that player.</li>
         </ul>
       )}
     </section>
@@ -107,7 +114,7 @@ function LineLabel({ line }: { line: PropLine }) {
   );
 }
 
-function GradeRow({ tournamentId, line }: { tournamentId: string; line: PropLine }) {
+function GradeRow({ tournamentId, line, correction = false }: { tournamentId: string; line: PropLine; correction?: boolean }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const label = `${line.player} ${statName(line.marketKey)}`;
@@ -133,7 +140,9 @@ function GradeRow({ tournamentId, line }: { tournamentId: string; line: PropLine
     const { error } = await createClient().rpc("grade_prop", args);
     setPending(false);
     if (error) {
-      toast.error(friendlyError(error));
+      toast.error(error.message === "ALREADY_GRADED" || error.message === "CORRECTION_REQUIRES_REVIEW"
+        ? "This result requires review because an affected bet is final or the player was marked did not play."
+        : friendlyError(error));
       return;
     }
     toast.success(didNotPlay ? `${line.player} did not play. Picks voided.` : `${label}: ${stat}. Picks graded.`);
@@ -147,10 +156,10 @@ function GradeRow({ tournamentId, line }: { tournamentId: string; line: PropLine
           <LineLabel line={line} />
           <span className="text-xs text-muted-foreground">{Object.values(AUTO_PROP_STATS).some((markets) => markets.includes(line.marketKey.replace(/_alternate$/, ""))) ? "Box score when verified ? host override available" : "Host-graded market"}</span>
         </div>
-        <label className="flex min-h-11 items-center gap-2 text-xs">
+        {!correction && <label className="flex min-h-11 items-center gap-2 text-xs">
           <input type="checkbox" className="size-5 accent-foreground" name="didNotPlay" aria-label={`${line.player} confirmed did not play`} />
           Did not play
-        </label>
+        </label>}
         <Input
           name="stat"
           inputMode="decimal"
@@ -160,7 +169,7 @@ function GradeRow({ tournamentId, line }: { tournamentId: string; line: PropLine
         />
         <Button type="submit" variant="secondary" className="h-11" disabled={pending}>
           {pending && <Loader2 className="animate-spin" />}
-          Enter
+          {correction ? "Save correction" : "Enter"}
         </Button>
       </form>
     </li>

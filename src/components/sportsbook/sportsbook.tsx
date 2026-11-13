@@ -55,7 +55,7 @@ function SportsbookInner({
   const { state, dispatch } = useSlip();
 
   const eventIds = useMemo(() => events.map((e) => e.id), [events]);
-  const board = useBoard(tournamentId, eventIds, initialBoard);
+  const board = useBoard(tournamentId, eventIds, initialBoard, events.flatMap((e) => e.sport_key ? [e.sport_key] : []));
   const wagers = useMyWagers(participantId, initialWagers);
   const bankroll = useBankroll(participantId, initialBankroll);
 
@@ -223,4 +223,3 @@ function Stat({ label, cents, highlight }: { label: string; cents: number; highl
     </div>
   );
 }
-

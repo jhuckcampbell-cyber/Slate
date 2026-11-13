@@ -1,0 +1,3 @@
+title = "Slate secret scanning"
+[extend]
+useDefault = true

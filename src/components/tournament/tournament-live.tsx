@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
+import { resilientChannel } from "@/lib/queries/realtime";
 import { createClient } from "@/lib/supabase/client";
 
 type Props = {
@@ -30,13 +31,13 @@ export function unmarkLeaving(tournamentId: string) {
 
 const POLL_MS = 20_000;
 const SWEAT_REFRESH_MS = 60_000;
-const AUTH_WAIT_MS = 3_000;
+
 
 /**
  * Keeps an open lobby in sync with the database. The private Realtime channel "tournament:<id>"
  * (participants only, see migration 0006) carries bare signals, never picks:
- *   tournament → lock time / rules / status changed   roster → someone joined, left, or submitted
- *   scores → a game's score changed (bets may have been graded)
+ *   tournament â†’ lock time / rules / status changed   roster â†’ someone joined, left, or submitted
+ *   scores â†’ a game's score changed (bets may have been graded)
  * Each one re-renders the server components (RLS decides what's visible).
  * Sockets aren't guaranteed (phones background tabs, joins race the first render), so:
  *   - every (re)join of the channel triggers one catch-up refresh,
@@ -55,13 +56,13 @@ export function TournamentLive({ tournamentId, code, viewerUserId, renderedVersi
   useEffect(() => {
     const supabase = createClient();
     let debounce: ReturnType<typeof setTimeout> | undefined;
-    let cancelled = false;
+
     const refresh = () => {
       clearTimeout(debounce);
       debounce = setTimeout(() => router.refresh(), 200);
     };
 
-    const channel = supabase
+    const stopChannel = resilientChannel(supabase, () => supabase
       .channel(`tournament:${tournamentId}`, { config: { private: true } })
       .on("broadcast", { event: "tournament" }, ({ payload }: { payload: TournamentSignal }) => {
         if (payload.status === "deleted") {
@@ -77,16 +78,7 @@ export function TournamentLive({ tournamentId, code, viewerUserId, renderedVersi
           return;
         }
         refresh();
-      });
-
-    // Private channels need the user's JWT on the join message; don't let a slow token read
-    // block the subscription forever.
-    void Promise.race([supabase.realtime.setAuth(), new Promise((r) => setTimeout(r, AUTH_WAIT_MS))]).then(() => {
-      if (cancelled) return;
-      channel.subscribe((status) => {
-        if (status === "SUBSCRIBED") refresh(); // catch up on anything sent before the join
-      });
-    });
+      }), refresh);
 
     const poll = setInterval(async () => {
       if (document.visibilityState !== "visible") return;
@@ -103,11 +95,11 @@ export function TournamentLive({ tournamentId, code, viewerUserId, renderedVersi
     document.addEventListener("visibilitychange", onVisible);
 
     return () => {
-      cancelled = true;
+      stopChannel();
       clearTimeout(debounce);
       clearInterval(poll);
       document.removeEventListener("visibilitychange", onVisible);
-      void supabase.removeChannel(channel);
+
     };
   }, [tournamentId, code, viewerUserId, router]);
 

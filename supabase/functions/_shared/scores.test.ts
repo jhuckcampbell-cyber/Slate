@@ -107,5 +107,5 @@ it.each([
   ["basketball_ncaab", "Duke Blue Devils", "North Carolina Tar Heels"],
 ])("maps full college team names for %s", (sport_key, home_team, away_team) => {
   const e = { ...fixture[0]!, sport_key, home_team, away_team, scores: [{ name: away_team, score: "24" }, { name: home_team, score: "31" }] };
-  expect(normalizeScores([e])).toEqual([{ event_id: e.id, completed: true, home_score: 31, away_score: 24 }]);
+  expect(normalizeScores([e])).toEqual([{ event_id: e.id, completed: true, home_score: 31, away_score: 24, provider_updated_at: "2026-11-03T02:40:00Z" }]);
 });

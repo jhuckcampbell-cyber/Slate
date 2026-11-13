@@ -74,7 +74,7 @@ select is((select count(*)::int from pg_temp.college_jobs() j where j ->> 'kind'
 select is((select count(*)::int from pg_temp.college_jobs() j where j ->> 'kind' in ('props','stats')), 0,
  'enabled never emits college props or stats');
 select is((select j -> 'event_ids' from pg_temp.college_jobs() j where j ->> 'sport_key' = sport and j ->> 'kind' = 'odds'),
- jsonb_build_array('college-' || sport || '-1','college-' || sport || '-2'), sport || ' odds capped earliest first, excludes untournamented event')
+ jsonb_build_array('college-' || sport || '-4','college-' || sport || '-5'), sport || ' odds capped earliest first (in-play games are due, upcoming ones wait), excludes untournamented event')
 from unnest(array['americanfootball_ncaaf','basketball_ncaab']) sport;
 select is((select j -> 'event_ids' from pg_temp.college_jobs() j where j ->> 'sport_key' = sport and j ->> 'kind' = 'scores'),
  jsonb_build_array('college-' || sport || '-4','college-' || sport || '-5'), sport || ' scores capped earliest first')

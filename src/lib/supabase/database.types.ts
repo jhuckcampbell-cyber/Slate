@@ -123,6 +123,45 @@ export type Database = {
           },
         ];
       };
+      grading_reviews: {
+        Row: {
+          created_at: string;
+          event_id: string;
+          id: number;
+          kind: string;
+          previous: NonNullable<Json>;
+          proposed: NonNullable<Json>;
+          subject: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          event_id: string;
+          id?: never;
+          kind: string;
+          previous: NonNullable<Json>;
+          proposed: NonNullable<Json>;
+          subject: string;
+        };
+        Update: {
+          created_at?: string;
+          event_id?: string;
+          id?: never;
+          kind?: string;
+          previous?: NonNullable<Json>;
+          proposed?: NonNullable<Json>;
+          subject?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "grading_reviews_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       odds_cache: {
         Row: {
           alt_point: number | null;
@@ -253,6 +292,25 @@ export type Database = {
           ok?: boolean | null;
           sport_key?: string;
           started_at?: string;
+        };
+        Relationships: [];
+      };
+      odds_worker_heartbeat: {
+        Row: {
+          id: boolean;
+          seen_at: string;
+          worker_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          id?: boolean;
+          seen_at?: string;
+          worker_id: string;
+        };
+        Update: {
+          id?: boolean;
+          seen_at?: string;
+          worker_id?: string;
         };
         Relationships: [];
       };
@@ -758,7 +816,7 @@ export type Database = {
         Row: {
           bets_count: number | null;
           cash_cents: number;
-          display_name: string;
+          display_name: string | null;
           ev_cents: number | null;
           max_cents: number | null;
           participant_id: string;
@@ -842,6 +900,7 @@ export type Database = {
         };
         Returns: number;
       };
+      delete_my_account: { Args: Record<PropertyKey, never>; Returns: undefined };
       delete_tournament: { Args: { p_tournament_id: string }; Returns: undefined };
       get_roster: {
         Args: { p_tournament_id: string };
@@ -963,6 +1022,7 @@ export type Database = {
       };
       odds_sync_release: { Args: { p_holder: string }; Returns: undefined };
       odds_sync_renew: { Args: { p_holder: string }; Returns: boolean };
+      odds_worker_beat: { Args: { p_worker_id: string }; Returns: undefined };
       participant_team: {
         Args: {
           l: Omit<

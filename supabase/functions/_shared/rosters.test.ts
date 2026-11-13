@@ -29,3 +29,22 @@ describe("sleeperToRoster", () => {
     expect(new Set(Object.values(NFL_TEAMS)).size).toBe(32);
   });
 });
+
+import { espnGameTeamIds, espnRosterToPlayers } from "./rosters.ts";
+
+describe("college rosters (ESPN)", () => {
+  const scoreboard = { events: [{ competitions: [{ competitors: [
+    { homeAway: "home", team: { id: "333", displayName: "Alabama Crimson Tide" } },
+    { homeAway: "away", team: { id: "2", displayName: "Auburn Tigers" } },
+  ] }] }] };
+  it("finds both team ids by nickname", () => {
+    expect(espnGameTeamIds(scoreboard, { home_team: "Alabama Crimson Tide", away_team: "Auburn Tigers" })).toEqual({ home: "333", away: "2" });
+    expect(espnGameTeamIds(scoreboard, { home_team: "Texas Longhorns", away_team: "Auburn Tigers" })).toBeNull();
+  });
+  it("reads grouped and flat rosters, labelled with our team name", () => {
+    expect(espnRosterToPlayers({ athletes: [{ position: "offense", items: [{ displayName: "A One" }, { fullName: "B Two" }] }] }, "Alabama Crimson Tide"))
+      .toEqual([{ name: "A One", team: "Alabama Crimson Tide" }, { name: "B Two", team: "Alabama Crimson Tide" }]);
+    expect(espnRosterToPlayers({ athletes: [{ displayName: "C Three" }] }, "T")).toEqual([{ name: "C Three", team: "T" }]);
+    expect(espnRosterToPlayers(null, "T")).toEqual([]);
+  });
+});

@@ -875,6 +875,7 @@ export type Database = {
     Functions: {
       beta_metrics: { Args: Record<PropertyKey, never>; Returns: Json };
       cancel_wager: { Args: { p_wager_id: string }; Returns: undefined };
+      college_props_enabled: { Args: Record<PropertyKey, never>; Returns: boolean };
       create_tournament: {
         Args: {
           p_allowed_bet_types?: Json;
@@ -1093,6 +1094,7 @@ export type Database = {
       };
       rosters_due: { Args: { p_sport_key: string }; Returns: boolean };
       rosters_ingest: { Args: { p_players: Json; p_sport_key: string }; Returns: Json };
+      rosters_merge: { Args: { p_players: Json; p_sport_key: string }; Returns: Json };
       scores_ingest: {
         Args: { p_fetched_at: string; p_scores: Json; p_sport_key: string };
         Returns: Json;

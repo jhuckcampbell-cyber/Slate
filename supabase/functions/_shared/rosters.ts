@@ -59,3 +59,44 @@ export function sleeperToRoster(json: unknown): RosterEntry[] {
   }
   return out;
 }
+
+// ---- College football (ESPN) ----
+// Sleeper has no college players. ESPN's free site API has each team's roster; the scoreboard gives the team ids.
+// Same non-commercial caveat as the rest of the ESPN feeds.
+
+type Obj = Record<string, unknown>;
+const obj = (v: unknown): Obj => (v && typeof v === "object" ? (v as Obj) : {});
+const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+const nickname = (team: string) => team.trim().toLowerCase().split(/\s+/).pop() ?? "";
+
+export const espnCollegeRosterUrl = (teamId: string) =>
+  `https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams/${encodeURIComponent(teamId)}/roster`;
+
+/** ESPN team ids for both sides of our game (matched by nickname, like findEspnGame), or null. */
+export function espnGameTeamIds(
+  scoreboard: unknown,
+  game: { home_team: string; away_team: string },
+): { home: string; away: string } | null {
+  for (const e of arr(obj(scoreboard).events)) {
+    const comps = arr(obj(arr(obj(e).competitions)[0]).competitors).map(obj);
+    const side = (homeAway: string) => comps.find((c) => c.homeAway === homeAway)?.team;
+    const home = obj(side("home")), away = obj(side("away"));
+    if (nickname(String(home.displayName ?? "")) === nickname(game.home_team)
+      && nickname(String(away.displayName ?? "")) === nickname(game.away_team) && home.id && away.id) {
+      return { home: String(home.id), away: String(away.id) };
+    }
+  }
+  return null;
+}
+
+/** ESPN team roster (athletes grouped by offense/defense/special teams, or flat) -> [{ name, team }]. */
+export function espnRosterToPlayers(json: unknown, team: string): RosterEntry[] {
+  const out: RosterEntry[] = [];
+  for (const g of arr(obj(json).athletes).map(obj)) {
+    for (const a of (Array.isArray(g.items) ? arr(g.items) : [g]).map(obj)) {
+      const name = String(a.displayName ?? a.fullName ?? "").trim();
+      if (name) out.push({ name, team });
+    }
+  }
+  return out;
+}

@@ -312,6 +312,17 @@ it("certifies a touchdown sum only after all explicit component rows arrive", ()
     .toMatchObject({ stat: 1, complete: true, provider_player_id: "td" });
 });
 
-it.each(["americanfootball_ncaaf", "basketball_ncaab"])("skips college box scores for %s", (key) => {
-  expect(espnBoxToStats({ header: { competitions: [{ status: { type: { completed: true } } }] } }, key)).toEqual({ final: false, stats: [], remaining: null });
+it("college football grades the main stats only, with anytime TD = rushing + receiving + return", () => {
+  const box = espnBoxToStats(nflSummary("post"), "americanfootball_ncaaf");
+  const markets = new Set(box.stats.map((r) => r.market_key).filter((m) => m !== "__participation"));
+  expect([...markets].sort()).toEqual(["player_anytime_td", "player_pass_yds", "player_reception_yds", "player_rush_yds"]);
+  expect(box).toMatchObject({ final: true, remaining: 0 });
+  expect(espnScoreboardUrl("americanfootball_ncaaf", "2026-11-02T01:20:00Z")).toBe(
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261101",
+  );
+  expect(gameRemaining({ state: "in", period: 2, displayClock: "15:00" }, "americanfootball_ncaaf")).toBe(0.75);
+});
+
+it("college basketball box scores stay unsupported", () => {
+  expect(espnBoxToStats({ header: { competitions: [{ status: { type: { completed: true } } }] } }, "basketball_ncaab")).toEqual({ final: false, stats: [], remaining: null });
 });

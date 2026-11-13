@@ -1,5 +1,5 @@
 /**
- * Live player stats from ESPN's public game feed (site.api.espn.com: no key, no Odds API credits), NBA and NFL.
+ * Live player stats from ESPN's public game feed (site.api.espn.com: no key, no Odds API credits), NBA, NFL and college football.
  * Unofficial and not licensed for commercial use: fine for the friends beta, replace with a licensed feed
  * before Slate makes money. PURE: the Edge Function fetches, this finds the game and maps the box score.
  */
@@ -45,6 +45,15 @@ const SPORTS: Record<string, Sport> = {
       "puntReturns.puntReturnTouchdowns": "player_anytime_td",
     },
   },
+};
+
+// College football: ESPN's college feed shares the NFL box-score column names. Only the main stats we offer props on
+// (no receptions or passing TDs), so nothing else is ingested. Anytime TD = rushing + receiving + return TDs.
+SPORTS.americanfootball_ncaaf = {
+  path: "football/college-football",
+  periodSeconds: 15 * 60,
+  markets: Object.fromEntries(Object.entries(SPORTS.americanfootball_nfl!.markets).filter(([, m]) =>
+    ["player_pass_yds", "player_rush_yds", "player_reception_yds", "player_anytime_td"].includes(m))),
 };
 
 export const STATS_SPORTS = Object.keys(SPORTS);

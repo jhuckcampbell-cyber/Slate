@@ -18,7 +18,7 @@ import { normalizeOddsResponse } from "../_shared/normalize.ts";
 import type { ApiEvent } from "../_shared/odds-api.ts";
 import { oddsCallCost, usageFromHeaders, type Usage as HeaderUsage } from "../_shared/budget.ts";
 import { fakeScoresResponse, normalizeScores, SCORES_CALL_COST, type ApiScoreEvent } from "../_shared/scores.ts";
-import { SLEEPER_NFL_PLAYERS_URL, sleeperToRoster } from "../_shared/rosters.ts";
+import { SLEEPER_NFL_PLAYERS_URL, espnCollegeRosterUrl, espnGameTeamIds, espnRosterToPlayers, sleeperToRoster } from "../_shared/rosters.ts";
 import { espnLiveUrl, fakeLiveGames, liveGamesFromScoreboard, type LiveGame } from "../_shared/live.ts";
 import { STATS_SPORTS, espnBoxToStats, espnScoreboardUrl, espnSummaryUrl, fakeBoxStats, findEspnGame, type BoxStats } from "../_shared/stats.ts";
 
@@ -190,8 +190,14 @@ async function runPropsJob(
   provider: "fake" | "the-odds-api",
   bookmakers: string[],
 ) {
-  if (job.sport_key === "americanfootball_ncaaf" || job.sport_key === "basketball_ncaab") {
-    return { kind: job.kind, sport_key: job.sport_key, event_id: job.event_id, skipped: "college game lines only" };
+  // College basketball has no props. College football props run only while the college switch is on (the DB only
+  // builds these jobs then) and are re-checked here, so a stale job can never spend credits with the switch off.
+  if (job.sport_key === "basketball_ncaab") {
+    return { kind: job.kind, sport_key: job.sport_key, event_id: job.event_id, skipped: "no props for this sport" };
+  }
+  if (job.sport_key === "americanfootball_ncaaf") {
+    const { data: on } = await supabase.rpc("college_props_enabled");
+    if (on !== true) return { kind: job.kind, sport_key: job.sport_key, event_id: job.event_id, skipped: "college odds off" };
   }
   const fetchedAt = new Date().toISOString();
   let apiEvents: ApiEvent[];
@@ -225,7 +231,11 @@ async function runPropsJob(
     p_usage: null,
   });
   if (error) throw new Error(`props ingest failed: ${error.message}`);
-  const rosters = provider === "fake" ? await fakeRosters(supabase, job.sport_key) : await syncRosters(supabase, job.sport_key);
+  const rosters = provider === "fake"
+    ? await fakeRosters(supabase, job.sport_key)
+    : job.sport_key === "americanfootball_ncaaf"
+    ? await syncCollegeRosters(supabase, job.event_id)
+    : await syncRosters(supabase, job.sport_key);
   return { kind: job.kind, sport_key: job.sport_key, event_id: job.event_id, skipped_markets: n.skippedMarkets, rosters, ...data };
 }
 
@@ -244,6 +254,34 @@ async function syncRosters(supabase: SupabaseClient, sportKey: string) {
     const players = sleeperToRoster(await res.json());
     if (players.length < 500) return { error: `sleeper roster too small (${players.length})` }; // don't wipe on a bad reply
     const { data, error: ingestError } = await supabase.rpc("rosters_ingest", { p_sport_key: sportKey, p_players: players });
+    return ingestError ? { error: ingestError.message } : data;
+  } catch (e) {
+    return { error: String(e) };
+  }
+}
+
+/**
+ * College football rosters, per game: ESPN's scoreboard gives both team ids, then each team's roster (free).
+ * Merged per team (rosters_merge) so other games' players stay. Re-run at most once a day per game's teams via
+ * the props job cadence; never fails the props job.
+ */
+async function syncCollegeRosters(supabase: SupabaseClient, eventId: string) {
+  try {
+    const { data: ev, error } = await supabase.from("events")
+      .select("home_team, away_team, commence_time").eq("id", eventId).single();
+    if (error || !ev) return null;
+    // Rosters barely change within a game week: skip the ESPN calls once both teams are stored.
+    const known = await Promise.all([ev.home_team, ev.away_team].map((team) => supabase.from("player_teams")
+      .select("team", { count: "exact", head: true }).eq("sport_key", "americanfootball_ncaaf").eq("team", team)));
+    if (known.every((k) => (k.count ?? 0) > 20)) return { skipped: "rosters known" };
+    const ids = espnGameTeamIds(await getJson(espnScoreboardUrl("americanfootball_ncaaf", ev.commence_time)), ev);
+    if (!ids) return { error: "college game not on espn scoreboard" };
+    const players = [
+      ...espnRosterToPlayers(await getJson(espnCollegeRosterUrl(ids.home)), ev.home_team),
+      ...espnRosterToPlayers(await getJson(espnCollegeRosterUrl(ids.away)), ev.away_team),
+    ];
+    if (players.length < 20) return { error: `college roster too small (${players.length})` };
+    const { data, error: ingestError } = await supabase.rpc("rosters_merge", { p_sport_key: "americanfootball_ncaaf", p_players: players });
     return ingestError ? { error: ingestError.message } : data;
   } catch (e) {
     return { error: String(e) };

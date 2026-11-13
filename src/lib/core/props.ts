@@ -17,9 +17,13 @@ const FOOTBALL = [
   "player_anytime_td",
 ] as const;
 
+/** College football: the main stats only. No receptions, alternate ladders or passing TDs. */
+const COLLEGE_FOOTBALL = ["player_pass_yds", "player_rush_yds", "player_reception_yds", "player_anytime_td"] as const;
+
 export function propMarkets(sportKey: string): string[] {
   if (sportKey === "basketball_nba") return [...BASKETBALL];
   if (sportKey === "americanfootball_nfl") return [...FOOTBALL];
+  if (sportKey === "americanfootball_ncaaf") return [...COLLEGE_FOOTBALL];
   return [];
 }
 
@@ -61,6 +65,7 @@ export function propLinesToGrade(
 export const AUTO_PROP_STATS: Readonly<Record<string, readonly string[]>> = {
   basketball_nba: [...BASKETBALL, "player_threes"],
   americanfootball_nfl: FOOTBALL.map(statMarket),
+  americanfootball_ncaaf: [...COLLEGE_FOOTBALL],
 };
 export const HOST_GRADED_PROP_MARKETS = ["player_team_dst_td"] as const;
 export function autoGradesProp(sportKey: string, marketKey: string): boolean {

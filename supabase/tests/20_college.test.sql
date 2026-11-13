@@ -72,7 +72,7 @@ update private.app_settings set value = '2' where key = 'odds_college_max_events
 select is((select count(*)::int from pg_temp.college_jobs() j where j ->> 'kind' = 'catalog'), 2,
  'enabled adds the free college catalog jobs');
 select is((select count(*)::int from pg_temp.college_jobs() j where j ->> 'kind' in ('props','stats')), 0,
- 'enabled never emits college props or stats');
+ 'enabled emits no college props or stats without a props tournament or pending prop pick');
 select is((select j -> 'event_ids' from pg_temp.college_jobs() j where j ->> 'sport_key' = sport and j ->> 'kind' = 'odds'),
  jsonb_build_array('college-' || sport || '-4','college-' || sport || '-5'), sport || ' odds capped earliest first (in-play games are due, upcoming ones wait), excludes untournamented event')
 from unnest(array['americanfootball_ncaaf','basketball_ncaab']) sport;

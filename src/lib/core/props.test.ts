@@ -5,7 +5,6 @@ describe("propMarkets (mirrors private.prop_markets)", () => {
   it("basketball: points, rebounds, assists", () => {
     expect(propMarkets("basketball_nba")).toEqual(["player_points", "player_rebounds", "player_assists"]);
     expect(propMarkets("basketball_ncaab")).toEqual([]);
-    expect(propMarkets("americanfootball_ncaaf")).toEqual([]);
   });
   it("football: yards and receptions (main + alternate ladders), passing TDs, anytime TD", () => {
     expect(propMarkets("americanfootball_nfl")).toEqual([
@@ -20,6 +19,15 @@ describe("propMarkets (mirrors private.prop_markets)", () => {
       "player_pass_tds",
       "player_anytime_td",
     ]);
+  });
+  it("college football: main stats only (no NFL extras, no alternate ladders, no passing TDs)", () => {
+    expect(propMarkets("americanfootball_ncaaf")).toEqual([
+      "player_pass_yds",
+      "player_rush_yds",
+      "player_reception_yds",
+      "player_anytime_td",
+    ]);
+    expect(propMarkets("americanfootball_ncaaf_future")).toEqual([]);
   });
   it("nothing for other sports", () => {
     expect(propMarkets("icehockey_nhl")).toEqual([]);
@@ -36,7 +44,14 @@ describe("tournamentMarkets", () => {
     ]);
     expect(tournamentMarkets("basketball_nba", ["h2h"], false)).toEqual(["h2h"]);
     expect(tournamentMarkets("basketball_ncaab", ["h2h"], true)).toEqual(["h2h"]);
-    expect(tournamentMarkets("americanfootball_ncaaf", ["h2h"], true)).toEqual(["h2h"]);
+    expect(tournamentMarkets("americanfootball_ncaaf", ["h2h"], true)).toEqual([
+      "h2h",
+      "player_pass_yds",
+      "player_rush_yds",
+      "player_reception_yds",
+      "player_anytime_td",
+    ]);
+    expect(tournamentMarkets("americanfootball_ncaaf", ["h2h"], false)).toEqual(["h2h"]);
     expect(tournamentMarkets("icehockey_nhl", ["h2h"], true)).toEqual(["h2h"]);
   });
 });

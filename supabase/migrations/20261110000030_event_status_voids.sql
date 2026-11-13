@@ -510,7 +510,6 @@ language sql stable security definer set search_path = '' as $$
       and t.status in ('locked', 'live', 'settled')
       and e.commence_time <= now()
       and e.status not in ('canceled')
-      and not coalesce(s.is_final, false)
       and (greatest(s.last_sync_at,(select max(r.started_at) from public.odds_sync_runs r
         where r.kind='stats' and r.event_id=e.id)) is null
         or greatest(s.last_sync_at,(select max(r.started_at) from public.odds_sync_runs r

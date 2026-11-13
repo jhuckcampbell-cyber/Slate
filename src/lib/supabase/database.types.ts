@@ -31,10 +31,13 @@ export type Database = {
           home_score: number | null;
           home_team: string;
           id: string;
+          scores_provider_updated_at: string | null;
           scores_synced_at: string | null;
           sport_key: string;
           sport_title: string | null;
           status: string;
+          status_reason: string | null;
+          status_updated_at: string | null;
           updated_at: string;
         };
         ComputedFields: never;
@@ -45,10 +48,13 @@ export type Database = {
           home_score?: number | null;
           home_team: string;
           id: string;
+          scores_provider_updated_at?: string | null;
           scores_synced_at?: string | null;
           sport_key: string;
           sport_title?: string | null;
           status?: string;
+          status_reason?: string | null;
+          status_updated_at?: string | null;
           updated_at?: string;
         };
         Update: {
@@ -58,10 +64,13 @@ export type Database = {
           home_score?: number | null;
           home_team?: string;
           id?: string;
+          scores_provider_updated_at?: string | null;
           scores_synced_at?: string | null;
           sport_key?: string;
           sport_title?: string | null;
           status?: string;
+          status_reason?: string | null;
+          status_updated_at?: string | null;
           updated_at?: string;
         };
         Relationships: [];
@@ -69,6 +78,7 @@ export type Database = {
       game_live: {
         Row: {
           away_score: number | null;
+          clock_seconds: number | null;
           detail: string | null;
           event_id: string;
           home_score: number | null;
@@ -81,6 +91,7 @@ export type Database = {
         ComputedFields: never;
         Insert: {
           away_score?: number | null;
+          clock_seconds?: number | null;
           detail?: string | null;
           event_id: string;
           home_score?: number | null;
@@ -92,6 +103,7 @@ export type Database = {
         };
         Update: {
           away_score?: number | null;
+          clock_seconds?: number | null;
           detail?: string | null;
           event_id?: string;
           home_score?: number | null;
@@ -175,6 +187,7 @@ export type Database = {
           is_live: boolean;
           last_seen_at: string;
           market_key: string;
+          provider_updated_at: string | null;
         };
         ComputedFields: never;
         Insert: {
@@ -183,6 +196,7 @@ export type Database = {
           is_live?: boolean;
           last_seen_at: string;
           market_key: string;
+          provider_updated_at?: string | null;
         };
         Update: {
           bookmaker?: string;
@@ -190,6 +204,7 @@ export type Database = {
           is_live?: boolean;
           last_seen_at?: string;
           market_key?: string;
+          provider_updated_at?: string | null;
         };
         Relationships: [
           {
@@ -201,6 +216,46 @@ export type Database = {
           },
         ];
       };
+      odds_sync_runs: {
+        Row: {
+          counts: NonNullable<Json>;
+          error: string | null;
+          event_id: string | null;
+          finished_at: string | null;
+          id: number;
+          kind: string;
+          latency_ms: number | null;
+          ok: boolean | null;
+          sport_key: string;
+          started_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          counts?: NonNullable<Json>;
+          error?: string | null;
+          event_id?: string | null;
+          finished_at?: string | null;
+          id?: never;
+          kind: string;
+          latency_ms?: number | null;
+          ok?: boolean | null;
+          sport_key: string;
+          started_at?: string;
+        };
+        Update: {
+          counts?: NonNullable<Json>;
+          error?: string | null;
+          event_id?: string | null;
+          finished_at?: string | null;
+          id?: never;
+          kind?: string;
+          latency_ms?: number | null;
+          ok?: boolean | null;
+          sport_key?: string;
+          started_at?: string;
+        };
+        Relationships: [];
+      };
       player_stats: {
         Row: {
           event_id: string;
@@ -209,6 +264,7 @@ export type Database = {
           market_key: string;
           name_key: string;
           player_name: string;
+          provider_player_id: string | null;
           stat: number;
           team: string | null;
           updated_at: string;
@@ -221,6 +277,7 @@ export type Database = {
           market_key: string;
           name_key: string;
           player_name: string;
+          provider_player_id?: string | null;
           stat: number;
           team?: string | null;
           updated_at?: string;
@@ -232,6 +289,7 @@ export type Database = {
           market_key?: string;
           name_key?: string;
           player_name?: string;
+          provider_player_id?: string | null;
           stat?: number;
           team?: string | null;
           updated_at?: string;
@@ -301,31 +359,40 @@ export type Database = {
       };
       prop_results: {
         Row: {
+          did_not_play: boolean;
           event_id: string;
           graded_at: string;
           graded_by: string;
           market_key: string;
           participant_name: string;
-          stat: number;
+          provider_player_id: string | null;
+          source: string;
+          stat: number | null;
           tournament_id: string;
         };
         ComputedFields: never;
         Insert: {
+          did_not_play?: boolean;
           event_id: string;
           graded_at?: string;
           graded_by: string;
           market_key: string;
           participant_name: string;
-          stat: number;
+          provider_player_id?: string | null;
+          source?: string;
+          stat?: number | null;
           tournament_id: string;
         };
         Update: {
+          did_not_play?: boolean;
           event_id?: string;
           graded_at?: string;
           graded_by?: string;
           market_key?: string;
           participant_name?: string;
-          stat?: number;
+          provider_player_id?: string | null;
+          source?: string;
+          stat?: number | null;
           tournament_id?: string;
         };
         Relationships: [
@@ -511,11 +578,12 @@ export type Database = {
           tournament_id: string;
           wager_id: string;
           win_probability: number | null;
+          leg_exact_push: boolean | null;
           live_probability: number | null;
           live_stat: number | null;
           participant_team: string | null;
         };
-        ComputedFields: "live_probability" | "live_stat" | "participant_team";
+        ComputedFields: "leg_exact_push" | "live_probability" | "live_stat" | "participant_team";
         Insert: {
           event_id: string;
           id?: string;
@@ -615,6 +683,8 @@ export type Database = {
           potential_payout_cents: number;
           settled_at: string | null;
           status: Database["public"]["Enums"]["wager_status"];
+          submission_id: string | null;
+          submission_index: number | null;
           tournament_id: string;
           wager_type: Database["public"]["Enums"]["wager_type"];
           win_probability: number | null;
@@ -634,6 +704,8 @@ export type Database = {
           potential_payout_cents: number;
           settled_at?: string | null;
           status?: Database["public"]["Enums"]["wager_status"];
+          submission_id?: string | null;
+          submission_index?: number | null;
           tournament_id: string;
           wager_type: Database["public"]["Enums"]["wager_type"];
           win_probability?: number | null;
@@ -650,6 +722,8 @@ export type Database = {
           potential_payout_cents?: number;
           settled_at?: string | null;
           status?: Database["public"]["Enums"]["wager_status"];
+          submission_id?: string | null;
+          submission_index?: number | null;
           tournament_id?: string;
           wager_type?: Database["public"]["Enums"]["wager_type"];
           win_probability?: number | null;
@@ -800,6 +874,7 @@ export type Database = {
       };
       grade_prop: {
         Args: {
+          p_did_not_play?: boolean;
           p_event_id: string;
           p_market_key: string;
           p_participant_name: string;
@@ -819,6 +894,15 @@ export type Database = {
       };
       join_tournament: { Args: { p_code: string }; Returns: string };
       leave_tournament: { Args: { p_tournament_id: string }; Returns: undefined };
+      leg_exact_push: {
+        Args: {
+          l: Omit<
+            Database["public"]["Tables"]["wager_legs"]["Row"],
+            Database["public"]["Tables"]["wager_legs"]["ComputedFields"]
+          >;
+        };
+        Returns: boolean;
+      };
       live_ingest: { Args: { p_games: Json; p_sport_key: string }; Returns: Json };
       live_probability:
         | {
@@ -858,8 +942,13 @@ export type Database = {
         Returns: undefined;
       };
       odds_budget_status: { Args: Record<PropertyKey, never>; Returns: Json };
+      odds_set_budget_policy: {
+        Args: { p_event_ids?: Json; p_mode: string; p_profile: string };
+        Returns: Json;
+      };
       odds_set_paid_calls: { Args: { p_enabled: boolean }; Returns: Json };
       odds_sync_claim: { Args: { p_lease_seconds?: number }; Returns: Json };
+      odds_sync_health: { Args: { p_final_hours?: number }; Returns: Json };
       odds_sync_ingest: {
         Args: {
           p_events?: Json;
@@ -873,6 +962,7 @@ export type Database = {
         Returns: Json;
       };
       odds_sync_release: { Args: { p_holder: string }; Returns: undefined };
+      odds_sync_renew: { Args: { p_holder: string }; Returns: boolean };
       participant_team: {
         Args: {
           l: Omit<
@@ -883,7 +973,7 @@ export type Database = {
         Returns: string;
       };
       place_wagers: {
-        Args: { p_slip: Json; p_tournament_id: string };
+        Args: { p_slip: Json; p_submission_id?: string; p_tournament_id: string };
         Returns: {
           amount_cents: number;
           created_at: string;
@@ -896,6 +986,8 @@ export type Database = {
           potential_payout_cents: number;
           settled_at: string | null;
           status: Database["public"]["Enums"]["wager_status"];
+          submission_id: string | null;
+          submission_index: number | null;
           tournament_id: string;
           wager_type: Database["public"]["Enums"]["wager_type"];
           win_probability: number | null;
@@ -926,6 +1018,8 @@ export type Database = {
           potential_payout_cents: number;
           settled_at: string | null;
           status: Database["public"]["Enums"]["wager_status"];
+          submission_id: string | null;
+          submission_index: number | null;
           tournament_id: string;
           wager_type: Database["public"]["Enums"]["wager_type"];
           win_probability: number | null;

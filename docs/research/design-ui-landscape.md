@@ -1,6 +1,6 @@
 # Design & UI landscape: social betting, pick'em and group-play apps (2025–2026)
 
-Researched 2026-11-09 for SquadBets (current wordmark: "slate"). Scope: what comparable products and design writing
+Researched 2026-11-09 for Slate (current wordmark: "slate"). Scope: what comparable products and design writing
 say is working right now, and how it maps onto our "Ticket stub" system (`docs/DESIGN.md`). Recommendations are
 patterns to adopt in spirit, not branding to copy.
 
@@ -163,7 +163,7 @@ visual. They are **social surfaces** (reactions, recaps, copy/run-it-back) and *
 
 ---
 
-## 4. Prioritized recommendations for SquadBets
+## 4. Prioritized recommendations for Slate
 
 Effort: S = under a day, M = a few days, L = a week or more / needs migration + pgTAP.
 

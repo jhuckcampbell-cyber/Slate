@@ -2,7 +2,7 @@
 -- negative, yards spread with the line, and anytime TD follows the clock until he scores.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(15);
 
 delete from private.stats_sync_state;
 
@@ -32,9 +32,9 @@ $$;
 create function pg_temp.box(p_yds int, p_tds int, p_remaining double precision, p_final boolean default false)
 returns jsonb language sql as $$
   select public.stats_ingest('nf-g1', '401873036', p_final, jsonb_build_array(
-    jsonb_build_object('name', 'D''Andre Swift', 'team', 'Chicago Bears', 'market_key', 'player_rush_yds', 'stat', p_yds),
-    jsonb_build_object('name', 'D''Andre Swift', 'team', 'Chicago Bears', 'market_key', 'player_anytime_td', 'stat', p_tds),
-    jsonb_build_object('name', 'Caleb Williams', 'team', 'Chicago Bears', 'market_key', 'player_rush_yds', 'stat', -4)),
+    jsonb_build_object('name', 'D''Andre Swift', 'team', 'Chicago Bears', 'market_key', 'player_rush_yds', 'stat', p_yds, 'complete', p_final),
+    jsonb_build_object('name', 'D''Andre Swift', 'team', 'Chicago Bears', 'market_key', 'player_anytime_td', 'stat', p_tds, 'complete', p_final),
+    jsonb_build_object('name', 'Caleb Williams', 'team', 'Chicago Bears', 'market_key', 'player_rush_yds', 'stat', -4, 'complete', p_final)),
     p_remaining);
 $$;
 
@@ -79,7 +79,9 @@ select is(pg_temp.chance('player_anytime_td', 'Yes', null, 2.0), 1::double preci
 select pg_temp.box(30, 0, 0, true);
 select is(pg_temp.chance('player_anytime_td', 'Yes', null, 2.0), 0::double precision, 'final with no TD: 0%');
 update private.stats_sync_state set last_sync_at = now() - interval '2 minutes' where event_id = 'nf-g1';
-select ok(pg_temp.job() is null, 'final: done syncing');
+select ok(pg_temp.job() is not null, 'final: still due while a prop leg is pending');
+update public.wager_legs set status = 'void' where event_id = 'nf-g1';
+select ok(pg_temp.job() is null, 'final: done syncing after the prop leg is graded');
 
 select * from finish();
 rollback;

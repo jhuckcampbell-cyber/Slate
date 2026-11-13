@@ -3,6 +3,7 @@
  * fake provider for local dev/CI (ODDS_PROVIDER=fake). PURE and runtime-agnostic.
  * Docs: https://the-odds-api.com/liveapi/guides/v4/#get-scores
  */
+import { eventStatus } from "./event-status.ts";
 import { hash, type FakeEventInput } from "./fake-provider.ts";
 
 export type ApiScoreEvent = {
@@ -10,6 +11,8 @@ export type ApiScoreEvent = {
   sport_key: string;
   sport_title?: string;
   commence_time: string;
+  status?: string;
+  status_reason?: string;
   completed: boolean;
   home_team: string;
   away_team: string;
@@ -17,7 +20,7 @@ export type ApiScoreEvent = {
   last_update: string | null;
 };
 
-export type ScoreRow = { event_id: string; completed: boolean; home_score: number; away_score: number; provider_updated_at?: string | null };
+export type ScoreRow = { event_id: string; completed: boolean; home_score: number | null; away_score: number | null; status?: string; status_reason?: string; provider_updated_at?: string | null };
 
 export function normalizeScores(events: readonly ApiScoreEvent[], onlyIds?: readonly string[]): ScoreRow[] {
   const keep = onlyIds ? new Set(onlyIds) : null;
@@ -31,8 +34,9 @@ export function normalizeScores(events: readonly ApiScoreEvent[], onlyIds?: read
     };
     const home = score(e.home_team);
     const away = score(e.away_team);
-    if (home === null || away === null) continue;
-    out.push({ event_id: e.id, completed: e.completed, home_score: home, away_score: away, ...(e.last_update ? { provider_updated_at: e.last_update } : {}) });
+    const state = eventStatus(e.status);
+    if ((home === null || away === null) && !state) continue;
+    out.push({ ...state, ...(state && e.status_reason ? { status_reason: e.status_reason } : {}), event_id: e.id, completed: e.completed, home_score: home, away_score: away, ...(e.last_update ? { provider_updated_at: e.last_update } : {}) });
   }
   return out;
 }

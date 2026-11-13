@@ -24,7 +24,7 @@ select public.odds_sync_ingest('props','americanfootball_nfl',now(),'[]',
  ('Host DNP','player_rush_yds','Over',10.5),
  ('Feed DNP','player_rush_yds','Over',10.5),
  ('Unknown','player_receptions','Under',0.5),
- ('Counts','player_receptions','Over',1.5)
+ ('Counts','player_receptions','Over',2)
  ) v(player,market,selection,line)),
  '[{"event_id":"g27-final","market_key":"player_rush_yds","bookmaker":"test"},
    {"event_id":"g27-final","market_key":"player_receptions","bookmaker":"test"}]');
@@ -50,6 +50,8 @@ select public.place_wagers((select id from tournament27),jsonb_build_array(
  pg_temp.bet27(pg_temp.pick27('g27-outage')),
  pg_temp.bet27(pg_temp.pick27('g27-canceled')),
  pg_temp.bet27(pg_temp.pick27('g27-postponed'))));
+create temp table hidden_leg30 as select l as leg from public.wager_legs l where l.participant_name='Counts';
+grant select on hidden_leg30 to authenticated;
 select set_config('request.jwt.claims','{"sub":"a2700000-0000-0000-0000-000000000002","role":"authenticated"}',true);
 select public.join_tournament((select code from tournament27));
 select public.join_tournament((select code from dq27));
@@ -58,6 +60,8 @@ select is((select count(*)::int from public.leaderboard where tournament_id=(sel
  and display_name='Host27'),0,'co-participant cannot read bankrolls through replaced leaderboard before lock');
 select is((select count(*)::int from public.wager_legs where tournament_id=(select id from tournament27)),0,
  'co-participant cannot read hidden legs');
+select is((select public.leg_exact_push(leg) from hidden_leg30),false,
+ 'push helper cannot inspect another participant hidden leg even with its record supplied');
 select throws_ok('select * from private.grading_review','42501',null,'operator queue cannot reveal hidden picks');
 select throws_ok('select * from private.player_participation','42501',null,'participation evidence is private');
 select throws_ok($$ select public.grade_prop((select id from tournament27),'g27-final','player_rush_yds','Host DNP',0,true) $$,
@@ -75,11 +79,46 @@ select is((select remaining_bankroll_cents from public.tournament_participants w
  and user_id=auth.uid()),1000::bigint,'outage does not credit a refund');
 select ok(exists(select 1 from private.grading_review where tournament_id=(select id from tournament27)
  and event_id='g27-outage' and reason='MISSING_FINAL'),'outage surfaces in the operator queue');
-update public.events set status='canceled' where id='g27-canceled';
-update public.events set status='postponed' where id='g27-postponed';
+update private.odds_sync_state set last_scores_sync_at=now()-interval '3 days'
+ where sport_key='americanfootball_nfl';
+select ok(exists(select 1 from jsonb_array_elements(private.scores_recovery_jobs()) j,
+ jsonb_array_elements_text(j->'event_ids') id where id='g27-outage'),
+ 'three day overdue game is still polled for a final');
+select ok(exists(select 1 from jsonb_array_elements(private.stats_due_jobs()) j
+ where j->>'kind'='stats' and j->>'event_id'='g27-final'),
+ 'three day overdue props still receive stats recovery');
+select public.scores_ingest('americanfootball_nfl',now(),
+ '[{"event_id":"g27-canceled","status":"canceled","status_reason":"Explicit cancellation"},
+   {"event_id":"g27-postponed","status":"postponed","status_reason":"Weather"}]');
 select private.void_stale_legs();
-select is((select status::text from public.wager_legs where event_id='g27-postponed'),'void','explicit postponement voids');
+select is((select status::text from public.wager_legs where event_id='g27-postponed'),'pending','explicit postponement waits for rescheduling');
 select is((select status::text from public.wager_legs where event_id='g27-canceled'),'void','explicit canceled game voids');
+update public.events set commence_time=now()-interval '8 days' where id='g27-postponed';
+select private.void_stale_legs();
+select is((select status::text from public.wager_legs where event_id='g27-postponed'),'pending',
+ 'postponement beyond maximum unattended wait still cannot refund');
+select ok(exists(select 1 from private.grading_review where event_id='g27-postponed' and reason='RESCHEDULE_REVIEW'),
+ 'postponement after seven days requires operator review');
+select public.odds_sync_ingest('catalog','americanfootball_nfl',now(),jsonb_build_array(jsonb_build_object(
+ 'id','g27-postponed','sport_key','americanfootball_nfl','home_team','Home27','away_team','Away27',
+ 'commence_time',now()+interval '2 days')));
+select private.void_stale_legs();
+select is((select status::text from public.wager_legs where event_id='g27-postponed'),'pending','rescheduled leg stays pending');
+select public.scores_ingest('americanfootball_nfl',now(),
+ '[{"event_id":"g27-postponed","completed":true,"home_score":21,"away_score":7}]');
+select is((select status::text from public.wager_legs where event_id='g27-postponed'),'hit','rescheduled final grades retained leg');
+-- Model a final box score before prop grading runs. Payout projection must drop the exact push.
+create temp table before_push30 as select max_cents,ev_cents from public.leaderboard
+ where tournament_id=(select id from tournament27) and user_id=auth.uid();
+insert into public.player_stats(event_id,name_key,player_name,market_key,stat,is_final)
+values ('g27-final',private.name_key('Counts'),'Counts','player_receptions',2,true);
+insert into private.stats_sync_state(event_id,is_final) values ('g27-final',true);
+select is((select public.current_payout(w) from public.wagers w join public.wager_legs l on l.wager_id=w.id
+ where l.participant_name='Counts'),1000::bigint,'pending final integer push returns stake in max payout');
+select is((select max_cents from public.leaderboard where tournament_id=(select id from tournament27) and user_id=auth.uid()),
+ (select max_cents-1000 from before_push30),'leaderboard max drops exact push odds');
+select is((select ev_cents from public.leaderboard where tournament_id=(select id from tournament27) and user_id=auth.uid()),
+ (select ev_cents from before_push30),'push probability one counts stake, not full-odds EV');
 -- Late final still goes through normal scores ingestion and settles pending game lines.
 select public.scores_ingest('americanfootball_nfl',now(),'[{"event_id":"g27-outage","completed":true,"home_score":21,"away_score":7}]');
 select is((select status::text from public.wager_legs where event_id='g27-outage'),'hit','late final grades an outage leg');

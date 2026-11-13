@@ -335,9 +335,9 @@ async function runScoresJob(
     if (error) throw error;
     apiScores = fakeScoresResponse(data ?? [], { nowMs: Date.now() });
   } else {
-    // daysFrom=1 so games that just finished are included (2 credits instead of 1).
+    // Maximum provider history (3 days); older missing finals remain in operator review.
     const res = await paidCall<ApiScoreEvent[]>(supabase, job.sport_key, `/sports/${job.sport_key}/scores`,
-      SCORES_CALL_COST, { daysFrom: "1", dateFormat: "iso", eventIds: job.event_ids.join(",") });
+      SCORES_CALL_COST, { daysFrom: "3", dateFormat: "iso", eventIds: job.event_ids.join(",") });
     if ("blocked" in res) return { kind: job.kind, sport_key: job.sport_key, ...res };
     apiScores = res.body;
   }
@@ -385,7 +385,10 @@ async function runStatsJob(
     p_event_id: job.event_id,
     p_provider_id: providerId,
     p_final: box.final,
-    p_stats: box.stats,
+    // Synthetic fixtures also carry a stable identity; real feeds retain ESPN athlete IDs.
+    p_stats: provider === "fake" ? box.stats.map((row) => ({
+      ...row, provider_player_id: `fake:${row.name}`, complete: box.final,
+    })) : box.stats,
     p_remaining: box.remaining,
   });
   if (error) throw new Error(`stats ingest failed: ${error.message}`);

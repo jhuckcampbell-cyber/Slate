@@ -9,7 +9,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import type { Database } from "@/lib/supabase/database.types";
 
-type Budget = { enabled: boolean; left: number };
+type Budget = { enabled: boolean; left: number; settlement_reserved: number };
 type Reserve = { ok: boolean; reason?: string; reservation_id?: number };
 
 let admin: SupabaseClient<Database>;
@@ -42,7 +42,9 @@ afterAll(async () => {
 });
 
 it("concurrent reservations never reserve more than the budget has left", async () => {
-  const before = (await budget()).left;
+  const initial = await budget();
+  const before = initial.left;
+  const available = before - initial.settlement_reserved;
   const cost = 3;
   const attempts = Math.floor(before / cost) + 20; // more callers than the budget can serve
 
@@ -56,6 +58,6 @@ it("concurrent reservations never reserve more than the budget has left", async 
 
   expect(results.every((r) => !r.error)).toBe(true);
   expect(granted.length * cost).toBeLessThanOrEqual(before);
-  expect(granted.length).toBe(Math.floor(before / cost));
+  expect(granted.length).toBe(Math.floor(available / cost));
   expect((await budget()).left).toBe(before - granted.length * cost);
 });

@@ -41,10 +41,19 @@ const printBudget = (b) =>
       `${b.left} left · provider says ${b.provider_remaining ?? "?"} of ${b.quota} remaining`,
   );
 
+const printPacing = (b) => {
+  console.log(
+    `Mode: ${b.mode} · profile: ${b.profile} · allowance today: ${b.today_left} · ` +
+      `allowance this week: ${b.week_left} · settlement reserved: ${b.settlement_reserved} · ` +
+      `projected month-end: ${b.projected_month_end}/${b.cap} · cadence: ${b.cadence_tier}`,
+  );
+};
+
 switch (cmd) {
   case "status": {
     const s = await rpc("odds_budget_status");
     printBudget(s.budget);
+    printPacing(s.budget);
     console.log("Refresh tiers:", JSON.stringify(s.refresh_tiers));
     console.table(s.recent_calls);
     console.log("Sync health:", JSON.stringify(await rpc("odds_sync_health"), null, 2));
@@ -60,7 +69,28 @@ switch (cmd) {
   case "disable":
     printBudget(await rpc("odds_set_paid_calls", { p_enabled: cmd === "enable" }));
     break;
+  case "auto":
+  case "manual":
+  case "beta": {
+    const current = (await rpc("odds_budget_status")).budget;
+    const budget = await rpc("odds_set_budget_policy", {
+      p_mode: cmd === "beta" ? "auto" : cmd,
+      p_profile: cmd === "beta" ? "beta" : current.profile,
+      p_event_ids: cmd === "beta" ? process.argv.slice(3) : current.beta_event_ids,
+    });
+    printBudget(budget);
+    printPacing(budget);
+    break;
+  }
+  case "standard": {
+    const budget = await rpc("odds_set_budget_policy", {
+      p_mode: "auto", p_profile: "standard", p_event_ids: [],
+    });
+    printBudget(budget);
+    printPacing(budget);
+    break;
+  }
   default:
-    console.error(`Unknown command "${cmd}". Use status | dry-run | sync | enable | disable.`);
+    console.error("Use status | dry-run | sync | enable | disable | auto | manual | beta [event IDs] | standard.");
     process.exit(1);
 }

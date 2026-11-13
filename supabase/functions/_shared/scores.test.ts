@@ -85,15 +85,15 @@ describe("fakeScoresResponse", () => {
     const half = normalizeScores(fakeScoresResponse([event], { nowMs: at(75) }))[0]!;
     const later = normalizeScores(fakeScoresResponse([event], { nowMs: at(120) }))[0]!;
     expect(half.completed).toBe(false);
-    expect(later.home_score).toBeGreaterThanOrEqual(half.home_score);
-    expect(later.away_score).toBeGreaterThanOrEqual(half.away_score);
+    expect(later.home_score).toBeGreaterThanOrEqual(half.home_score!);
+    expect(later.away_score).toBeGreaterThanOrEqual(half.away_score!);
   });
 
   it("finishes after the sport's game length with a decisive, realistic score", () => {
     const final = normalizeScores(fakeScoresResponse([event], { nowMs: at(151) }))[0]!;
     expect(final.completed).toBe(true);
     expect(final.home_score).not.toBe(final.away_score);
-    expect(final.home_score + final.away_score).toBeGreaterThan(150);
+    expect(final.home_score! + final.away_score!).toBeGreaterThan(150);
   });
 
   it("is deterministic", () => {

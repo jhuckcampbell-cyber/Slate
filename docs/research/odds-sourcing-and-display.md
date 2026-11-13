@@ -1,4 +1,4 @@
-# Odds sourcing & display: how sportsbooks do it, and what SquadBets should do
+# Odds sourcing & display: how sportsbooks do it, and what Slate should do
 
 Researched 2026-11-09. **Not legal advice.** Prices come from vendor pages fetched on that date unless they
 are marked *(unverified, seen 2026-11-09)*. Vendors change prices often, so re-check before buying anything.
@@ -141,7 +141,7 @@ contract** (ToS), not copyright. That is why the ToS column matters more than th
 
 ---
 
-## 5. Recommended path for SquadBets
+## 5. Recommended path for Slate
 
 ### Stage 0: now / closed beta (free, non-commercial)
 
@@ -200,7 +200,7 @@ As soon as there is *any* revenue (ads count), we are commercial for ToS purpose
 | Approach | Pros | Cons |
 |---|---|---|
 | Copy one book (today) | Simple, recognizable numbers | Single-book outliers; dependent on that book's coverage |
-| **Consensus de-vig (median of 3–8 books)** | Fairer, robust to stale books, free with ≤10 books per region | Prices won't exactly match any app a user checks; need to explain "SquadBets line" |
+| **Consensus de-vig (median of 3–8 books)** | Fairer, robust to stale books, free with ≤10 books per region | Prices won't exactly match any app a user checks; need to explain "Slate line" |
 | Fair odds, no vig | Truly fair for friends; simpler EV story | Unfamiliar numbers (−104/+104 instead of −110/−110); fat favorites/longshots look odd |
 | Model alt ladders from main line | Cuts prop credits a lot; endless ladders | Normal approximation misprices tails (blowouts, minutes risk); needs per-stat SD calibration from historical data |
 | Full model props (projections from box scores) | No odds provider needed for props | Needs injury/lineup news, which is very hard to keep fresh; likely to be exploitably wrong. Avoid |

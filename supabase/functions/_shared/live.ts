@@ -3,6 +3,7 @@
  * and date covers every game, no Odds API credits. Display only: grading still comes from the Odds API's scores.
  * Unofficial and not licensed for commercial use (see stats.ts). PURE: the Edge Function fetches, this maps.
  */
+import { eventStatus } from "./event-status.ts";
 import { espnDate } from "./stats.ts";
 
 const PATHS: Record<string, string> = {
@@ -19,6 +20,9 @@ export function espnLiveUrl(sportKey: string, commenceIso: string): string | nul
 
 export type LiveGame = {
   event_id: string;
+  status?: string;
+  status_reason?: string;
+  clock_seconds?: number;
   state: "pre" | "in" | "post";
   home_score: number | null;
   away_score: number | null;
@@ -58,9 +62,16 @@ export function liveGamesFromScoreboard(
     if (!game) continue;
     const status = obj(c.status);
     const type = obj(status.type);
+    const eventState = eventStatus(type.name) ?? eventStatus(type.description) ?? eventStatus(type.shortDetail);
+    const displayClock = text(status.displayClock)?.match(/^(\d{1,2}):([0-5]\d)$/);
+    const seconds = typeof status.clock === "number" ? status.clock
+      : displayClock ? Number(displayClock[1]) * 60 + Number(displayClock[2]) : null;
     const state = type.state === "in" || type.state === "post" ? type.state : "pre";
     const situation = obj(c.situation);
     out.push({
+      ...eventState,
+      ...(eventState ? { status_reason: text(type.detail) ?? text(type.description) ?? eventState.status_reason } : {}),
+      ...(seconds !== null && Number.isFinite(seconds) && seconds >= 0 ? { clock_seconds: seconds } : {}),
       event_id: game.event_id,
       state,
       home_score: state === "pre" ? null : int(home.score),

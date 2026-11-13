@@ -56,3 +56,13 @@ export function propLinesToGrade(
   }
   return [...seen.values()];
 }
+
+/** Box-score handler registry. Unknown sports/markets always require the host. */
+export const AUTO_PROP_STATS: Readonly<Record<string, readonly string[]>> = {
+  basketball_nba: [...BASKETBALL, "player_threes"],
+  americanfootball_nfl: FOOTBALL.map(statMarket),
+};
+export const HOST_GRADED_PROP_MARKETS = ["player_team_dst_td"] as const;
+export function autoGradesProp(sportKey: string, marketKey: string): boolean {
+  return AUTO_PROP_STATS[sportKey]?.includes(statMarket(marketKey)) ?? false;
+}

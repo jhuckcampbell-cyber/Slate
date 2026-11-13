@@ -10,6 +10,8 @@ import { friendlyError } from "@/lib/errors";
 import { MARKET_LABELS } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 
+import { AUTO_PROP_STATS } from "@/lib/core/props";
+
 export type PropLine = { eventId: string; marketKey: string; player: string; matchup: string };
 
 /** What the host types in: anytime TD is graded on touchdowns scored (1+ wins). */
@@ -18,11 +20,7 @@ function statName(marketKey: string) {
 }
 export type PropResult = PropLine & { stat: number | null };
 
-/**
- * Player props are graded by hand (the odds API has no player stats). After a game is final the
- * host enters each stat once; it grades every pick on that line the same way, and the squad sees
- * every number that was entered.
- */
+/** Verified box scores settle supported props; the host resolves missing or unsupported data. */
 export function PropsDesk({
   tournamentId,
   isHost,
@@ -65,8 +63,8 @@ export function PropsDesk({
         <>
           <p className="mt-1 text-sm text-muted-foreground">
             {isHost
-              ? "Games are final. Enter each player's real stat to grade everyone's picks."
-              : `Waiting on ${hostName} to enter the stats.`}
+              ? "Verified box scores settle supported props automatically. Enter a stat below to resolve missing data. Team D/ST TD and unsupported markets are host-graded."
+              : `Waiting for verified box scores or ${hostName} to enter the stats.`}
           </p>
           <ul className="mt-3 space-y-2">
             {pending.map((line) =>
@@ -147,6 +145,7 @@ function GradeRow({ tournamentId, line }: { tournamentId: string; line: PropLine
       <form action={submit} className="flex flex-wrap items-center gap-2">
         <div className="w-full min-w-0 text-sm">
           <LineLabel line={line} />
+          <span className="text-xs text-muted-foreground">{Object.values(AUTO_PROP_STATS).some((markets) => markets.includes(line.marketKey.replace(/_alternate$/, ""))) ? "Box score when verified ? host override available" : "Host-graded market"}</span>
         </div>
         <label className="flex min-h-11 items-center gap-2 text-xs">
           <input type="checkbox" className="size-5 accent-foreground" name="didNotPlay" aria-label={`${line.player} confirmed did not play`} />

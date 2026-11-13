@@ -1,7 +1,7 @@
-# Slate (SquadBets) - Architecture & Roadmap
+# Slate - Architecture & Roadmap
 
 ## Context
-The repo contains the implemented mobile-first, play-money tournament app, branded Slate. Blind picks and bankrolls are protected by Postgres RLS until tournament-wide lock; odds ingestion is budget-controlled; guests join from an invite link. This document summarizes the current implementation and its phased history. `CLAUDE.md`, `CHANGELOG.md`, migrations through `20261109000025_token_mode_fixes.sql`, and `src/app/` are the source of truth. Hosting and external auth setup remain beta blockers (below).
+The repo contains the implemented mobile-first, play-money tournament app, branded Slate. Blind picks and bankrolls are protected by Postgres RLS until tournament-wide lock; odds ingestion is budget-controlled; guests join from an invite link. This document summarizes the current implementation and its phased history. `CLAUDE.md`, `CHANGELOG.md`, migrations through `20261110000031_budget_pacing.sql`, and `src/app/` are the source of truth. Hosting and external auth setup remain beta blockers (below).
 
 ### Current product defaults
 | Decision | Default | Why |
@@ -20,7 +20,7 @@ The repo contains the implemented mobile-first, play-money tournament app, brand
 ## 1. CLAUDE.md (repo guidance summary)
 
 ```markdown
-# SquadBets
+# Slate
 
 ## Stack
 Next.js (latest stable, App Router, RSC) · TypeScript strict · Tailwind v4 · shadcn/ui · lucide-react
@@ -64,7 +64,15 @@ Service credentials remain server-only. See root CLAUDE.md for the complete rule
 
 ---
 
-## 2. Database Schema & RLS (`supabase/migrations/`, migrations 0001-0025)
+## 2. Database Schema & RLS (`supabase/migrations/`, migrations 0001-0031)
+
+### Recent migrations
+- **0026 ? wager_idempotency_token_leak:** replay submission retries without double debits; validate token input before inspecting hidden wagers.
+- **0027 ? grading_voids_dnp:** distinguish missing stats from confirmed DNP, allow valid negative stats, and keep outage-affected bets pending for review.
+- **0028 ? ingest_sync_health:** reject older provider snapshots, remove withdrawn outcomes, renew leases, and expose sync run logs and health.
+- **0029 ? self_settling_props:** settle supported NBA/NFL props from verified box-score evidence with player provenance and post-lock result visibility.
+- **0030 ? event_status_voids:** ingest explicit cancellation/postponement/suspension/delay evidence, preserve postponed bets, and store numeric live clocks.
+- **0031 ? budget_pacing:** add opt-in credit pacing, settlement reserves, profiles and beta event scoping while retaining the paid-call emergency stop.
 
 ### Tables (abridged schema overview)
 The migrations are the executable DDL; this is a summary, not a reset script.
@@ -211,7 +219,7 @@ Users A, B, and outsider C:
 ### Phase 1: Auth, tournament creation, invite link & SMS preview (built; external setup pending)
 - Anonymous browser sign-in, email magic links/account claim, `src/proxy.ts` session refresh and profile trigger.
 - `/create` wizard, `/join/[code]` single-screen join and invite OG image, `/account`, `/auth/callback`.
-- Native share/SMS invite link; under-15s join remains a product target, not a production measurement. Twilio OTP, Turnstile and public-device preview validation remain outstanding.
+- Native share/SMS invite link; under-15s join remains a product target, not a production measurement. Twilio OTP and public-device preview validation remain outstanding; Turnstile guest sign-in code is built, with only keys and production configuration pending.
 
 ### Phase 2: Odds ingestion, slip builder & bankroll validation (built)
 - Migrations 0004-0005 and later updates: lease-based odds sync, cache/freshness, batch `place_wagers`, cancel/replace, bigint amounts and capped payouts.
@@ -229,9 +237,9 @@ Light "Ticket stub": paper/black ink, bold tap outlines, selected tabs light blu
 - Secret-only API key, fake provider locally, database credit reservations/cap, operator dry-run and enable/disable commands. Game lines and per-event props use configured pregame cadence; no live odds polling.
 
 ### Phase 5: Live grading, win probability, realtime leaderboard (built core; enhancements backlog)
-- `odds-sync` scores jobs automate core-market finals; host PropsDesk grades opt-in props. NBA/NFL live box scores and scoreboard drive chance bars and projected standings.
+- `odds-sync` scores jobs automate core-market finals; verified NBA/NFL box scores settle supported opt-in props, with host PropsDesk as a fallback. NBA/NFL live box scores and scoreboard drive chance bars and projected standings.
 - Security-invoker leaderboard, player dropdowns, final celebration and plain-text "Copy result" are built.
-- **Backlog:** auto-settling props (including non-participant void logic), reactions/moment badges, chat/feed, shareable final-results images and Slip Receipts, sweat alerts. Invite OG images and plain-text result copying do not implement those receipt/result-image features.
+- **Backlog:** reactions/moment badges, chat/feed, shareable final-results images and Slip Receipts, sweat alerts. Invite OG images and plain-text result copying do not implement those receipt/result-image features.
 - Live in-game odds and alternate game spreads/totals are not offered.
 
 ---
@@ -263,7 +271,7 @@ Implementation details (historical milestones, reconciled with current behavior)
 
 **Phase 1 items still open:**
 - SMS OTP. Email magic link is done. SMS needs Twilio credentials in Supabase Auth.
-- Turnstile captcha on anonymous sign-ins. Needs Cloudflare keys.
+- Turnstile captcha on anonymous sign-ins is built; only Cloudflare keys and production Supabase captcha configuration remain pending.
 - Linking a Vercel project.
 - Checking the OG preview on a real iMessage/Android device. Needs a public deploy.
 
@@ -282,7 +290,7 @@ Implementation details (historical milestones, reconciled with current behavior)
 - **`events.commence_time` moving earlier pulls `lock_time` forward** (trigger), which keeps "lock ≤ first kickoff" true.
 
 **Deferred:**
-- **Auto-settling props is backlog.** Opt-in prop betting, host grading and live prop stats/probabilities are built (migrations 0010-0023).
+- **Auto-settling props is built.** Verified box-score evidence settles supported NBA/NFL props, including confirmed DNP voids; host grading remains a fallback (migration 0029).
 - **No edit UI for placed bets yet.** `replace_wager` (atomic cancel + re-place) exists and is tested; the UI offers cancel and re-add.
 - **`min_total_wager_cents` is legacy and unused.** Current house rules use `all_in` / `min_bets`, enforced on submit; cancellation may leave a player ranked last. Token mode (0024-0025) forces all-in and validates token/rule consistency.
 

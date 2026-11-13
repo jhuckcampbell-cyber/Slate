@@ -39,6 +39,9 @@
   ],
   "exclude": [
     "node_modules",
+    ".claude",
+    ".superpowers",
+    "BetvsFriends-speed",
     "supabase/functions/odds-sync"
   ]
 }

@@ -1,4 +1,4 @@
-# SquadBets
+# Slate
 
 Play-money betting tournaments with your friends. Blind picks until kickoff, then a live sweat.
 

@@ -253,3 +253,61 @@ describe("participation evidence", () => {
     expect(box.stats.find((s) => s.market_key === "__participation")?.did_not_play).toBe(false);
   });
 });
+
+
+describe("verified automatic grading evidence", () => {
+  it("preserves provider player identity and marks only final numeric rows complete", () => {
+    const input = summary("post");
+    Object.assign(input.boxscore.players[0]!.statistics[0]!.athletes[0]!.athlete, { id: "203954" });
+    expect(espnBoxToStats(input).stats.find((r) => r.name === "Joel Embiid" && r.market_key === "player_points"))
+      .toMatchObject({ provider_player_id: "203954", complete: true, stat: 8 });
+    const live = summary("in");
+    Object.assign(live.boxscore.players[0]!.statistics[0]!.athletes[0]!.athlete, { id: "203954" });
+    expect(espnBoxToStats(live).stats.find((r) => r.market_key === "player_points"))
+      .toMatchObject({ complete: false });
+  });
+  it("does not certify a partial touchdown sum", () => {
+    const input = nflSummary("post");
+    Object.assign(input.boxscore.players[0]!.statistics[1]!.athletes[0]!.athlete, { id: "swift" });
+    expect(espnBoxToStats(input, "americanfootball_nfl").stats.find((r) => r.provider_player_id === "swift" && r.market_key === "player_anytime_td"))
+      .toMatchObject({ stat: 3, complete: false });
+  });
+  it("rejects malformed numeric cells instead of parsing a prefix", () => {
+    const input = summary("post");
+    input.boxscore.players[0]!.statistics[0]!.athletes[0]!.stats![1] = "8 pending";
+    expect(espnBoxToStats(input).stats.some((r) => r.name === "Joel Embiid" && r.market_key === "player_points")).toBe(false);
+  });
+});
+
+
+it("keeps same-name provider athletes separate", () => {
+  const box = espnBoxToStats({
+    header: { competitions: [{ status: { type: { completed: true } } }] },
+    boxscore: { players: [{ statistics: [{ keys: ["points"], athletes: [
+      { athlete: { id: "one", displayName: "Same Name" }, stats: ["3"] },
+      { athlete: { id: "two", displayName: "Same Name" }, stats: ["7"] },
+    ] }] }] },
+  });
+  expect(box.stats.filter((r) => r.market_key === "player_points")).toEqual([
+    { name: "Same Name", team: null, provider_player_id: "one", market_key: "player_points", stat: 3, complete: true },
+    { name: "Same Name", team: null, provider_player_id: "two", market_key: "player_points", stat: 7, complete: true },
+  ]);
+});
+
+
+it("certifies a touchdown sum only after all explicit component rows arrive", () => {
+  const components = [
+    ["rushing", "rushingTouchdowns", "1"],
+    ["receiving", "receivingTouchdowns", "0"],
+    ["kickReturns", "kickReturnTouchdowns", "0"],
+    ["puntReturns", "puntReturnTouchdowns", "0"],
+  ];
+  const box = espnBoxToStats({
+    header: { competitions: [{ status: { type: { completed: true } } }] },
+    boxscore: { players: [{ statistics: components.map(([name, key, value]) => ({
+      name, keys: [key], athletes: [{ athlete: { id: "td", displayName: "Runner" }, stats: [value] }],
+    })) }] },
+  }, "americanfootball_nfl");
+  expect(box.stats.find((r) => r.market_key === "player_anytime_td"))
+    .toMatchObject({ stat: 1, complete: true, provider_player_id: "td" });
+});

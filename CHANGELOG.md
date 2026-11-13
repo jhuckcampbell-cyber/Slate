@@ -4,6 +4,19 @@ Product and design decisions, newest first. Each entry says what changed and why
 Guardrails that never move: $100 play money, private friend groups, SMS-link join, blind picks until lock,
 live sweat. See "Creative enhancements" in CLAUDE.md for the running backlog.
 
+## 2026-11-10: automatic prop settlement, explicit game status and budget pacing
+
+- **0029 ? Self-settling props.** Verified NBA/NFL box scores grade supported player stats and void confirmed non-participants. Provider player IDs preserve provenance; results stay hidden until lock. Host grading remains available when automatic evidence is missing.
+- **0030 ? Game status from evidence.** Explicit cancellations can void bets; postponements, suspensions and delays preserve them for resumption or operator review. Numeric live clocks support the sweat display.
+- **0031 ? Credit pacing.** Opt-in pacing spreads the monthly budget across days and weeks, reserves settlement credits and supports budget profiles and a beta event list. The independent paid-call switch remains the emergency stop.
+
+## 2026-11-10: correctness and sync safety (0026?0028)
+
+- **0026 ? Safe bet retries.** A submission ID replays the original result without charging twice. Token validation no longer reveals information about hidden wagers through its errors.
+- **0027 ? Honest grading.** Missing data is not zero or a reason to refund; confirmed DNP voids prop legs, valid negative stats are accepted, and scoring outages leave bets pending for review.
+- **0028 ? Reliable ingestion.** Older snapshots cannot overwrite newer data, withdrawn prop outcomes are removed, sync leases can be renewed, and run logs plus health summaries expose stale feeds and failures.
+- **Guest sign-in protection.** Turnstile code is built; Cloudflare keys and production Supabase captcha configuration remain pending.
+
 ## 2026-11-09: token mode that always works, plus a polish pass
 
 A full debug pass. Token tournaments could end up in a state where nobody could place a bet; now they can't.

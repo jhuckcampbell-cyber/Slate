@@ -7,7 +7,7 @@ import { hash } from "./fake-provider.ts";
 
 const ESPN = "https://site.api.espn.com/apis/site/v2/sports";
 
-export type PlayerStat = { name: string; team: string | null; market_key: string; stat: number | null; did_not_play?: boolean };
+export type PlayerStat = { name: string; team: string | null; market_key: string; stat: number | null; did_not_play?: boolean; provider_player_id?: string; complete?: boolean };
 /** remaining: share of the game left (1 = kickoff, 0 = over), null when the clock can't be read. */
 export type BoxStats = { final: boolean; stats: PlayerStat[]; remaining: number | null };
 
@@ -109,6 +109,7 @@ export function espnBoxToStats(summary: unknown, sportKey = "basketball_nba"): B
   const final = status.state === "post" || status.completed === true;
   const rows = new Map<string, PlayerStat>();
   const participation = new Map<string, PlayerStat>();
+  const components = new Map<string, Set<string>>();
   for (const teamBox of arr(obj(obj(summary).boxscore).players).map(obj)) {
     const team = String(obj(teamBox.team).displayName ?? "") || null;
     for (const group of arr(teamBox.statistics).map(obj)) {
@@ -116,23 +117,41 @@ export function espnBoxToStats(summary: unknown, sportKey = "basketball_nba"): B
       for (const a of arr(group.athletes).map(obj)) {
         const name = String(obj(a.athlete).displayName ?? "");
         const values = arr(a.stats).map(String);
+        const provider_player_id = String(obj(a.athlete).id ?? "");
+        const identity = provider_player_id ? { provider_player_id } : {};
+        const playerKey = provider_player_id || `${team}|${name}`;
         if (!name) continue;
         if (a.didNotPlay === true || values.length > 0) {
-          const prior = participation.get(name);
-          participation.set(name, { name, team, market_key: "__participation", stat: null,
+          const prior = participation.get(playerKey);
+          participation.set(playerKey, { name, team, ...identity, market_key: "__participation", stat: null,
             did_not_play: prior?.did_not_play === false ? false : a.didNotPlay === true });
         }
         if (a.didNotPlay === true || values.length === 0) continue;
         keys.forEach((key, i) => {
           const market = markets[`${String(group.name ?? "")}.${key}`] ?? markets[key];
-          const stat = parseInt(values[i] ?? "", 10); // "2-3" (made-attempted) -> 2; "-4" rushing yards stays -4
+          const cell = values[i] ?? "";
+          const numeric = key === "threePointFieldGoalsMade-threePointFieldGoalsAttempted"
+            ? /^\d+-\d+$/.test(cell) : /^-?\d+$/.test(cell);
+          const stat = numeric ? parseInt(cell, 10) : NaN; // "2-3" (made-attempted) -> 2; "-4" rushing yards stays -4
           if (!market || !Number.isFinite(stat)) return;
-          const row = rows.get(`${name}|${market}`);
+          const rowKey = `${playerKey}|${market}`;
+          const seen = components.get(rowKey) ?? new Set<string>();
+          const column = `${String(group.name ?? "")}.${key}`;
+          if (seen.has(column)) return;
+          seen.add(column);
+          components.set(rowKey, seen);
+          const row = rows.get(rowKey);
           if (row && row.stat !== null) row.stat += stat;
-          else rows.set(`${name}|${market}`, { name, team, market_key: market, stat });
+          else rows.set(rowKey, { name, team, ...identity, market_key: market, stat });
         });
       }
     }
+  }
+  for (const [rowKey, row] of rows) {
+    // A composite TD count is only complete with all four explicit components.
+    // Missing categories/cells never silently contribute zero.
+    if (row.provider_player_id) row.complete = final &&
+      (row.market_key !== "player_anytime_td" || components.get(rowKey)?.size === 4);
   }
   const remaining = final
     ? 0

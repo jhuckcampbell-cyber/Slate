@@ -23,6 +23,7 @@ const budget = read('supabase/migrations/20261103000007_odds_budget.sql');
 const quota = Number(match(budget, /set value = '(\d+)' where key = 'odds_monthly_quota'/));
 const cap = Number(match(budget, /\('odds_monthly_cap', '(\d+)'\)/));
 const tiers = JSON.parse(match(sql, /\('odds_refresh_tiers', '([^']+)'\)/));
+const pacedTiers = JSON.parse(match(sql, /\('odds_pacing_tiers','([^']+)'\)/));
 const minutes = (s) => {
   const m = s.match(/^(\d+) (minute|hour|day)s?$/);
   assert.ok(m, `Unsupported interval: ${s}`);
@@ -82,6 +83,9 @@ const scenarios = [
   ['Proposed: OFF, 12h/6h/1h + scores 60m', { every: { far: '12 hours', day: '6 hours', close: '1 hour' }, scores: 60 }],
   ['Proposed: OFF, one snapshot + scores 30m', { snapshots: true, scores: 30 }],
   ['Proposed: all props, one snapshot + scores 60m', { snapshots: true, scores: 60, propMode: 'all' }],
+  ['Beta: 6 NBA games, normal cadence', { nbaOnly: true, every: pacedTiers.normal, scores: minutes(pacedTiers.normal.scores) }],
+  ['Beta: 6 NBA games, tight cadence', { nbaOnly: true, every: pacedTiers.tight, scores: minutes(pacedTiers.tight.scores) }],
+  ['Beta: 6 NBA games, critical cadence', { nbaOnly: true, every: pacedTiers.critical, scores: minutes(pacedTiers.critical.scores) }],
 ];
 console.log(`Offline source-derived budget: cap ${cap}, quota ${quota}, reserve ${quota-cap}.`);
 console.log(`Cadence ${JSON.stringify(tiers)}, thresholds ${thresholds.join('/')} minutes; scores ${scoreEvery}m @ ${scoreCost}.`);
@@ -89,7 +93,8 @@ console.log(`Books: ${books.join(',')}; lines ${cost(lines, books)}, NFL props $
 console.log('Assumptions: 3-5 groups share 12 NFL + 6 NBA games; open 48h, lock earliest kickoff; NFL 210m/game, NBA 150m/game.');
 console.log('Monthly = week * 52/12; five-week column is conservative calendar planning. Uncapped demand; no retries or other traffic.');
 const rows = scenarios.map(([scenario, options]) => {
-  const a = sportModel(nfl, nflProps, options), b = sportModel(nba, nbaProps, options);
+  const a = options.nbaOnly ? { lineCredits: 0, propCredits: 0, scoreCredits: 0 } : sportModel(nfl, nflProps, options);
+  const b = sportModel(nba, nbaProps, options);
   const line = a.lineCredits+b.lineCredits, prop = a.propCredits+b.propCredits, score = a.scoreCredits+b.scoreCredits;
   const week = line+prop+score;
   assert.ok(Number.isInteger(week) && week > 0);
@@ -99,5 +104,7 @@ console.table(rows);
 assert.equal(cost(lines, books), lines.length);
 assert.ok(rows[2].week > rows[1].week && rows[1].week > rows[0].week);
 assert.ok(rows[5]['5 weeks'] <= cap);
+assert.ok(rows[8]['5 weeks'] <= cap);
+assert.ok(rows[8].week > rows[9].week && rows[9].week > rows[10].week);
 console.log('Group count does not multiply shared jobs. Different game selections expand props and score windows; staggered creation adds refreshes.');
 console.log('Snapshot rows require scheduler AND freshness-policy changes; these are proposals, not current settings.');

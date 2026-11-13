@@ -1,4 +1,4 @@
-# SquadBets
+# Slate
 
 Mobile-first, play-money sports betting tournaments for friend groups. Hosts create a contest
 tied to a game/slate, share `/join/CODE` by SMS, players build blind slips until lock, then

@@ -2,7 +2,7 @@
 -- that someone bet props on. Stats are public sports data; each saved prop pick reads its player's number.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(27);
 
 delete from private.stats_sync_state;
 
@@ -121,16 +121,20 @@ select is((select count(*)::int from public.player_stats where event_id = 'ps-g1
 select throws_ok($$delete from public.player_stats$$, '42501', null, 'players can''t change stats');
 reset role;
 
--- ---------- final: stop syncing ----------
+-- ---------- final: keep syncing until no pending prop legs remain ----------
 update private.stats_sync_state set last_sync_at = now() - interval '2 minutes' where event_id = 'ps-g1';
 select public.stats_ingest('ps-g1', '401909922', true, '[
-  {"name":"Joel Embiid","team":"Philadelphia 76ers","market_key":"player_points","stat":31}]');
+  {"name":"Joel Embiid","team":"Philadelphia 76ers","market_key":"player_points","stat":31,"complete":true}]');
 update private.stats_sync_state set last_sync_at = now() - interval '2 minutes' where event_id = 'ps-g1';
-select ok(pg_temp.job('ps-g1') is null, 'final box score: done syncing');
+select ok(pg_temp.job('ps-g1') is not null, 'final box score: still due while a prop leg is pending');
 select is(pg_temp.chance('Over'), 1::double precision, 'final: 31 > 27.5, the Over has cashed in all but the grading');
 select is(pg_temp.leg_stat('Joel Embiid'), 31::numeric, 'the final number stays');
 select is((select is_final from public.player_stats where event_id = 'ps-g1' and market_key = 'player_points'), true,
   'the final number is marked final');
+
+update public.wager_legs set status = 'void', settled_at = now()
+where event_id = 'ps-g1' and status = 'pending';
+select ok(pg_temp.job('ps-g1') is null, 'final box score: done syncing once no pending prop legs remain');
 
 select * from finish();
 rollback;

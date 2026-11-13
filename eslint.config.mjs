@@ -7,6 +7,10 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Override default ignores of eslint-config-next.
   globalIgnores([
+    // Separate workspaces and agent tooling are not part of this app.
+    ".claude/**",
+    ".superpowers/**",
+    "BetvsFriends-speed/**",
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",

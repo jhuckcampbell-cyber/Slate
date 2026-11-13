@@ -14,6 +14,8 @@ import type {
   IngestOutcome,
 } from "./odds-api.ts";
 
+import { eventStatus } from "./event-status.ts";
+
 const LINE_MARKETS = new Set(["spreads", "totals"]);
 
 export type NormalizeOptions = {
@@ -24,20 +26,22 @@ export type NormalizeOptions = {
 };
 
 export type Normalized = {
-  events: IngestEvent[];
+  events: (IngestEvent & { status?: string; status_reason?: string })[];
   outcomes: IngestOutcome[];
   markets: IngestMarket[];
   /** (event, market) pairs requested but not usable from any book. */
   skippedMarkets: number;
 };
 
-export function normalizeOddsResponse(apiEvents: readonly ApiEvent[], opts: NormalizeOptions): Normalized {
+export function normalizeOddsResponse(apiEvents: readonly (ApiEvent & { status?: string; status_reason?: string })[], opts: NormalizeOptions): Normalized {
   const out: Normalized = { events: [], outcomes: [], markets: [], skippedMarkets: 0 };
 
   for (const ev of apiEvents) {
     if (!ev.id || !ev.home_team || !ev.away_team || Number.isNaN(Date.parse(ev.commence_time))) continue;
 
     out.events.push({
+      ...eventStatus(ev.status),
+      ...(eventStatus(ev.status) && ev.status_reason ? { status_reason: ev.status_reason } : {}),
       id: ev.id,
       sport_key: ev.sport_key,
       sport_title: ev.sport_title ?? null,

@@ -49,12 +49,14 @@ select is(public.odds_budget_reserve('basketball_nba', 'x', 11) ->> 'reason', 'I
   'one call may not cost more than 10 credits');
 
 -- ---------- monthly cap ----------
+-- Isolate the hard-cap tests from the independently tested settlement pool.
+update private.app_settings set value = '0' where key = 'odds_settlement_credits';
 insert into private.api_usage (endpoint, credits_used, status) values ('filler', 392, 'settled');
 select is((pg_temp.budget() ->> 'left')::int, 3, '2 + 3 + 392 used: 3 left');
 select is(public.odds_budget_reserve('basketball_nba', 'x', 4) ->> 'reason', 'BUDGET_EXHAUSTED',
   'a call that would cross the cap is refused');
-select ok((select o.odds_blocked_until > now() from private.odds_sync_state o where o.sport_key = 'basketball_nba'),
-  'a refusal backs that sport off so cron stops asking');
+select ok(not exists(select 1 from private.odds_sync_state o where o.sport_key = 'basketball_nba'
+  and o.odds_blocked_until > now()), 'pregame refusal never backs off settlement for the sport');
 select is((public.odds_budget_reserve('basketball_nba', 'x', 3) ->> 'ok')::boolean, true, 'exactly reaching the cap is allowed');
 select is((pg_temp.budget() ->> 'left')::int, 0, 'cap reached: 0 left');
 

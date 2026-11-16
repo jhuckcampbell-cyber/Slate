@@ -40,6 +40,7 @@
   "exclude": [
     "node_modules",
     ".claude",
+    "Slate-ncaaf",
     ".superpowers",
     "Slate-speed",
     "supabase/functions/odds-sync"

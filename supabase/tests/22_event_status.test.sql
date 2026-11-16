@@ -27,6 +27,8 @@ select ok(abs(private.leg_probability_base(jsonb_populate_record(null::public.wa
  '{"event_id":"status30","market_key":"h2h","selection":"Home","status":"pending","odds_decimal":2}'))
  - private.norm_cdf(10.0 / ((select margin_sd from private.sport_model('basketball_nba'))*sqrt(0.02))))<0.00001,
  'without clock probability retains elapsed-time behavior');
+select ok(private.recovery_interval(now()-interval '1 hour')=interval '15 seconds','in-play ESPN feeds refresh every 15 seconds');
+select ok((select schedule from cron.job where jobname='odds-sync')='10 seconds','odds-sync cron ticks every 10 seconds');
 select ok(private.recovery_interval(now()-interval '3 days')=interval '1 hour','overdue recovery backs off to hourly');
 select ok(private.recovery_interval(now()-interval '8 days')=interval '6 hours','long outage continues recovery every six hours');
 select public.scores_ingest('basketball_nba',now(),'[{"event_id":"status30","completed":true,"home_score":110,"away_score":100}]');

@@ -108,7 +108,8 @@ test("team mark gallery", async ({ page }) => {
     body { margin: 0; padding: 16px; background: #fff; color: #181a21; font: 14px system-ui; }
     h1 { font-size: 24px; } .team { display: flex; gap: 12px; align-items: center; min-height: 44px; }
     svg { width: 32px; height: 32px; flex-shrink: 0; }
-  </style></head><body><h1>Team marks</h1>${rows}</body></html>`);
+      .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 8px; font-size: 11px; }
+  </style></head><body><h1>Team marks</h1><div class="grid">${rows}</div></body></html>`);
   await expect(page.locator("svg")).toHaveCount(examples.length);
   await page.screenshot({ path: `${OUT}/14-team-mark-gallery.png`, fullPage: true });
 });

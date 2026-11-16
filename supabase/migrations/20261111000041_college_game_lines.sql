@@ -9,6 +9,8 @@ update private.app_settings set value = value || '["americanfootball_ncaaf", "ba
  where key = 'odds_catalog_sports' and not (value ? 'americanfootball_ncaaf');
 
 -- Preserve the original builder behind a private filtering wrapper.
+-- Prod had a stale hand-applied _base; the current builder (0033) is odds_sync_odds_jobs.
+drop function if exists private.odds_sync_odds_jobs_base();
 alter function private.odds_sync_odds_jobs() rename to odds_sync_odds_jobs_base;
 revoke all on function private.odds_sync_odds_jobs_base() from public, anon, authenticated;
 

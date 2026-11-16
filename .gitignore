@@ -49,3 +49,10 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# local tooling / scratch
+/.claude/
+/.superpowers/
+/Slate-ncaaf/
+/Slate-speed/
+/debug.log

@@ -10,7 +10,7 @@ const eslintConfig = defineConfig([
     // Separate workspaces and agent tooling are not part of this app.
     ".claude/**",
     ".superpowers/**",
-    "BetvsFriends-speed/**",
+    "Slate-speed/**",
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",

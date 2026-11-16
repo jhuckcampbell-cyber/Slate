@@ -31,7 +31,7 @@ const syncSecret = randomBytes(32).toString("hex");
 const fnUrl = `https://${ref}.supabase.co/functions/v1/odds-sync`;
 const sqlString = (s) => `'${s.replaceAll("'", "''")}'`;
 
-const dir = mkdtempSync(join(tmpdir(), "squadbets-"));
+const dir = mkdtempSync(join(tmpdir(), "slate-"));
 const envFile = join(dir, "secrets.env");
 const sqlFile = join(dir, "vault.sql");
 

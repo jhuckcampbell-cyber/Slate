@@ -41,7 +41,7 @@
     "node_modules",
     ".claude",
     ".superpowers",
-    "BetvsFriends-speed",
+    "Slate-speed",
     "supabase/functions/odds-sync"
   ]
 }

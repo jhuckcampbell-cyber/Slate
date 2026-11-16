@@ -25,7 +25,7 @@ test("host creates a tournament, guest joins via invite link in <15s", async ({ 
   await guest.waitForLoadState("networkidle");
   await expect(guest.getByText("Hank", { exact: true })).toBeVisible(); // "Hank invited you to"
   await guest.getByLabel("Your name").fill("Gina");
-  await guest.getByRole("button", { name: "I'm in" }).click();
+  await guest.getByRole("button", { name: "Join tournament" }).click();
   await guest.waitForURL(`**/t/${code}`);
   await expect(guest.getByText("Gina (you)")).toBeVisible();
   const elapsed = Date.now() - started;

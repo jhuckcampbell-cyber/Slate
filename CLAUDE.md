@@ -44,9 +44,12 @@ odds_sync_claim() [lease + due jobs] → provider → normalize (_shared) → od
 - odds_cache rows change only on real price moves (Realtime); market freshness lives in odds_markets.
 - Clients read the `odds_board` view (DB-clock is_stale) + Realtime on odds_cache.
 - Credit budget (Phase 4, migration 0007): every PAID call must `odds_budget_reserve` first and
-  `odds_budget_settle` after. The DB refuses when the paid switch is off (default), the monthly cap (400 of
-  the free tier's 500) would be passed, or the provider's counter is low. Never add a paid call that skips it.
-  Operate with `npm run odds -- status|dry-run|sync|enable|disable`. Cadence tiers live in app_settings.
+  `odds_budget_settle` after. The DB refuses when the paid switch is off (default), the monthly cap (19,000 of
+  the 20k plan, migration 0032) would be passed, or the provider's counter is low. Never add a paid call that skips it.
+  Operate with `npm run odds -- status|dry-run|sync|enable|disable`. Demand tiers live in app_settings.odds_demand_tiers.
+  pg_cron ticks odds-sync every 10s (0044; it only calls the Edge Function when a job is due); ESPN live/stats
+  refresh every 15s in-game. Prod has no Git-connected deploys: `npx vercel deploy --prod` uploads the WORKING TREE,
+  so stash unrelated edits first; `npx supabase db push` for migrations.
 
 ## College sports
 NCAAF (`americanfootball_ncaaf`) and NCAAB (`basketball_ncaab`) are OFF by default
@@ -81,6 +84,7 @@ NFL/NBA after reviewing `docs/ODDS_BUDGET.md`.
 ## Next.js 16 specifics (this is NOT older Next.js; see AGENTS.md + node_modules/next/dist/docs)
 - Middleware is `src/proxy.ts` exporting `proxy()` (refreshes the Supabase session cookie).
 - `params` / `searchParams` are Promises; use the global `PageProps<"/route">` / `LayoutProps` types.
+- No React `<ViewTransition>` around streamed content: its Suspense-reveal transition crashes WebKit (iOS Safari).
 - Cache Components is ON. Per-user pages = sync default export rendering
   `<Suspense fallback={<PageSkeleton/>}><Inner/></Suspense>`, and `Inner` starts with
   `await connection()` (auth cookies, the clock, and Supabase's getClaims are per-request).

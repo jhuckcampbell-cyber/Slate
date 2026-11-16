@@ -43,7 +43,7 @@ export async function joinAs(page: Page, code: string, name: string) {
   await page.goto(`/join/${code}`);
   await page.waitForLoadState("networkidle");
   await page.getByLabel("Your name").fill(name);
-  await page.getByRole("button", { name: "I'm in" }).click();
+  await page.getByRole("button", { name: "Join tournament" }).click();
   await page.waitForURL(`**/t/${code}`);
   await page.waitForLoadState("networkidle"); // hydrated: taps work from here
   return page;

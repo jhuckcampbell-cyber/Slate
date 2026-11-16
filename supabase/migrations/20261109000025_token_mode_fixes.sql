@@ -11,7 +11,7 @@
 
 -- ---------------------------------------------------------------------------
 -- Rule consistency: carry tokens across update_tournament (as 0024 did) and refuse rule sets they break.
--- set_tournament_tokens clears tokens by setting squadbets.clear_tokens for its own transaction.
+-- set_tournament_tokens clears tokens by setting slate.clear_tokens for its own transaction.
 -- ---------------------------------------------------------------------------
 create or replace function private.keep_tokens() returns trigger
 language plpgsql set search_path = '' as $$
@@ -22,7 +22,7 @@ declare
   v_max bigint;
 begin
   if old.allowed_bet_types ? 'tokens' and not (new.allowed_bet_types ? 'tokens')
-     and coalesce(current_setting('squadbets.clear_tokens', true), '') <> 'on' then
+     and coalesce(current_setting('slate.clear_tokens', true), '') <> 'on' then
     new.allowed_bet_types := new.allowed_bet_types
       || jsonb_build_object('tokens', old.allowed_bet_types -> 'tokens', 'all_in', true);
   end if;
@@ -72,11 +72,11 @@ begin
   -- Clear: back to typed amounts (and "bet everything" off, since tokens had turned it on).
   if p_tokens is null or jsonb_typeof(p_tokens) = 'null'
      or (jsonb_typeof(p_tokens) = 'array' and jsonb_array_length(p_tokens) = 0) then
-    perform set_config('squadbets.clear_tokens', 'on', true);
+    perform set_config('slate.clear_tokens', 'on', true);
     update public.tournaments t
        set allowed_bet_types = (t.allowed_bet_types - 'tokens') || jsonb_build_object('all_in', false)
      where t.id = v_t.id;
-    perform set_config('squadbets.clear_tokens', '', true);
+    perform set_config('slate.clear_tokens', '', true);
     return;
   end if;
 

@@ -101,10 +101,10 @@ begin
     raise exception 'TOKENS_LOCKED';
   end if;
   if v_clear then
-    perform set_config('squadbets.clear_tokens', 'on', true);
+    perform set_config('slate.clear_tokens', 'on', true);
     update public.tournaments set allowed_bet_types = (allowed_bet_types - 'tokens') || '{"all_in":false}'::jsonb
      where id = v_t.id;
-    perform set_config('squadbets.clear_tokens', '', true);
+    perform set_config('slate.clear_tokens', '', true);
   else
     update public.tournaments set allowed_bet_types = allowed_bet_types || jsonb_build_object(
       'tokens', (select jsonb_agg((x #>> '{}')::bigint order by (x #>> '{}')::bigint) from jsonb_array_elements(p_tokens) x),

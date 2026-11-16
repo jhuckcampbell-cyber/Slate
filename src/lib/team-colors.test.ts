@@ -10,20 +10,15 @@ describe("teamLook: a team's colors and gear for its badge", () => {
     expect(teamLook("Boston Celtics")).toEqual({ kind: "jersey", primary: "#007A33", secondary: "#BA9653" });
     expect(teamLook("Los Angeles Lakers").kind).toBe("jersey");
   });
-  it("uses neutral college badges with sport-appropriate gear", () => {
-    expect(teamLook("Alabama Crimson Tide", "americanfootball_ncaaf")).toEqual({ kind: "helmet", primary: "#52525b", secondary: "#d4d4d8" });
-    expect(teamLook("Duke Blue Devils", "basketball_ncaab")).toEqual({ kind: "jersey", primary: "#52525b", secondary: "#d4d4d8" });
-    expect(contrastOnWhite(readableTeamColor("Duke Blue Devils", "basketball_ncaab"))).toBeGreaterThanOrEqual(4.5);
-  });
-  it("all 62 teams are covered", async () => {
+  it("all 192 distinct team names are covered", async () => {
     const { TEAM_COLORS } = await import("./team-colors");
-    expect(Object.keys(TEAM_COLORS)).toHaveLength(62);
+    expect(Object.keys(TEAM_COLORS)).toHaveLength(192);
   });
-  it("an unknown team still gets a steady color (same team, same color), gear from the sport", () => {
+  it("an unknown team still gets a steady color (same team, same color), neutral shield", () => {
     const a = teamLook("Mocktown Rockets", "basketball_nba");
-    expect(a.kind).toBe("jersey");
+    expect(a.kind).toBe("shield");
     expect(a).toEqual(teamLook("Mocktown Rockets", "basketball_nba"));
-    expect(teamLook("Testville Comets", "americanfootball_nfl").kind).toBe("helmet");
+    expect(teamLook("Testville Comets", "americanfootball_nfl").kind).toBe("shield");
     expect(teamLook("Testville Comets").primary).toMatch(/^#[0-9a-f]{6}$/i);
   });
 });

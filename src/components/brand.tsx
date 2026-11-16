@@ -19,11 +19,11 @@ export function LogoMark({ className }: { className?: string }) {
   );
 }
 
-/** "slate/": lowercase wordmark in the display face, then a forward-leaning coral slash, heavier than the letters. */
+/** "Slate/": title-case wordmark in the display face, then a forward-leaning coral slash, heavier than the letters. */
 export function Wordmark({ className, wiggle = false }: { className?: string; wiggle?: boolean }) {
   return (
     <span className={cn("inline-flex items-baseline font-display text-[1.6rem]/none font-extrabold tracking-tight", className)}>
-      slate
+      Slate
       <svg
         viewBox="0 0 10 24"
         aria-hidden

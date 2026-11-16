@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { contrastOnWhite, pickTeam, readableTeamColor, teamLook } from "./team-colors";
+import { contrastOnWhite, helmetMaskColor, MASK_TAN, pickTeam, readableTeamColor, teamLook } from "./team-colors";
+
+describe("helmetMaskColor: facemask in the team's second color, tan when it would vanish", () => {
+  it("keeps a readable team color", () => {
+    expect(helmetMaskColor("#FFB81C")).toBe("#FFB81C");
+    expect(helmetMaskColor("#869397")).toBe("#869397");
+  });
+  it("falls back to tan for white and black", () => {
+    expect(helmetMaskColor("#FFFFFF")).toBe(MASK_TAN);
+    expect(helmetMaskColor("#000000")).toBe(MASK_TAN);
+    expect(helmetMaskColor("#181a21")).toBe(MASK_TAN);
+  });
+});
 
 describe("teamLook: a team's colors and gear for its badge", () => {
   it("NFL teams get a helmet in their colors", () => {

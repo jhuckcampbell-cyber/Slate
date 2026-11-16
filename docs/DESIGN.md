@@ -86,7 +86,9 @@ the % (`chanceExplainer`). Totals: the bar fills with points toward the line (ti
 ## Team marks
 
 Generic gear identifies the sport without league or team logos: NFL helmet, NBA tank jersey,
-NHL sweater, MLB cap, and a pennant for known college teams. Unknown teams or sports use an
+NHL sweater, MLB cap. Gear follows the sport, not the level: college football gets the helmet
+(cartoon side profile: crown stripe and one-bar facemask in the second color, tan when that color is
+near-white or near-black), college basketball the jersey. Unknown teams or sports use an
 ink-gray shield; never generate random team colors. College coverage follows local seed/events
 (currently no college teams), with unknown college teams using the same neutral shield.
 

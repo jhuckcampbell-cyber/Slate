@@ -26,12 +26,12 @@ describe("team registry", () => {
     expect(getTeam("LA Clippers").abbr).toBe("LAC");
     expect(shortTeam("Toronto Maple Leafs")).toBe("Maple Leafs");
   });
-  it("covers each conference and uses pennants for both college sports", () => {
+  it("covers each conference and gives college teams their sport's gear", () => {
     for (const [sport, counts] of Object.entries({ americanfootball_ncaaf: { SEC: 16, "Big Ten": 18, "Big 12": 16, ACC: 17, Independent: 1 }, basketball_ncaab: { SEC: 16, "Big Ten": 18, "Big 12": 16, ACC: 18, Independent: 0 } })) {
       for (const [conference, count] of Object.entries(counts)) expect(TEAMS.filter(t => t.league === SPORT_LEAGUES[sport] && t.conference === conference)).toHaveLength(count);
       for (const t of TEAMS.filter(t => t.league === SPORT_LEAGUES[sport])) {
         expect(t.abbr).toMatch(/^[A-Z]{3,4}$/);
-        expect(teamLook(t.name, sport).kind).toBe("pennant");
+        expect(teamLook(t.name, sport).kind).toBe(sport === "americanfootball_ncaaf" ? "helmet" : "jersey");
       }
     }
   });

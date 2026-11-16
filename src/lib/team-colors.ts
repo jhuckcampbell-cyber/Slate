@@ -1,7 +1,8 @@
 import { lookupTeam, TEAMS, type League } from "./teams/registry";
-export type Gear = "helmet" | "jersey" | "sweater" | "cap" | "pennant" | "shield";
+export type Gear = "helmet" | "jersey" | "sweater" | "cap" | "shield";
 export type TeamLook = { kind: Gear; primary: string; secondary: string };
-const GEAR: Record<League, Gear> = { NFL: "helmet", NBA: "jersey", NHL: "sweater", MLB: "cap", NCAAF: "pennant", NCAAB: "pennant" };
+/** Gear follows the sport, not the level: college football wears a helmet, college hoops a jersey. */
+const GEAR: Record<League, Gear> = { NFL: "helmet", NBA: "jersey", NHL: "sweater", MLB: "cap", NCAAF: "helmet", NCAAB: "jersey" };
 export const NEUTRAL_LOOK: TeamLook = { kind: "shield", primary: "#6B6E76", secondary: "#181a21" };
 /** Compatibility view; all identity data lives in the registry. */
 export const TEAM_COLORS = Object.fromEntries(TEAMS.map(t => [t.name, { gear: GEAR[t.league], colors: [t.primary, t.secondary] }]));
@@ -16,6 +17,14 @@ export function markColors({ primary, secondary }: Pick<TeamLook, "primary" | "s
   const a = rgb(fill), b = rgb(trim);
   const similar = a.every((v, i) => Math.abs(v - b[i]!) <= 24);
   return { fill, trim: similar ? "#181a21" : trim };
+}
+
+/** Facemask tan: used when the team's mask color would vanish (near-white on paper, near-black into the ink outline). */
+export const MASK_TAN = "#d8c79c";
+/** Helmet facemask color: the trim color, or tan when it is too pale or too dark to read as a mask. */
+export function helmetMaskColor(trim: string): string {
+  const c = contrastOnWhite(trim);
+  return c < 1.5 || c > 12 ? MASK_TAN : trim;
 }
 
 /** Whose badge goes next to a pick: the player's team for props, the team picked for winner/spread; none for totals. */

@@ -54,7 +54,7 @@ type Props = {
   onOpen?: () => void;
 };
 
-/** Classic sportsbook card: away row over home row × Spread / Total / Winner. Tap "More bets" for the game page. */
+/** Classic sportsbook card: away row over home row × Spread / Total / Moneyline. Tap "More bets" for the game page. */
 export function EventCard({ event, markets, allowedMarkets, locked, selected, onToggle, onOpen }: Props) {
   const hasProps = allowedMarkets.some(isPropMarket);
   const propCount = propTabs(allowedMarkets, markets).length;
@@ -89,7 +89,7 @@ export function EventCard({ event, markets, allowedMarkets, locked, selected, on
   );
 }
 
-/** The game's own lines (Spread / Total / Winner) for the two teams, with how fresh the prices are. */
+/** The game's own lines (Spread / Total / Moneyline) for the two teams, with how fresh the prices are. */
 export function GameLines({ event, markets, allowedMarkets, locked, selected, onToggle }: Omit<Props, "onOpen">) {
   const columns = COLUMN_ORDER.filter((m) => allowedMarkets.includes(m));
   const grid = GRID[columns.length] ?? GRID[3];

@@ -115,7 +115,7 @@ function trimPoint(point: number): string {
 }
 
 export const MARKET_LABELS: Record<string, string> = {
-  h2h: "Winner",
+  h2h: "Moneyline",
   spreads: "Spread",
   totals: "Total",
   player_points: "Points",

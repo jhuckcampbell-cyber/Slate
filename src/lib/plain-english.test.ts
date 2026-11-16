@@ -86,7 +86,7 @@ describe("explainTournament: the 'what am I getting into' sheet", () => {
   it("only explains the bets this tournament allows", () => {
     const s = explainTournament({ ...base, markets: ["h2h"], parlays: false });
     const bets = s.find((x) => x.title === "The bets you can make")!.body.join(" ");
-    expect(bets).toContain("Winner");
+    expect(bets).toContain("Moneyline");
     expect(bets).not.toContain("Spread");
     expect(bets).not.toContain("Parlay");
   });

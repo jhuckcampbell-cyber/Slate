@@ -34,7 +34,7 @@ test("host-enabled player props are bet, then graded by the host's stat entry", 
   await host.getByRole("button", { name: /Create & get invite link/ }).click();
   await host.waitForURL(/\/t\/[A-Z0-9]{2,5}-[A-Z0-9]{4}/);
   const code = new URL(host.url()).pathname.split("/").pop()!;
-  await expect(host.getByRole("region", { name: "Rules" })).toContainText("Winner, Spread, Total + player props");
+  await expect(host.getByRole("region", { name: "Rules" })).toContainText("Moneyline, Spread, Total + player props");
   await waitForOdds(host);
 
   // Host: first player's Over on points.

@@ -160,7 +160,7 @@ export function explainTournament(t: ExplainInput): ExplainSection[] {
   }
 
   const bets: string[] = [];
-  if (t.markets.includes("h2h")) bets.push("Winner: pick who wins the game.");
+  if (t.markets.includes("h2h")) bets.push("Moneyline: pick who wins the game.");
   if (t.markets.includes("spreads"))
     bets.push("Spread: a head start to make it fair. \"Celtics -7\" wins only if the Celtics win by more than 7; \"Knicks +7\" wins if the Knicks win or lose by less than 7.");
   if (t.markets.includes("totals"))

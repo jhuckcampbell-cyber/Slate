@@ -37,7 +37,7 @@ type Props = {
 };
 
 const MARKETS = [
-  { key: "h2h", label: "Winner" },
+  { key: "h2h", label: "Moneyline" },
   { key: "spreads", label: "Spread" },
   { key: "totals", label: "Over/Under" },
 ] as const;

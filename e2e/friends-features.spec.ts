@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { joinAs, newPage, waitForOdds } from "./helpers";
 
 // 2026-11-05 batch: house rules (bet it all, minimum bets) with a live checklist, the plain-English explainer,
-// odds as percentages (Settings), the tournament switcher, leaving, and deleting.
+// odds as percentages (Settings opt-in), the tournament switcher, leaving, and deleting.
 test("house rules, explainer, % odds, switcher, leave and delete", async ({ browser }) => {
   test.setTimeout(240_000);
   const host = await newPage(browser);
@@ -52,15 +52,15 @@ test("house rules, explainer, % odds, switcher, leave and delete", async ({ brow
   await expect(sheet).toContainText("Bet your whole $100 before picks lock.");
   await sheet.getByRole("button", { name: "Got it" }).click();
 
-  // Settings: odds default to a chance to win; "Classic odds" is opt-in.
+  // Settings: odds default to classic American odds (sportsbook layout); "Chance to win" is opt-in.
   const price = host.locator('article button[aria-pressed="false"]').first();
-  await expect(price).toContainText("%");
-  await host.getByRole("button", { name: "Settings" }).click();
-  await host.getByRole("radio", { name: "Classic odds" }).click();
-  await host.keyboard.press("Escape");
   await expect(price).not.toContainText("%");
+  await host.getByRole("button", { name: "Settings" }).click();
+  await host.getByRole("radio", { name: "Chance to win" }).click();
+  await host.keyboard.press("Escape");
+  await expect(price).toContainText("%");
   await host.reload(); // sticks on this phone
-  await expect(host.locator('article button[aria-pressed="false"]').first()).not.toContainText("%");
+  await expect(host.locator('article button[aria-pressed="false"]').first()).toContainText("%");
 
   // A friend joins by accident and leaves; they're out of the squad and it's gone from their home screen.
   const gina = await joinAs(await newPage(browser), code, "Gina");

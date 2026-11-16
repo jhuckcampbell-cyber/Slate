@@ -10,8 +10,8 @@ import type { OddsFormat } from "./plain-english";
 const KEY = "slate:odds-format";
 const EVENT = "slate:prefs";
 
-/** % chance is the default (plain English for people who've never bet); American odds are opt-in in Settings. */
-export const DEFAULT_ODDS_FORMAT: OddsFormat = "percent";
+/** American odds are the default (sportsbook layout); % chance is opt-in in Settings. */
+export const DEFAULT_ODDS_FORMAT: OddsFormat = "american";
 
 function read(): OddsFormat {
   try {

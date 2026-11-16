@@ -2,36 +2,33 @@
 
 import { createContext, useContext, useMemo, useReducer, useState, type Dispatch, type ReactNode } from "react";
 import { createSubmissionTracker } from "./submission";
-import { MAX_SLIP_SELECTIONS, type Selection, type SlipMode } from "@/lib/core/slip";
+import { MAX_SLIP_SELECTIONS, type Selection } from "@/lib/core/slip";
 
 /** A pick in the slip: the accepted price/line plus display context. */
 export type SlipEntry = Selection & { matchup: string; sportKey?: string; participantTeam?: string | null };
 
 type State = {
   entries: SlipEntry[];
-  mode: SlipMode;
+  mode: "singles" | "parlay";
   /** Raw dollar strings as typed (parsed with dollarsToCents at render). */
   stakes: Record<number, string>;
   parlayStake: string;
-  /** Mixed mode (token tournaments): the picks grouped into the one parlay. */
-  parlayIds: number[];
   open: boolean;
 };
 
 type Action =
   | { type: "toggle"; entry: SlipEntry }
-  | { type: "remove"; oddsId: number }
+  | { type: "remove"; oddsId: number; releaseParlay?: boolean }
   | { type: "clear" }
-  | { type: "mode"; mode: SlipMode }
+  | { type: "mode"; mode: "singles" | "parlay" }
   | { type: "stake"; oddsId: number; value: string }
   | { type: "stakeAll"; value: string }
   | { type: "stakeEach"; values: Record<number, string> }
   | { type: "parlayStake"; value: string }
-  | { type: "toggleParlayLeg"; oddsId: number }
   | { type: "accept"; updates: { oddsId: number; priceAmerican: number; point: number | null }[] }
   | { type: "open"; open: boolean };
 
-const initialState: State = { entries: [], mode: "singles", stakes: {}, parlayStake: "", parlayIds: [], open: false };
+const initialState: State = { entries: [], mode: "singles", stakes: {}, parlayStake: "", open: false };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -50,27 +47,15 @@ function reducer(state: State, action: Action): State {
         ...state,
         entries,
         stakes,
-        parlayIds: state.parlayIds.filter((id) => id !== action.oddsId),
         mode: entries.length < 2 ? "singles" : state.mode,
+        parlayStake: action.releaseParlay && entries.length < 2 ? "" : state.parlayStake,
         open: entries.length > 0 && state.open,
       };
     }
     case "clear":
       return initialState;
     case "mode":
-      // Entering mixed mode starts with every pick in the parlay; tap a pick out to make it a single.
-      return {
-        ...state,
-        mode: action.mode,
-        parlayIds: action.mode === "mixed" && state.mode !== "mixed" ? state.entries.map((e) => e.oddsId) : state.parlayIds,
-      };
-    case "toggleParlayLeg":
-      return {
-        ...state,
-        parlayIds: state.parlayIds.includes(action.oddsId)
-          ? state.parlayIds.filter((id) => id !== action.oddsId)
-          : [...state.parlayIds, action.oddsId],
-      };
+      return { ...state, mode: action.mode };
     case "stake":
       return { ...state, stakes: { ...state.stakes, [action.oddsId]: action.value } };
     case "stakeAll":

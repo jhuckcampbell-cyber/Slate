@@ -1,8 +1,8 @@
 -- Token mode (migration 0024): the host deals tokens (e.g. $25, $25, $50); every bet must be one unused token, and
--- every token must be used (token mode turns on all_in). Normal tournaments are untouched.
+-- partial slips are allowed; unused tokens at lock disqualify. Normal tournaments are untouched.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(19);
 
 insert into auth.users (id, aud, role, email, is_anonymous, raw_user_meta_data) values
   ('a6000000-0000-0000-0000-00000000000a', 'authenticated', 'authenticated', 'h6@test.dev', false, '{"display_name":"Hank"}'),
@@ -54,12 +54,14 @@ select throws_ok($$ select public.place_wagers((select id from t1), jsonb_build_
 select throws_ok($$ select public.place_wagers((select id from t1), jsonb_build_array(
     pg_temp.bet(5000, 'Boston Celtics'), pg_temp.bet(5000, 'New York Knicks'))) $$,
   'TOKEN_NOT_AVAILABLE', 'the $50 token can only be used once');
-select throws_ok($$ select public.place_wagers((select id from t1), jsonb_build_array(
-    pg_temp.bet(2500, 'Boston Celtics'), pg_temp.bet(5000, 'New York Knicks'))) $$,
-  'HOUSE_RULE_ALL_IN', 'every token has to be used');
 select lives_ok($$ select public.place_wagers((select id from t1), jsonb_build_array(
-    pg_temp.bet(2500, 'Boston Celtics'), pg_temp.bet(2500, 'New York Knicks'), pg_temp.bet(5000, 'Boston Celtics'))) $$,
-  'all three tokens, one per bet');
+    pg_temp.bet(2500, 'Boston Celtics'), pg_temp.bet(5000, 'New York Knicks'))) $$,
+  'partial token slip succeeds');
+select throws_ok($$ select public.place_wagers((select id from t1), jsonb_build_array(pg_temp.bet(5000, 'Boston Celtics'))) $$,
+  'TOKEN_NOT_AVAILABLE', 'spent token cannot be reused');
+select lives_ok($$ select public.place_wagers((select id from t1), jsonb_build_array(
+    pg_temp.bet(2500, 'Boston Celtics'))) $$,
+  'later slip spends the remaining token');
 select lives_ok($$ select public.cancel_wager((select w.id from public.wagers w join public.tournament_participants p
     on p.id = w.participant_id where w.tournament_id = (select id from t1)
     and p.user_id = 'a6000000-0000-0000-0000-00000000000b' and w.amount_cents = 5000)) $$,
@@ -71,6 +73,22 @@ select lives_ok($$ select public.place_wagers((select id from t1), jsonb_build_a
 select pg_temp.as_user('a6000000-0000-0000-0000-00000000000a');
 select lives_ok($$ select public.place_wagers((select id from t2), jsonb_build_array(pg_temp.bet(1234, 'Boston Celtics'))) $$,
   'any amount still works without tokens');
+
+select public.update_tournament((select id from t2), '{"allowed_bet_types":{"all_in":true}}');
+select throws_ok($$ select public.place_wagers((select id from t2), jsonb_build_array(pg_temp.bet(1000, 'Boston Celtics'))) $$,
+  'HOUSE_RULE_ALL_IN', 'non-token all-in still enforced on submit');
+select public.update_tournament((select id from t1), '{"allowed_bet_types":{"min_bets":3}}');
+select lives_ok($$ select public.place_wagers((select id from t1), jsonb_build_array(pg_temp.bet(5000, 'Boston Celtics'))) $$,
+  'token slip below min bets succeeds');
+select lives_ok($$ select public.replace_wager((select w.id from public.wagers w join public.tournament_participants p
+  on p.id = w.participant_id where w.tournament_id = (select id from t1)
+  and p.user_id = 'a6000000-0000-0000-0000-00000000000a'),
+  jsonb_build_array(pg_temp.bet(2500, 'New York Knicks'))) $$, 'replacement may leave tokens unused');
+-- Meet min_bets so this assertion isolates the unused-token/all-in rule.
+select public.update_tournament((select id from t1), '{"allowed_bet_types":{"min_bets":1}}');
+select public.lock_tournament_now((select id from t1));
+select is((select qualified from public.leaderboard where tournament_id = (select id from t1)
+  and user_id = 'a6000000-0000-0000-0000-00000000000a'), false, 'unused tokens disqualify at lock');
 
 select * from finish();
 rollback;

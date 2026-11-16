@@ -101,3 +101,7 @@ identical colors use ink trim. Team-name text still requires 4.5:1 contrast. No 
 These are generic silhouettes, never team logos. Before monetizing, have a trademark attorney
 review the use of team names and colors. Compare colors manually with the development-only
 `scripts/verify-team-colors.mjs`; ESPN alternate colors are not automatically authoritative.
+
+## Token slip
+
+Token tournaments use felt (oklch(0.33 0.06 165)) for the sheet, felt-deep (oklch(0.28 0.05 165)) for rows, felt-foreground (oklch(0.97 0.02 90)) for cream text and chip faces, and felt-muted (oklch(0.86 0.03 150)) for secondary text. These are distinct from win. The sheet is at most 70dvh with a scrolling list. Cream selected pills and CTA are the exception to ink selected fills and blue tabs. Chips are 54px with an ink outline, dashed inner ring and 3px ink lip; slots and controls are at least 44px. Assigned chips remain ghosted across mode switches in a shared pool. Partial submissions leave unchipped picks on the slip. Chip motion uses motion-safe; focus rings stay visible.

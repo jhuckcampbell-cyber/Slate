@@ -160,6 +160,16 @@ describe("house rules on submit (mirrors place_wagers, migration 0022)", () => {
     ]);
   });
 
+  it("allows partial token slips despite all-in and minimum bets", () => {
+    const drafts = buildWagers("singles", [sel(1, "a")], { 1: 2_500 }, undefined);
+    const tokenRules = { ...rules, tokens: [2_500, 2_500, 5_000], allIn: true, minBets: 3 };
+    expect(houseRuleShortfall(tokenRules, { bankrollCents: 10_000, betsPlaced: 0 }, drafts))
+      .toEqual({ betsShort: 0, leftCents: 0 });
+    expect(validateSlip(drafts, { rules: tokenRules, bankrollCents: 10_000 })).toEqual([]);
+    expect(validateSlip(drafts, { rules: { ...tokenRules, tokens: [] }, bankrollCents: 10_000 }))
+      .toEqual([{ code: "HOUSE_RULE_MIN_BETS" }, { code: "HOUSE_RULE_ALL_IN" }]);
+  });
+
   it("counts bets already placed", () => {
     const drafts = buildWagers("singles", [sel(1, "a")], { 1: 1_000 }, undefined);
     expect(validateSlip(drafts, { rules: { ...rules, minBets: 3 }, bankrollCents: 8_000, betsPlaced: 2 })).toEqual([]);

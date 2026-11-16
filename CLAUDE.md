@@ -162,11 +162,11 @@ supabase/tests/              pgTAP: every RLS policy and RPC has tests
 - Props are merged across books PER PLAYER (normalize.ts pickPropBooks): never one book for a whole prop market.
 - Leave (player) / delete (host) only before lock: leave_tournament / delete_tournament. A 'tournament' signal with
   status 'deleted' sends open lobbies home.
-- Token mode (migrations 0024/0025): allowed_bet_types.tokens (cents, sum = bankroll) forces all_in; each bet spends one
-  unused token. A trigger keeps tokens consistent with the rules: bankroll = sum, min_bets <= token count, max bet >=
-  biggest token (else INVALID_TOKENS). set_tournament_tokens(null) clears them before anyone bets. The slip's multi-bet
-  tab is "Parlay + singles" (mode "mixed": picks in parlayIds form one parlay, the rest singles, one submit), because
-  all_in is checked per submit and a lone parlay would leave tokens unused.
+- Token mode (migrations 0024/0025/0043): allowed_bet_types.tokens (cents, sum = bankroll) forces all_in; each bet spends
+  one unused token. Partial token slips are allowed; remaining tokens can be spent in later submits. Unused tokens at
+  lock rank last. A trigger keeps bankroll = token sum, min_bets <= token count, and max bet >= biggest token
+  (else INVALID_TOKENS). set_tournament_tokens(null) clears them before anyone bets. The slip is a chip rail with a
+  Singles/Parlay toggle.
 - Stale/void legs only settle once a tournament is locked; cancel_wager only cancels pending wagers (WAGER_SETTLED).
 - Live game feed (migration 0018): odds-sync job `live` reads ESPN's free scoreboard once a minute for NBA/NFL games
   in play → game_live (score, clock, down & distance, last play). In-progress scores also update events (live chances);

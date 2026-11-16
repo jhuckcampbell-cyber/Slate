@@ -123,13 +123,14 @@ export function slipTotals(drafts: readonly WagerDraft[]) {
 
 /**
  * What this slip still misses of the house rules, counting bets already placed (mirrors place_wagers, migration 0022:
- * a slip only goes through if, once placed, the player meets every rule).
+ * non-token slips must meet every rule on submit; token slips may be partial (migration 0043)).
  */
 export function houseRuleShortfall(
-  rules: Pick<Rules, "minBets" | "allIn">,
+  rules: Pick<Rules, "minBets" | "allIn" | "tokens">,
   ctx: { bankrollCents: number; betsPlaced: number },
   drafts: readonly WagerDraft[],
 ): { betsShort: number; leftCents: number } {
+  if (rules.tokens?.length) return { betsShort: 0, leftCents: 0 };
   const stake = drafts.reduce((sum, d) => sum + Math.max(d.amountCents, 0), 0);
   return {
     betsShort: Math.max(0, (rules.minBets ?? 0) - ctx.betsPlaced - drafts.length),

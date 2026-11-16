@@ -83,14 +83,13 @@ select pg_temp.as_user('a7000000-0000-0000-0000-00000000000c');
 select public.join_tournament((select code from t1));
 
 select pg_temp.as_user('a7000000-0000-0000-0000-00000000000b');
-select throws_ok($$ select public.place_wagers((select id from t1), jsonb_build_array(
-    pg_temp.bet(5000, 'Boston Celtics', 'Los Angeles Lakers'))) $$,
-  'HOUSE_RULE_ALL_IN', 'a parlay alone leaves tokens unused');
 select lives_ok($$ select public.place_wagers((select id from t1), jsonb_build_array(
-    pg_temp.bet(5000, 'Boston Celtics', 'Los Angeles Lakers'),
+    pg_temp.bet(5000, 'Boston Celtics', 'Los Angeles Lakers'))) $$,
+  'a parlay alone may leave tokens unused');
+select lives_ok($$ select public.place_wagers((select id from t1), jsonb_build_array(
     pg_temp.bet(2500, 'New York Knicks'),
     pg_temp.bet(2500, 'Denver Nuggets'))) $$,
-  'parlay on the $50 token + two $25 singles in one submit');
+  'later singles spend the remaining tokens');
 select is((select count(*)::int from public.wagers w where w.tournament_id = (select id from t1)), 3, 'three wagers placed');
 
 select pg_temp.as_user('a7000000-0000-0000-0000-00000000000a');

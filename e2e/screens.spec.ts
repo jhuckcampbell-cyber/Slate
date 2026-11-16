@@ -112,3 +112,31 @@ test("team mark gallery", async ({ page }) => {
   await expect(page.locator("svg")).toHaveCount(examples.length);
   await page.screenshot({ path: `${OUT}/14-team-mark-gallery.png`, fullPage: true });
 });
+
+test("token slip design tour", async ({ page }) => {
+  test.skip(!OUT, "set SCREENS=<dir> to capture the token slip");
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/create");
+  await page.waitForLoadState("networkidle");
+  const cards = page.getByRole("button").filter({ hasText: "@" });
+  await cards.nth(0).click();
+  await cards.nth(1).click();
+  await page.getByRole("button", { name: /Continue with 2 games/ }).click();
+  await page.getByLabel("Your name").fill("Hank");
+  await page.getByRole("radio", { name: /Tokens: \$25 \+ \$25 \+ \$50/ }).click();
+  await page.getByRole("button", { name: /Create & get invite link/ }).click();
+  await page.waitForURL(/\/t\/[A-Z0-9]{2,5}-[A-Z0-9]{4}/);
+  await waitForOdds(page);
+  await page.locator("article").nth(0).getByRole("button", { pressed: false }).last().click();
+  await page.locator("article").nth(1).getByRole("button", { pressed: false }).last().click();
+  await page.getByRole("button", { name: /Your slip/ }).click();
+  const slip = page.getByRole("dialog");
+  await slip.getByRole("button", { name: "$25 token", exact: true }).first().click();
+  await slip.getByRole("button", { name: /^Put \$25 on/ }).first().click();
+  await page.screenshot({ path: OUT + "/14-slip-tokens-singles.png" });
+  await slip.getByRole("tab", { name: "Parlay", exact: true }).click();
+  await slip.getByRole("button", { name: "$50 token", exact: true }).click();
+  await slip.getByRole("button", { name: "Put $50 on the parlay", exact: true }).click();
+  await page.screenshot({ path: OUT + "/15-slip-tokens-parlay.png" });
+});

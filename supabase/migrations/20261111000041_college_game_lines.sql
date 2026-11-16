@@ -1,7 +1,8 @@
 -- College game lines are opt-in; keep the existing paid-job selection/cadence intact.
 insert into private.app_settings (key, value) values
   ('odds_college_enabled', 'false'::jsonb),
-  ('odds_college_max_events', '8'::jsonb);
+  ('odds_college_max_events', '8'::jsonb)
+on conflict (key) do nothing; -- prod set these by hand before this migration shipped
 
 -- Catalog (free /events) for college; the wrapper below drops it while the switch is off.
 update private.app_settings set value = value || '["americanfootball_ncaaf", "basketball_ncaab"]'::jsonb

@@ -1,4 +1,3 @@
-import { ViewTransition } from "react";
 import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
@@ -47,7 +46,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${display.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Providers><ViewTransition>{children}</ViewTransition></Providers>
+        {/* No <ViewTransition>: React's Suspense-reveal view transition crashes WebKit (iOS Safari) on streamed pages. */}
+        <Providers>{children}</Providers>
         <Toaster theme="light" position="top-center" richColors />
       </body>
     </html>

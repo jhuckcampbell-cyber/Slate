@@ -1,10 +1,10 @@
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { PageSkeleton } from "@/components/page-skeleton";
+import { StubListSkeleton } from "@/components/page-skeleton";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { EyeOff, Users, Wallet } from "lucide-react";
-import { AppBar, DisplayTitle, Eyebrow } from "@/components/brand";
+import { AppBar, DisplayTitle, Eyebrow, stub, StubTear, TicketSerial } from "@/components/brand";
 import { LockCountdown } from "@/components/tournament/lock-countdown";
 import { normalizeCode } from "@/lib/core/codes";
 import { formatCents, sportEmoji, sportLabel } from "@/lib/format";
@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: PageProps<"/join/[code]">): P
 
 export default function JoinPage(props: PageProps<"/join/[code]">) {
   return (
-    <Suspense fallback={<PageSkeleton />}>
+    <Suspense fallback={<StubListSkeleton />}>
       <Join {...props} />
     </Suspense>
   );
@@ -64,7 +64,7 @@ async function Join({ params, searchParams }: PageProps<"/join/[code]">) {
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-[max(env(safe-area-inset-top),12px)] pb-8">
-      <AppBar />
+      <AppBar><TicketSerial code={code} /></AppBar>
 
       <div className="mt-8 flex items-center gap-2.5">
         <span className="flex size-9 items-center justify-center rounded-full bg-hype font-display text-lg font-bold text-hype-foreground">
@@ -77,7 +77,13 @@ async function Join({ params, searchParams }: PageProps<"/join/[code]">) {
       <Eyebrow className="mt-5">
         {sportEmoji(t.sport_key)} {sportLabel(t.sport_key)} · {t.events.length} {t.events.length === 1 ? "game" : "games"}
       </Eyebrow>
-      <DisplayTitle className="mt-1.5">{t.title}</DisplayTitle>
+      <div className={stub("default", "mt-3")}>
+        <div className="min-w-0 flex-1 p-4">
+          <Eyebrow>Your invite</Eyebrow>
+          <DisplayTitle className="mt-1.5 break-words">{t.title}</DisplayTitle>
+        </div>
+        <StubTear><span className="font-display text-xl font-bold">Admit<br />one</span></StubTear>
+      </div>
 
       <ul className="mt-5 space-y-2">
         {t.events.map((e) => (

@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { isValidCode, normalizeCode } from "@/lib/core/codes";
@@ -30,18 +31,18 @@ function useTypedPlaceholder(stop: boolean) {
 
 export function JoinCodeForm() {
   const router = useRouter();
-  const [value, setValue] = useState("");
+  const [pending, startTransition] = useTransition();
   const [touched, setTouched] = useState(false);
   const placeholder = useTypedPlaceholder(touched);
-  const code = normalizeCode(value);
-  const valid = isValidCode(code);
 
   return (
     <form
-      className="flex gap-2"
+      className="flex gap-2" aria-busy={pending}
       onSubmit={(e) => {
         e.preventDefault();
-        if (valid) router.push(`/join/${code}`);
+        const code = normalizeCode(String(new FormData(e.currentTarget).get("code") ?? ""));
+        if (isValidCode(code)) startTransition(() => router.push(`/join/${code}`));
+        else toast.error("Enter the invite code your friend sent you.");
       }}
     >
       <Input
@@ -51,12 +52,13 @@ export function JoinCodeForm() {
         autoCapitalize="characters"
         autoComplete="off"
         spellCheck={false}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
+        name="code"
+        defaultValue=""
+        required
         className="h-12 rounded-xl bg-card font-mono text-base tracking-widest uppercase"
       />
-      <Button type="submit" variant="outline" disabled={!valid} className="h-12 rounded-xl px-4" aria-label="Join">
-        <ArrowRight />
+      <Button type="submit" variant="outline" disabled={pending} className="press h-12 rounded-xl px-4" aria-label={pending ? "Opening invite" : "Join"}>
+        {pending ? <Loader2 className="motion-safe:animate-spin" /> : <ArrowRight />}
       </Button>
     </form>
   );

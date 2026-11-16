@@ -49,12 +49,12 @@ export default function Home() {
       </section>
 
       <section className={cn("mt-7 space-y-5", enter, "motion-safe:delay-75")}>
-        <Link href="/create" className={cn(buttonVariants(), "h-14 w-full rounded-2xl text-base font-semibold")}>
+        <Link href="/create" className={cn(buttonVariants(), "press h-14 w-full rounded-2xl text-base font-semibold")}>
           <Plus /> Start a tournament
         </Link>
-        <div>
+        <div className="rounded-2xl border-2 border-foreground bg-card p-4">
           <h2 className="font-display text-xl/tight font-extrabold tracking-tight">Join a friend&apos;s tournament</h2>
-          <p className="mb-2 text-sm text-muted-foreground">Enter the code they texted you</p>
+          <p className="mb-2 text-sm text-muted-foreground">Your friend saved you a spot. Enter their invite code.</p>
           <JoinCodeForm />
         </div>
       </section>

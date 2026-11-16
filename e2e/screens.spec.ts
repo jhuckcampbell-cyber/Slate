@@ -1,3 +1,8 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { TeamMark } from "../src/components/team-mark";
+import { TEAMS, SPORT_LEAGUES } from "../src/lib/teams/registry";
+
 import { expect, test, type Page } from "@playwright/test";
 import { createTournament, expectRevealed, joinAs, newPage, openPlayerBets, placeSingle, showTab, waitForOdds } from "./helpers";
 
@@ -86,4 +91,24 @@ test("design tour", async ({ browser }) => {
   await shot(gina, "13b-chance-info", true);
   await showTab(gina, "Games");
   await shot(gina, "13c-games-tab", true);
+});
+
+
+test("team mark gallery", async ({ page }) => {
+  test.skip(!OUT, "set SCREENS=<dir> to capture the team mark gallery");
+  await page.setViewportSize({ width: 375, height: 812 });
+  const examples = [
+    ...TEAMS.map(t => ({ team: t.name, sportKey: Object.keys(SPORT_LEAGUES).find(k => SPORT_LEAGUES[k] === t.league)! })),
+    { team: "Unknown college team", sportKey: "basketball_ncaab" },
+    { team: "Unknown team", sportKey: "unknown" },
+  ];
+  const rows = examples.map(({ team, sportKey }) => renderToStaticMarkup(createElement("div", { className: "team" },
+    createElement(TeamMark, { team, sportKey }), createElement("span", null, team)))).join("");
+  await page.setContent(`<html><head><style>
+    body { margin: 0; padding: 16px; background: #fff; color: #181a21; font: 14px system-ui; }
+    h1 { font-size: 24px; } .team { display: flex; gap: 12px; align-items: center; min-height: 44px; }
+    svg { width: 32px; height: 32px; flex-shrink: 0; }
+  </style></head><body><h1>Team marks</h1>${rows}</body></html>`);
+  await expect(page.locator("svg")).toHaveCount(examples.length);
+  await page.screenshot({ path: `${OUT}/14-team-mark-gallery.png`, fullPage: true });
 });

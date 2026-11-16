@@ -10,7 +10,7 @@ Every tournament explains itself in plain English (`src/lib/plain-english.ts`), 
 
 Tokens live in `src/app/globals.css`. Brand primitives live in `src/components/brand.tsx`. Run the
 visual tour after any UI change:
-`SCREENS=./screens npx playwright test e2e/screens.spec.ts` (writes 13 iPhone 15 screenshots).
+`SCREENS=./screens npx playwright test e2e/screens.spec.ts` (includes a 375px team-mark gallery).
 
 ## Color: semantic tokens only
 Never use raw palette classes (`emerald-400`, `amber-300`, `text-black`). Use these:
@@ -82,3 +82,20 @@ the % (`chanceExplainer`). Totals: the bar fills with points toward the line (ti
   (`<Wordmark>`). Mark for icons and share cards: ink "s" + coral slash (`<LogoMark>`, paths `LOGO_S` / `LOGO_SLASH`).
   Regenerate app icons with `node scripts/make-icons.mjs` after changing the mark.
 - No league or team logos (trademarks). Use names, abbreviations, and emoji sport markers.
+
+## Team marks
+
+Generic gear identifies the sport without league or team logos: NFL helmet, NBA tank jersey,
+NHL sweater, MLB cap, and a pennant for known college teams. Unknown teams or sports use an
+ink-gray shield; never generate random team colors. College coverage follows local seed/events
+(currently no college teams), with unknown college teams using the same neutral shield.
+
+`src/lib/teams/registry.ts` is the single identity source. Resolve normalized names, aliases and
+abbreviations within the event's sport key. Inline registry team colors are an intentional exception
+to semantic color tokens. Primary fills the gear, secondary supplies trim, and the silhouette has a
+1.7px ink outline. Swap fill and trim when primary contrast against white is below 1.5:1; nearly
+identical colors use ink trim. Team-name text still requires 4.5:1 contrast. No gradients or shadows.
+
+These are generic silhouettes, never team logos. Before monetizing, have a trademark attorney
+review the use of team names and colors. Compare colors manually with the development-only
+`scripts/verify-team-colors.mjs`; ESPN alternate colors are not automatically authoritative.

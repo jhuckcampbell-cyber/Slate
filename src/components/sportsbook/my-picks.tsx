@@ -87,7 +87,7 @@ export function MyPicks({ participantId, wagers, eventsById, locked }: Props) {
                               outcomeName: leg.selection,
                               participantTeam: leg.participant_team,
                             });
-                            return team ? <TeamMark team={team} className="mr-1 inline size-5 align-[-5px]" /> : null;
+                            return team ? <TeamMark team={team} sportKey={ev?.sport_key} className="mr-1 inline size-5 align-[-5px]" /> : null;
                           })()}
                           {selectionLabel({
                             marketKey: leg.market_key,

@@ -95,8 +95,8 @@ export function matchupLabel(e: { away_team: string; home_team: string }): strin
 }
 
 /** "Boston Celtics" → "Celtics"; "San Francisco 49ers" → "49ers". */
-export function shortTeam(name: string): string {
-  return getTeam(name).short;
+export function shortTeam(name: string, sportKey?: string): string {
+  return getTeam(name, sportKey).short;
 }
 
 export function formatAmerican(price: number): string {

@@ -1,6 +1,6 @@
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { PageSkeleton } from "@/components/page-skeleton";
+import { BoardSkeleton } from "@/components/page-skeleton";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getViewer } from "@/lib/supabase/queries";
@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Start a tournament" };
 
 export default function CreatePage() {
   return (
-    <Suspense fallback={<PageSkeleton />}>
+    <Suspense fallback={<BoardSkeleton />}>
       <Create />
     </Suspense>
   );

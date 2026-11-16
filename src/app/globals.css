@@ -59,6 +59,12 @@
 }
 
 :root {
+  --dur-fast: 120ms;
+  --dur-base: 220ms;
+  --dur-slow: 360ms;
+  --dur-exit: calc(var(--dur-base) * 0.65);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
   /* Surfaces: warm paper page, white stubs on it, a faint warm gray for raised chips. */
   --background: oklch(0.985 0.004 85);
   --foreground: oklch(0.18 0.012 265);
@@ -218,4 +224,58 @@
 }
 @media (prefers-reduced-motion: no-preference) {
   .slash-wiggle { transform-origin: 50% 90%; transform-box: fill-box; animation: slash-wiggle 0.7s 0.35s ease-in-out both; }
+}
+
+/* Foundations: motion is opt-in to the user's preference. */
+@keyframes stamp-in {
+  from { transform: scale(1.6) rotate(-9deg); opacity: 0; }
+  to { transform: scale(1) rotate(0); opacity: 1; }
+}
+@keyframes sheet-slide-in {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes panel-slide-in-right {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes panel-slide-in-left {
+  from { transform: translateX(-24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes route-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes route-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-8px); }
+}
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .press { transition: transform var(--dur-fast) var(--ease-out); }
+  .press:active { transform: scale(.96); }
+  .stamp-in { animation: stamp-in var(--dur-slow) var(--ease-spring) both; }
+  .sheet-slide-in { animation: sheet-slide-in var(--dur-slow) var(--ease-out) both; }
+  .panel-slide-in-right { animation: panel-slide-in-right var(--dur-base) var(--ease-out) both; }
+  .panel-slide-in-left { animation: panel-slide-in-left var(--dur-base) var(--ease-out) both; }
+  :is(.stamp-in, .sheet-slide-in, .panel-slide-in-right, .panel-slide-in-left)[data-state="closed"] {
+    animation-direction: reverse;
+    animation-duration: var(--dur-exit);
+    animation-timing-function: ease-in;
+  }
+  :is(.stamp-in, .sheet-slide-in)[data-state="closed"] { animation-duration: calc(var(--dur-slow) * .65); }
+  ::view-transition-old(root) { animation: route-out var(--dur-exit) var(--ease-out) both; }
+  ::view-transition-new(root) { animation: route-in var(--dur-base) var(--ease-out) both; }
+  .skeleton-shimmer {
+    background-image: linear-gradient(100deg, transparent 30%, var(--card) 50%, transparent 70%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.8s linear infinite;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }

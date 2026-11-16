@@ -3,7 +3,7 @@
 import { HouseRulesFields } from "@/components/tournament/house-rules-fields";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +46,16 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
   const router = useRouter();
   const turnstile = useRef<TurnstileHandle>(null);
   const [step, setStep] = useState<1 | 2>(1);
+  const [direction, setDirection] = useState<"left" | "right">("right");
+  useEffect(() => {
+    function onPopState(event: PopStateEvent) {
+      const next = event.state?.slateCreateStep === 2 ? 2 : 1;
+      setDirection(next === 2 ? "right" : "left");
+      setStep(next);
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
   const sports = useMemo(() => [...new Set(events.map((e) => e.sport_key))], [events]);
   const [sport, setSport] = useState(sports[0] ?? "");
   const [selected, setSelected] = useState<string[]>([]);
@@ -77,6 +87,8 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
 
   function goToRules() {
     if (!title) setTitle(suggestTitle(chosen, sport));
+    window.history.pushState({ ...window.history.state, slateCreateStep: 2 }, "", window.location.href);
+    setDirection("right");
     setStep(2);
   }
 
@@ -150,16 +162,22 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
       <Turnstile ref={turnstile} />
       <header className="mb-6 flex items-center gap-3">
         {step === 2 && (
-          <Button variant="ghost" size="icon" className="size-11" aria-label="Back" onClick={() => setStep(1)}>
+          <Button variant="outline" size="icon" className="press size-11" aria-label="Back" onClick={() => window.history.back()}>
             <ArrowLeft />
           </Button>
         )}
         <div>
           <p className="text-xs text-muted-foreground">Step {step} of 2</p>
-          <h1 className="font-display text-4xl leading-none font-extrabold tracking-tight">{step === 1 ? "Pick the game(s)" : "Set the rules"}</h1>
+          <h1 className="font-display text-4xl leading-none font-extrabold tracking-tight">{step === 1 ? "Pick the games" : "Set the rules"}</h1>
         </div>
       </header>
 
+      <div aria-label={`Step ${step} of 2`} className="mb-5 grid grid-cols-2 overflow-hidden rounded-lg border-2 border-foreground text-center text-xs font-semibold">
+        {["1 ? Pick games", "2 ? Set rules"].map((label, index) => (
+          <span key={label} aria-current={step === index + 1 ? "step" : undefined} className={cn("px-3 py-2", index === 1 && "border-l-2 border-dashed border-foreground", step === index + 1 ? "bg-tab underline" : "bg-card text-muted-foreground")}>{label}</span>
+        ))}
+      </div>
+      <div key={step} className={direction === "right" ? "panel-slide-in-right" : "panel-slide-in-left"}>
       {step === 1 ? (
         <section>
           {sports.length > 1 && (
@@ -229,13 +247,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
           {(sport === "americanfootball_ncaaf" || sport === "basketball_ncaab") && (
             <p className="mt-3 text-sm text-muted-foreground">College: game lines only (winner, spread, total).</p>
           )}
-          <StickyFooter>
-            <Button className="h-14 w-full text-base font-semibold" disabled={!selected.length} onClick={goToRules}>
-              {selected.length
-                ? `Continue with ${selected.length} game${selected.length > 1 ? "s" : ""}`
-                : "Select at least one game"}
-            </Button>
-          </StickyFooter>
+
         </section>
       ) : (
         <section className="space-y-6">
@@ -352,13 +364,25 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
             </p>
           )}
 
+
+        </section>
+      )}
+      </div>
+      {step === 1 ? (
           <StickyFooter>
-            <Button className="h-14 w-full text-base font-semibold" disabled={submitting} onClick={submit}>
-              {submitting && <Loader2 className="animate-spin" />}
+            <Button className="press h-14 w-full text-base font-semibold" disabled={!selected.length} onClick={goToRules}>
+              {selected.length
+                ? `Continue with ${selected.length} game${selected.length > 1 ? "s" : ""}`
+                : "Select at least one game"}
+            </Button>
+          </StickyFooter>
+      ) : (
+          <StickyFooter>
+            <Button className="press h-14 w-full text-base font-semibold" disabled={submitting} onClick={submit}>
+              {submitting && <Loader2 className="motion-safe:animate-spin" />}
               Create &amp; get invite link
             </Button>
           </StickyFooter>
-        </section>
       )}
     </>
   );

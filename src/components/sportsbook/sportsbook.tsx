@@ -103,6 +103,7 @@ function SportsbookInner({
         participantTeam: row.participantTeam,
         priceAmerican: row.priceAmerican,
         point: row.point,
+        sportKey: ev.sport_key,
         matchup: `${shortTeam(ev.away_team)} @ ${shortTeam(ev.home_team)}`,
       },
     });

@@ -4,6 +4,16 @@ Product and design decisions, newest first. Each entry says what changed and why
 Guardrails that never move: $100 play money, private friend groups, SMS-link join, blind picks until lock,
 live sweat. See "Creative enhancements" in CLAUDE.md for the running backlog.
 
+## 2026-11-13: Power 4 college team marks
+
+- Added 68 schools in each college sport (SEC, Big Ten, Big 12, ACC plus Notre Dame), shared school colors, aliases, conference membership and pennants; extended ESPN comparisons to both college endpoints.
+
+## 2026-11-13: team marks across sports
+
+- One sport-scoped registry supplies names, aliases, abbreviations and team colors for all 124 NFL, NBA, NHL and MLB teams.
+- Generic outlined gear distinguishes each sport; unknown teams use a neutral shield. College coverage follows local seed/events, with no invented colors.
+- Added registry tests, a 375px team-mark gallery and a development-only ESPN color comparison script for manual review.
+
 ## 2026-11-10: automatic prop settlement, explicit game status and budget pacing
 
 - **0029 ? Self-settling props.** Verified NBA/NFL box scores grade supported player stats and void confirmed non-participants. Provider player IDs preserve provenance; results stay hidden until lock. Host grading remains available when automatic evidence is missing.

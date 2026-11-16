@@ -449,7 +449,7 @@ Migration 0010 (`player_props`).
   `src/app/icon.png` (favicon). Re-run it if the logo mark changes.
 - `src/components/install-hint.tsx` on home + lobby: iPhone Safari gets "Share → Add to Home Screen" copy,
   Chrome/Android gets an Install button (captured `beforeinstallprompt`). Hidden when already installed
-  (standalone) or dismissed (localStorage `squadbets:install-dismissed`). Decision logic is pure:
+  (standalone) or dismissed (localStorage `slate:install-dismissed`). Decision logic is pure:
   `src/lib/install.ts` (unit-tested). e2e: `e2e/install.spec.ts`.
 - No service worker / offline yet: odds and picks must be live, so offline adds little for v1.
 

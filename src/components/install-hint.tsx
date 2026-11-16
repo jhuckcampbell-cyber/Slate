@@ -9,10 +9,10 @@ import { cn } from "@/lib/utils";
 
 type InstallPromptEvent = Event & { prompt: () => Promise<void> };
 
-const KEY = "squadbets:install-dismissed";
+const KEY = "slate:install-dismissed";
 /** Shown once: through the first visit it appears on (this tab's session), then never again. */
-const SEEN = "squadbets:install-seen";
-const THIS_VISIT = "squadbets:install-this-visit";
+const SEEN = "slate:install-seen";
+const THIS_VISIT = "slate:install-this-visit";
 const noopSubscribe = () => () => {};
 
 function wasDismissed() {

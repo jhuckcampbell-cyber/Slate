@@ -4,7 +4,7 @@ import { LockOpen } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 const noopSubscribe = () => () => {};
-const seenKey = (tournamentId: string) => `squadbets:revealed:${tournamentId}`;
+const seenKey = (tournamentId: string) => `slate:revealed:${tournamentId}`;
 
 function hasSeen(tournamentId: string) {
   try {

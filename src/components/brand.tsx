@@ -123,3 +123,24 @@ export function StubTear({
     </div>
   );
 }
+
+/** Result mark with an ink outline; coral labels keep readable ink text. */
+export function Stamp({ children, tone = "ink", className }: {
+  children: React.ReactNode;
+  tone?: "ink" | "hype" | "win" | "loss";
+  className?: string;
+}) {
+  return <span className={cn(
+    "inline-block -rotate-6 rounded-sm border-2 border-foreground px-2 py-0.5 font-display text-xl/none font-extrabold tracking-wider uppercase",
+    tone === "ink" && "text-foreground",
+    tone === "hype" && "bg-hype/15 text-foreground",
+    tone === "win" && "text-win",
+    tone === "loss" && "text-loss",
+    className,
+  )}>{children}</span>;
+}
+
+/** Preserve the code verbatim, including leading zeroes. */
+export function TicketSerial({ code, className }: { code: string; className?: string }) {
+  return <span className={cn("num text-xs tracking-widest text-muted-foreground", className)}>No. {code}</span>;
+}

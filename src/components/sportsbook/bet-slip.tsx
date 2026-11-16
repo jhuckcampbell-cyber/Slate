@@ -442,7 +442,7 @@ function SlipRow({
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <p className="flex min-w-0 items-center gap-1.5 font-semibold">
-            <PickBadge marketKey={entry.marketKey} outcomeName={entry.outcomeName} participantTeam={entry.participantTeam} />
+            <PickBadge sportKey={entry.sportKey} marketKey={entry.marketKey} outcomeName={entry.outcomeName} participantTeam={entry.participantTeam} />
             <span className="truncate">{selectionLabel(current ?? entry)}</span>
           </p>
           <p className="truncate text-xs text-muted-foreground">
@@ -511,9 +511,9 @@ function RuleLine({ done, label, detail }: { done: boolean; label: string; detai
   );
 }
 
-function PickBadge(p: { marketKey: string; outcomeName: string; participantTeam?: string | null }) {
+function PickBadge(p: { sportKey?: string; marketKey: string; outcomeName: string; participantTeam?: string | null }) {
   const team = pickTeam(p);
-  return team ? <TeamMark team={team} className="size-5" /> : null;
+  return team ? <TeamMark team={team} sportKey={p.sportKey} className="size-5" /> : null;
 }
 
 function StakeInput({

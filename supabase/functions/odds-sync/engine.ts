@@ -22,6 +22,9 @@ import { SLEEPER_NFL_PLAYERS_URL, espnCollegeRosterUrl, espnGameTeamIds, espnRos
 import { espnLiveUrl, fakeLiveGames, liveGamesFromScoreboard, type LiveGame } from "../_shared/live.ts";
 import { STATS_SPORTS, espnBoxToStats, espnScoreboardUrl, espnSummaryUrl, fakeBoxStats, findEspnGame, type BoxStats } from "../_shared/stats.ts";
 
+// ESPN answers 403 to Deno's default User-Agent ("Deno/x.y"), so name ourselves plainly.
+const FEED_HEADERS = { "User-Agent": "Mozilla/5.0 (compatible; SlateScores/1.0)", Accept: "application/json" };
+
 type Job =
   | { kind: "odds"; sport_key: string; markets: string[]; event_ids: string[] }
   | { kind: "scores"; sport_key: string; event_ids: string[] }
@@ -472,7 +475,7 @@ async function runLiveJob(
 }
 
 async function getJson(url: string): Promise<unknown> {
-  const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+  const res = await fetch(url, { headers: FEED_HEADERS, signal: AbortSignal.timeout(15_000) });
   if (!res.ok) throw new Error(`stats feed ${res.status}`);
   return res.json();
 }

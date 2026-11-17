@@ -162,7 +162,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
       <Turnstile ref={turnstile} />
       <header className="mb-6 flex items-center gap-3">
         {step === 2 && (
-          <Button variant="outline" size="icon" className="press size-11" aria-label="Back" onClick={() => window.history.back()}>
+          <Button variant="outline" size="icon" className="size-11" aria-label="Back" onClick={() => window.history.back()}>
             <ArrowLeft />
           </Button>
         )}
@@ -370,7 +370,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
       </div>
       {step === 1 ? (
           <StickyFooter>
-            <Button className="press h-14 w-full text-base font-semibold" disabled={!selected.length} onClick={goToRules}>
+            <Button className="h-14 w-full text-base font-semibold" disabled={!selected.length} onClick={goToRules}>
               {selected.length
                 ? `Continue with ${selected.length} game${selected.length > 1 ? "s" : ""}`
                 : "Select at least one game"}
@@ -378,7 +378,7 @@ export function CreateWizard({ events, defaultName }: { events: EventRow[]; defa
           </StickyFooter>
       ) : (
           <StickyFooter>
-            <Button className="press h-14 w-full text-base font-semibold" disabled={submitting} onClick={submit}>
+            <Button className="h-14 w-full text-base font-semibold" disabled={submitting} onClick={submit}>
               {submitting && <Loader2 className="motion-safe:animate-spin" />}
               Create &amp; get invite link
             </Button>

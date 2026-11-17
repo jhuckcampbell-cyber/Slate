@@ -2,6 +2,7 @@
 
 import { Info, Ticket } from "lucide-react";
 import { useId, useState } from "react";
+import { Stamp } from "@/components/brand";
 import { LocalTime } from "@/components/local-time";
 import { Odds } from "@/components/odds";
 import type { SportsbookEvent } from "@/components/sportsbook/event-card";
@@ -132,8 +133,12 @@ function ParlayBox({
 }) {
   const pending = wager.status === "pending";
   const out = wagerOutcome(wager);
+  const wonFrom = useJustWon(wager.status, wager.winProbability);
   return (
-    <article aria-label={`${wager.legs.length}-leg parlay`} className="rounded-xl border-2 border-foreground bg-card p-3">
+    <article
+      aria-label={`${wager.legs.length}-leg parlay`}
+      className={cn("rounded-xl border-2 border-foreground p-3", wager.status === "won" ? "bg-mint" : "bg-card")}
+    >
       <header className="flex items-baseline justify-between gap-2">
         <span className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
           {wager.legs.length}-leg parlay · <Odds american={wager.oddsAmerican} />
@@ -142,6 +147,8 @@ function ParlayBox({
       </header>
       {pending ? (
         <Chance p={wager.winProbability} parlay className="mt-2" />
+      ) : wager.status === "won" ? (
+        <WonMark label={out.label} from={wonFrom} className="mt-2" />
       ) : (
         <p className={cn("mt-1.5 text-right text-sm font-bold", TONE_TEXT[out.tone])}>{out.label}</p>
       )}
@@ -180,6 +187,7 @@ function SinglePick({ wager, event, live }: { wager: RevealedWager; event: Sport
   const pending = wager.status === "pending";
   const out = wagerOutcome(wager);
   const total = totalFor(leg, event, live);
+  const wonFrom = useJustWon(wager.status, wager.winProbability);
   return (
     <div className="py-2 first:pt-0.5 last:pb-0.5">
       <div className="flex items-center justify-between gap-2">
@@ -192,6 +200,11 @@ function SinglePick({ wager, event, live }: { wager: RevealedWager; event: Sport
         ) : (
           <PropOrChance leg={leg} p={wager.winProbability} />
         )
+      ) : wager.status === "won" ? (
+        <>
+          <WonMark label={out.label} from={wonFrom} className="mt-1.5" />
+          <span className="mt-0.5 block text-xs text-muted-foreground">{total?.text ?? <PropText leg={leg} />}</span>
+        </>
       ) : (
         <div className="mt-1 flex items-center justify-between gap-2 text-sm">
           <span className="text-xs text-muted-foreground">{total?.text ?? <PropText leg={leg} />}</span>
@@ -335,6 +348,46 @@ function PropLine({ leg }: { leg: Leg }) {
 // ---------------------------------------------------------------------------
 // Bars and the (i)
 // ---------------------------------------------------------------------------
+
+/**
+ * The chance a wager had the moment it was graded a win, or null. Only a win that lands while you're watching (status
+ * flips pending → won between renders) returns a number, so the surge + stamp plays once, not on every page load.
+ * Previous-props pattern (state, not refs) so it's render-safe.
+ */
+function useJustWon(status: string, p: number | null): number | null {
+  const [prev, setPrev] = useState({ status, p });
+  const [from, setFrom] = useState<number | null>(null);
+  if (prev.status !== status || prev.p !== p) {
+    if (prev.status === "pending" && status === "won") setFrom(prev.p ?? 0);
+    setPrev({ status, p });
+  }
+  return from;
+}
+
+/**
+ * A won wager: the chance bar full and green, a WON stamp, the payout. `from` (just won): the bar surges from the
+ * old chance to 100%, then the stamp thunks down (motion-safe; otherwise it's simply there).
+ */
+function WonMark({ label, from, className }: { label: string; from: number | null; className?: string }) {
+  const fresh = from !== null;
+  return (
+    <div className={cn("flex items-center gap-2.5", className)}>
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-foreground/10" aria-hidden>
+        <div
+          className={cn("h-full w-full rounded-full bg-win", fresh && "chance-surge")}
+          style={fresh ? ({ "--surge-from": `${Math.round(from * 100)}%` } as React.CSSProperties) : undefined}
+        />
+      </div>
+      <span className="sr-only">{label}</span>
+      <span aria-hidden className="flex items-center gap-2.5">
+        <Stamp tone="win" className={cn("text-base", fresh && "stamp-in [animation-delay:650ms]")}>
+          Won
+        </Stamp>
+        <span className="text-sm font-bold text-win">{label.replace(/^Won /, "")}</span>
+      </span>
+    </div>
+  );
+}
 
 /** The live chance: a black bar, the %, and an (i) that opens what the % means. */
 function Chance({ p, parlay = false, className }: { p: number | null; parlay?: boolean; className?: string }) {

@@ -56,6 +56,7 @@ test("host-enabled player props are bet, then graded by the host's stat entry", 
   await placeSingle(gina, gina.getByRole("button", { name: new RegExp(`^${player}( \\([^)]*\\))? Under [\\d.]+ Pts`) }), 20);
 
   // Lock, play, final.
+  await host.getByRole("button", { name: "Host tools" }).click(); // host tools live in the Host sheet
   await host.getByRole("button", { name: "Lock picks now" }).click();
   await host.getByRole("button", { name: "Lock & reveal" }).click();
   await expectRevealed(host, 20_000);
@@ -66,7 +67,7 @@ test("host-enabled player props are bet, then graded by the host's stat entry", 
     await nudgeSync(host);
     await host.reload();
     const hank = await openPlayerBets(host, "Hank");
-    await expect(hank.getByLabel(/^Live stat: \d+ Pts · (needs \d+ more|cleared)$/)).toBeVisible({ timeout: 2_000 });
+    await expect(hank.getByLabel(/^Live stat: \d+ of [\d.]+ Pts$/)).toBeVisible({ timeout: 2_000 });
     // ...and the bet's chance follows it.
     await expect(hank.getByLabel(/^Chance to win (\d+%|>99%|<1%)$/).first()).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 90_000 });

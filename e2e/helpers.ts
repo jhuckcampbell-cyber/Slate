@@ -100,6 +100,14 @@ export async function tournamentId(code: string) {
   return data.id as string;
 }
 
+/** Before lock the lobby folds the squad into one row of avatars: open it (no-op if already open). */
+export async function openSquad(page: Page) {
+  const squad = page.locator('section[aria-labelledby="squad-heading"] details');
+  await expect(squad).toBeVisible();
+  if ((await squad.getAttribute("open")) === null) await squad.locator("summary").click();
+  await expect(squad).toHaveAttribute("open", "");
+}
+
 /** After lock: tap a player's leaderboard row to drop down their bets. */
 export async function openPlayerBets(page: Page, name: string) {
   await showTab(page, "Leaderboard");

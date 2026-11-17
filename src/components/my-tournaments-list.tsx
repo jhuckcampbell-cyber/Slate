@@ -139,7 +139,14 @@ export async function MyTournamentsList({ className }: { className?: string }) {
                 <span className="font-mono tracking-wider">{t.code}</span>
                 {t.isHost && <span> · Host</span>}
               </StubMain>
-              <StubTear>
+              <StubTear
+                className={cn(
+                  "rounded-r-[calc(var(--radius-2xl)-2px)]",
+                  t.label === "Open" && "bg-status-open",
+                  t.label === "Locked" && "bg-status-locked",
+                  t.label === "Live" && "bg-status-live",
+                )}
+              >
                 <StatusTag label={t.label} />
               </StubTear>
             </Link>
@@ -257,5 +264,5 @@ function StatusTag({ label }: { label: string }) {
         <span className="live-dot" aria-hidden /> Live
       </span>
     );
-  return <span className={cn("text-sm font-bold", label === "Locked" ? "text-warn" : "text-foreground")}>{label}</span>;
+  return <span className={cn("text-sm font-bold", "text-foreground")}>{label}</span>;
 }

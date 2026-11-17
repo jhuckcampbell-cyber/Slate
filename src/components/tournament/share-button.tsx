@@ -10,6 +10,8 @@ type Props = {
   url: string;
   title: string;
   bankrollLabel: string;
+  /** The join code under the button (off in the lobby, where the Host sheet shows it). */
+  showCode?: boolean;
   className?: string;
 };
 
@@ -17,7 +19,7 @@ export function shareText(title: string, bankrollLabel: string) {
   return `${title}: ${bankrollLabel} in play money, picks stay hidden till kickoff. You in?`;
 }
 
-export function ShareButton({ code, url, title, bankrollLabel, className }: Props) {
+export function ShareButton({ code, url, title, bankrollLabel, showCode = true, className }: Props) {
   const [copied, setCopied] = useState(false);
   const text = shareText(title, bankrollLabel);
 
@@ -45,14 +47,12 @@ export function ShareButton({ code, url, title, bankrollLabel, className }: Prop
         <a
           aria-label="Share by text message"
           href={`sms:?&body=${encodeURIComponent(`${text} ${url}`)}`}
-          className="inline-flex size-12 items-center justify-center rounded-lg border border-border bg-background hover:bg-muted"
+          className="press-ink inline-flex size-12 items-center justify-center rounded-lg border-2 border-foreground bg-card hover:bg-muted"
         >
           <MessageSquare className="size-5" />
         </a>
       </div>
-      <p className="mt-2 text-center font-mono text-sm tracking-widest text-muted-foreground">
-        {code}
-      </p>
+      {showCode && <p className="mt-2 text-center font-mono text-sm tracking-widest text-muted-foreground">{code}</p>}
     </div>
   );
 }

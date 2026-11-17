@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { ChevronDown, EyeOff, House } from "lucide-react";
-import { AppBar, Eyebrow } from "@/components/brand";
+import { AppBar, StatusBand, tournamentState } from "@/components/brand";
 import { LiveGames } from "@/components/game/live-games";
 import { FinalCelebration } from "@/components/leaderboard/final-celebration";
 import { loadMyTournaments } from "@/components/my-tournaments-list";
@@ -59,8 +59,6 @@ type AllowedBetTypes = {
 };
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
-
-const STATUS_LABELS: Record<string, string> = { locked: "Locked", live: "Live", settled: "Final" };
 
 export default function LobbyPage(props: PageProps<"/t/[code]">) {
   return (
@@ -129,6 +127,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
   };
   const isLocked = Boolean(t.is_locked);
   const isHost = t.host_id === viewer.userId;
+  const state = tournamentState(t.status, isLocked);
   const bankroll = formatCents(t.starting_bankroll_cents);
   const squad: SquadMember[] = roster ?? [];
   const shareUrl = `${publicEnv.siteUrl}/join/${t.code}`;
@@ -177,61 +176,77 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
           <TournamentSwitcher current={t.code} items={switcher} />
           <SettingsButton />
         </AppBar>
-        <Eyebrow className="mt-6">
-          {sportEmoji(t.sport_key)} {sportLabel(t.sport_key)} · {events.length} {events.length === 1 ? "game" : "games"}
-          {isLocked && <span className="text-warn"> · {STATUS_LABELS[t.status] ?? "Locked"}</span>}
-        </Eyebrow>
-        <TournamentTitle title={t.title} sections={explainer} />
-        {t.description && <p className="mt-2 text-muted-foreground">{t.description}</p>}
-        <div className="mt-3 inline-flex rounded-full bg-card px-3.5 py-1.5 text-sm ring-1 ring-border">
-          <LockCountdown lockTime={t.lock_time} serverNow={t.server_now ?? undefined} isLocked={isLocked} />
-        </div>
-      </header>
-
-      {/* One line with what matters (bankroll and house rules); tap for the rest. */}
-      <section className="mt-5" aria-labelledby="rules-heading">
-        <details className="group rounded-2xl border-2 border-foreground bg-card">
-          <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-3.5 py-2.5 [&::-webkit-details-marker]:hidden">
-            <h2 id="rules-heading" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Rules
-            </h2>
-            <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-              {[
-                `${bankroll} each`,
-                rules.tokens ? `Tokens ${rules.tokens.map((c) => formatCents(c)).join(" · ")}` : allIn && "Bet it all",
-                minBets > 0 && `${minBets}+ bets`,
-                rules.maxBetCents && `${formatCents(rules.maxBetCents)} max bet`,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </span>
-            <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
-          </summary>
-          <dl className="grid grid-cols-2 gap-x-3 gap-y-2.5 border-t border-border px-3.5 pt-3 pb-3.5 text-sm">
-          <Rule label="Bankroll" value={bankroll} />
-          {rules.tokens ? (
-            <Rule label="Tokens" value={`${rules.tokens.map((c) => formatCents(c)).join(" · ")}, one per bet`} />
+        <StatusBand state={state}>
+          {state === "open" ? (
+            <LockCountdown lockTime={t.lock_time} serverNow={t.server_now ?? undefined} isLocked={isLocked} variant="band" />
+          ) : state === "locked" ? (
+            <>🔒 Locked · picks are in</>
+          ) : state === "live" ? (
+            <>
+              <span className="live-dot" aria-hidden /> Live · games in play
+            </>
           ) : (
-            <Rule label="Max bet" value={rules.maxBetCents ? formatCents(rules.maxBetCents) : "No limit"} />
+            <>🏆 Final</>
           )}
-          <Rule
-            label="Bets"
-            value={
-              gameMarkets.map((m) => MARKET_LABELS[m] ?? m).join(", ") + (playerProps ? " + player props" : "")
-            }
-          />
-          <Rule
-            label="Parlays"
-            value={
-              rules.parlays
-                ? `Up to ${rules.maxParlayLegs} legs${rules.sameGameParlays ? ", same-game OK" : ", one per game"}`
-                : "Off"
-            }
-          />
-          </dl>
-        </details>
+        </StatusBand>
+        <TournamentTitle
+          title={t.title}
+          sections={explainer}
+          meta={
+            <>
+              {sportEmoji(t.sport_key)} {sportLabel(t.sport_key)} · {events.length} {events.length === 1 ? "game" : "games"} ·{" "}
+              {bankroll} each
+            </>
+          }
+          rules={
+            // One quiet link with what matters (bankroll and house rules); tap for the rest.
+            <section aria-labelledby="rules-heading">
+              <details className="group">
+                <summary className="inline-flex h-11 cursor-pointer list-none items-center gap-1 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+                  <h2 id="rules-heading" className="underline decoration-2 underline-offset-4">
+                    Rules
+                  </h2>
+                  <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden />
+                </summary>
+                <div className="mt-1 rounded-2xl border-2 border-foreground bg-sky px-3.5 py-3">
+                  <p className="text-sm font-semibold">
+                    {[
+                      `${bankroll} each`,
+                      rules.tokens ? `Tokens ${rules.tokens.map((c) => formatCents(c)).join(" · ")}` : allIn && "Bet it all",
+                      minBets > 0 && `${minBets}+ bets`,
+                      rules.maxBetCents && `${formatCents(rules.maxBetCents)} max bet`,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                  <dl className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2.5 border-t border-sky-line pt-2.5 text-sm">
+                    <Rule label="Bankroll" value={bankroll} />
+                    {rules.tokens ? (
+                      <Rule label="Tokens" value={`${rules.tokens.map((c) => formatCents(c)).join(" · ")}, one per bet`} />
+                    ) : (
+                      <Rule label="Max bet" value={rules.maxBetCents ? formatCents(rules.maxBetCents) : "No limit"} />
+                    )}
+                    <Rule
+                      label="Bets"
+                      value={gameMarkets.map((m) => MARKET_LABELS[m] ?? m).join(", ") + (playerProps ? " + player props" : "")}
+                    />
+                    <Rule
+                      label="Parlays"
+                      value={
+                        rules.parlays
+                          ? `Up to ${rules.maxParlayLegs} legs${rules.sameGameParlays ? ", same-game OK" : ", one per game"}`
+                          : "Off"
+                      }
+                    />
+                  </dl>
+                </div>
+              </details>
+            </section>
+          }
+        />
+        {t.description && <p className="mt-2 text-muted-foreground">{t.description}</p>}
         {!isLocked && (
-          <p className="mt-2 flex gap-2 px-1 text-xs text-muted-foreground">
+          <p className="mt-1 flex gap-2 text-xs text-muted-foreground">
             <EyeOff className="size-3.5 shrink-0" />
             <span>
               Picks stay hidden from everyone until <LocalTime iso={t.lock_time} />, then they&apos;re all revealed at
@@ -239,7 +254,7 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
             </span>
           </p>
         )}
-      </section>
+      </header>
 
       {isLocked ? (
         <RevealSection
@@ -255,38 +270,46 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
         />
       ) : (
         <>
+          <SquadList
+            tournamentId={t.id}
+            members={squad}
+            viewerUserId={viewer.userId}
+            showStatus
+            canRemove={isHost}
+            collapsible
+            aside={
+              isHost && (
+                <HostTools
+                  tournamentId={t.id}
+                  code={t.code}
+                  rules={{
+                    title: t.title,
+                    lockTime: t.lock_time,
+                    maxBetCents: rules.maxBetCents,
+                    startingBankrollCents: t.starting_bankroll_cents,
+                    markets: gameMarkets,
+                    parlays: rules.parlays,
+                    maxParlayLegs: rules.maxParlayLegs,
+                    playerProps,
+                    sameGameParlays: rules.sameGameParlays,
+                    allIn,
+                    minBets,
+                    tokens: rules.tokens ?? null,
+                  }}
+                  firstKickoff={events[0]?.commence_time ?? t.lock_time}
+                  canEditBankroll={squad.length === 1 && Number(me.total_potential_payout_cents) === 0}
+                  waitingOn={squad.filter((m) => !m.has_submitted && m.user_id !== viewer.userId).map((m) => m.display_name)}
+                  propsAvailable={propMarkets(t.sport_key).length > 0}
+                />
+              )
+            }
+          />
           {created && (
-            <section className="mt-6 rounded-2xl border border-brand/40 bg-brand/5 p-4">
-              <p className="mb-3 text-sm">
-                <strong>You&apos;re the host.</strong> Drop the link in the group chat. Friends join in one tap.
-              </p>
-              <ShareButton code={t.code} url={shareUrl} title={t.title} bankrollLabel={bankroll} />
-            </section>
+            <p className="mt-3 text-sm">
+              <strong>You&apos;re the host.</strong> Drop the link in the group chat. Friends join in one tap.
+            </p>
           )}
-
-          {isHost && (
-            <HostTools
-              tournamentId={t.id}
-              rules={{
-                title: t.title,
-                lockTime: t.lock_time,
-                maxBetCents: rules.maxBetCents,
-                startingBankrollCents: t.starting_bankroll_cents,
-                markets: gameMarkets,
-                parlays: rules.parlays,
-                maxParlayLegs: rules.maxParlayLegs,
-                playerProps,
-                sameGameParlays: rules.sameGameParlays,
-                allIn,
-                minBets,
-                tokens: rules.tokens ?? null,
-              }}
-              firstKickoff={events[0]?.commence_time ?? t.lock_time}
-              canEditBankroll={squad.length === 1 && Number(me.total_potential_payout_cents) === 0}
-              waitingOn={squad.filter((m) => !m.has_submitted && m.user_id !== viewer.userId).map((m) => m.display_name)}
-              propsAvailable={propMarkets(t.sport_key).length > 0}
-            />
-          )}
+          <ShareButton className="mt-3" code={t.code} url={shareUrl} title={t.title} bankrollLabel={bankroll} showCode={false} />
 
           <PreLockSportsbook
             supabase={supabase}
@@ -301,18 +324,6 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
             houseRules={allIn || minBets > 0 ? { allIn, minBets, bankrollCents: Number(t.starting_bankroll_cents) } : undefined}
           />
 
-          <SquadList
-            tournamentId={t.id}
-            members={squad}
-            viewerUserId={viewer.userId}
-            showStatus
-            canRemove={isHost}
-            revealIso={t.lock_time}
-          >
-            {!created && (
-              <ShareButton className="mt-3" code={t.code} url={shareUrl} title={t.title} bankrollLabel={bankroll} />
-            )}
-          </SquadList>
         </>
       )}
 

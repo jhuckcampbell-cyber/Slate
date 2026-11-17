@@ -9,7 +9,7 @@ export default function Error({ reset }: { error: Error & { digest?: string }; r
       <AppBar />
       <DisplayTitle>Let&apos;s try that again</DisplayTitle>
       <p role="alert" className="text-muted-foreground">We could not load the games. Try again in a moment.</p>
-      <Button variant="outline" onClick={reset} className="press h-14 w-full border-2 border-foreground">Try again</Button>
+      <Button variant="outline" onClick={reset} className="h-14 w-full border-2 border-foreground">Try again</Button>
     </main>
   );
 }

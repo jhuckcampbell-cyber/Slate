@@ -111,8 +111,9 @@ function SportsbookInner({
 
   return (
     <section className="mt-6" aria-label="Sportsbook">
-      <dl className="grid grid-cols-3 divide-x-2 divide-foreground/15 rounded-2xl border-2 border-foreground bg-card py-2.5 text-center">
-        <Stat label="Bankroll" cents={bankroll.data.remainingCents} highlight />
+      {/* One quiet line: the money facts don't need a box until you've bet. */}
+      <dl className="flex items-baseline justify-between gap-2 px-1 text-sm">
+        <Stat label="Bankroll" cents={bankroll.data.remainingCents} />
         <Stat label="At risk" cents={atRiskCents} />
         <Stat label="Potential" cents={bankroll.data.potentialPayoutCents} />
       </dl>
@@ -195,7 +196,7 @@ function HouseRulesChecklist({ items }: { items: ReturnType<typeof requirements>
   return (
     <ul
       aria-label="House rules"
-      className={cn("mt-2 space-y-1 rounded-2xl p-3 text-sm ring-1", allDone ? "bg-win/8 ring-win/30" : "bg-warn/8 ring-warn/30")}
+      className={cn("mt-3 space-y-1 rounded-2xl border-2 p-3 text-sm", allDone ? "border-mint-foreground/40 bg-mint" : "border-sand-foreground/40 bg-sand")}
     >
       {items.map((i) => (
         <li key={i.label} className="flex items-center gap-2">
@@ -214,11 +215,11 @@ function HouseRulesChecklist({ items }: { items: ReturnType<typeof requirements>
   );
 }
 
-function Stat({ label, cents, highlight }: { label: string; cents: number; highlight?: boolean }) {
+function Stat({ label, cents }: { label: string; cents: number }) {
   return (
-    <div className="px-2">
-      <dt className="text-[11px] text-muted-foreground">{label}</dt>
-      <dd className={cn("num mt-0.5 text-2xl leading-none font-bold", highlight && "text-brand")}>
+    <div className="flex items-baseline gap-1.5">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="num text-lg leading-none font-bold">
         <Ticker cents={cents} />
       </dd>
     </div>

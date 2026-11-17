@@ -37,6 +37,7 @@ test("rules lead the page, a slip must meet the minimum, and props are searchabl
   const rulesTop = (await host.getByRole("heading", { name: "Rules" }).boundingBox())!.y;
   const gamesTop = (await host.getByRole("tab", { name: "Games" }).boundingBox())!.y;
   expect(rulesTop).toBeLessThan(gamesTop);
+  await host.locator("summary").filter({ hasText: /^Rules/ }).click(); // the lobby folds the rules into a link
   await expect(host.getByText("3+ bets")).toBeVisible();
 
   // Three bets are required: a slip with one can't be placed, and the slip says what's missing.

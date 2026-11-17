@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { admin, createTournament, expectRevealed, joinAs, newPage, openPlayerBets, placeSingle, showTab, tournamentId, waitForOdds } from "./helpers";
+import { admin, createTournament, expectRevealed, joinAs, newPage, openPlayerBets, openSquad, placeSingle, showTab, tournamentId, waitForOdds } from "./helpers";
 
 // Phase 3: blind until lock, then the reveal reaches every open lobby without a reload.
 
@@ -18,6 +18,7 @@ test("picks stay blind until the host locks, then everyone sees them live", asyn
   await joinAs(guest, code, "Gina");
 
   // The host's squad list updates live when Gina joins.
+  await openSquad(host);
   await expect(host.getByRole("listitem").filter({ hasText: "Gina" })).toBeVisible();
 
   // Opposite sides of the first game's spread (away row first, home row second).
@@ -40,6 +41,7 @@ test("picks stay blind until the host locks, then everyone sees them live", asyn
   expect(seen).not.toContain(hanks[0]!.participant_id);
 
   // Host locks early → both lobbies flip to the reveal on their own.
+  await host.getByRole("button", { name: "Host tools" }).click(); // host tools live in the Host sheet
   await host.getByRole("button", { name: "Lock picks now" }).click();
   await host.getByRole("button", { name: "Lock & reveal" }).click();
   for (const page of [host, guest]) {
@@ -70,8 +72,10 @@ test("host rule edits and removals reach players live", async ({ browser }) => {
   await joinAs(gina, code, "Gina");
   const kyle = await newPage(browser);
   await joinAs(kyle, code, "Kyle");
+  await openSquad(host);
   await expect(host.getByRole("listitem").filter({ hasText: "Kyle" })).toBeVisible();
 
+  await host.getByRole("button", { name: "Host tools" }).click(); // host tools live in the Host sheet
   await host.getByRole("button", { name: "Edit rules" }).click();
   // Scoped: Next keeps the visited /create page mounted (hidden), and it has a "Max bet ($)" too.
   await host.getByRole("dialog").getByRole("textbox", { name: "Max bet ($)" }).fill("20");

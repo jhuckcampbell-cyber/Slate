@@ -373,8 +373,8 @@ export function BetSlip({ tournamentId, participantId, rules, boardById, locked,
             )}
 
             <dl className="grid grid-cols-3 gap-2 text-center text-xs">
-              <Summary label="Total stake" value={formatCents(totals.stakeCents)} />
-              <Summary label="Potential return" value={formatCents(totals.returnCents)} highlight />
+              <Summary label="Total stake" value={formatCents(totals.stakeCents)} tone="sand" />
+              <Summary label="Potential return" value={formatCents(totals.returnCents)} tone="mint" />
               <Summary label="Bankroll after" value={formatCents(Math.max(bankrollCents - totals.stakeCents, 0))} />
             </dl>
 
@@ -509,11 +509,17 @@ function StakeInput({
   );
 }
 
-function Summary({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+/** sand = what you're putting at risk, mint = what could come back. */
+function Summary({ label, value, tone }: { label: string; value: string; tone?: "sand" | "mint" }) {
   return (
-    <div className="rounded-xl bg-card p-2 ring-1 ring-border">
+    <div
+      className={cn(
+        "rounded-xl p-2 ring-1",
+        tone === "sand" ? "bg-sand ring-sand-foreground/25" : tone === "mint" ? "bg-mint ring-mint-foreground/25" : "bg-card ring-border",
+      )}
+    >
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className={cn("num mt-0.5 text-xl leading-none font-bold", highlight && "text-brand")}>{value}</dd>
+      <dd className="num mt-0.5 text-xl leading-none font-bold">{value}</dd>
     </div>
   );
 }

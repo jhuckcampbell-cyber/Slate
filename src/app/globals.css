@@ -26,6 +26,17 @@
   --color-warn: var(--warn);
   --color-surface-2: var(--surface-2);
   --color-tab: var(--tab);
+  --color-sky: var(--sky);
+  --color-sky-line: var(--sky-line);
+  --color-mint: var(--mint);
+  --color-mint-strong: var(--mint-strong);
+  --color-mint-foreground: var(--mint-foreground);
+  --color-sand: var(--sand);
+  --color-sand-strong: var(--sand-strong);
+  --color-sand-foreground: var(--sand-foreground);
+  --color-status-open: var(--status-open);
+  --color-status-locked: var(--status-locked);
+  --color-status-live: var(--status-live);
   --color-gold: var(--gold);
   --color-silver: var(--silver);
   --color-bronze: var(--bronze);
@@ -92,6 +103,25 @@
 
   /* The one extra color: marks the tab you're on (light blue pill, ink outline). */
   --tab: oklch(0.87 0.07 245);
+
+  /*
+   * Soft tints: pale washes that fill areas so the paper isn't blank. Ink still does every outline.
+   * sky = rules, invites, "more to see" · mint = money and what's in · sand = what's at risk or still pending.
+   * -strong: the filled tear-off versions ("picks in", "thinking…") with their readable text colors.
+   */
+  --sky: oklch(0.967 0.018 245);
+  --sky-line: oklch(0.89 0.04 245);
+  --mint: oklch(0.975 0.017 155);
+  --mint-strong: oklch(0.93 0.05 155);
+  --mint-foreground: oklch(0.42 0.1 152);
+  --sand: oklch(0.979 0.024 80);
+  --sand-strong: oklch(0.96 0.055 90);
+  --sand-foreground: oklch(0.47 0.09 70);
+
+  /* Status bands: one per tournament state (final is solid ink). */
+  --status-open: oklch(0.93 0.04 245);
+  --status-locked: oklch(0.93 0.07 80);
+  --status-live: oklch(0.9 0.06 35);
 
   /* Leaderboard podium only: the 1st / 2nd / 3rd tear-offs (ink text on gold and silver, white on bronze). */
   --gold: oklch(0.76 0.13 85);
@@ -164,6 +194,29 @@
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.01em;
   }
+}
+
+/*
+ * Pressed ink: everything tappable casts a hard ink shadow, like a rubber stamp; pressing (or being selected)
+ * pushes it into the page. The one main action casts coral instead (press-hype). Not motion: the shift is instant
+ * for reduced motion too, only the easing is skipped.
+ */
+@utility press-ink {
+  box-shadow: 2.5px 2.5px 0 var(--foreground);
+  &:active:not(:disabled), &[aria-pressed="true"] { transform: translate(2px, 2px); box-shadow: 0 0 0 transparent; }
+  &:disabled { box-shadow: none; }
+}
+@utility press-hype {
+  box-shadow: 3px 3px 0 var(--hype);
+  &:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 0 0 0 transparent; }
+  &:disabled { box-shadow: none; }
+}
+/* A static ink-outlined panel that sits on the paper like the buttons do (no press). */
+@utility ink-shadow {
+  box-shadow: 2.5px 2.5px 0 var(--foreground);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .press-ink, .press-hype { transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
 }
 
 /* Odds movement flash (Realtime price changes on the board). Win color = better for the bettor. */
@@ -296,4 +349,58 @@
 }
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}
+
+/* WON moment (player-bets WonMark): the chance bar surges from its last % to full, flashing a green halo. */
+@keyframes chance-surge {
+  0% { width: var(--surge-from, 0%); }
+  70% { width: 100%; box-shadow: 0 0 0 0 oklch(0.53 0.14 150 / 0.45); }
+  100% { width: 100%; box-shadow: 0 0 0 6px oklch(0.53 0.14 150 / 0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chance-surge { animation: chance-surge 0.75s var(--ease-out) both; }
+}
+
+/* A squad stub feeds out of the ticket slot in short jerks when that player's slip comes in (SquadList). */
+@keyframes print-in {
+  0% { clip-path: inset(0 0 100% 0); transform: translateY(-10px); }
+  18%, 26% { clip-path: inset(0 0 66% 0); transform: translateY(-7px); }
+  44%, 52% { clip-path: inset(0 0 33% 0); transform: translateY(-4px); }
+  75%, 100% { clip-path: inset(0); transform: none; }
+}
+@keyframes avatar-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.35); }
+  70% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .print-in { animation: print-in 0.8s linear both; }
+  .avatar-pop { animation: avatar-pop 0.45s var(--ease-out) both; position: relative; z-index: 1; }
+}
+
+/* Final 3-2-1 lock (LockCountdown band): each digit stamps down, a ring ripples out, then the padlock snaps. */
+@keyframes count-stamp {
+  0% { transform: scale(1.9); opacity: 0; }
+  30% { transform: scale(0.94); opacity: 1; }
+  45%, 80% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.8); opacity: 0.15; }
+}
+@keyframes count-ring {
+  0%, 25% { transform: scale(0.7); opacity: 0; }
+  40% { transform: scale(1); opacity: 0.3; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+@keyframes lock-snap {
+  0%, 30% { transform: translateY(-5px); }
+  55% { transform: translateY(1px); }
+  100% { transform: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .count-stamp { animation: count-stamp 1s var(--ease-out) both; }
+  .count-ring { animation: count-ring 1s var(--ease-out) both; }
+  .lock-snap { animation: lock-snap 0.5s 0.2s var(--ease-spring) both; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .count-ring { display: none; }
 }

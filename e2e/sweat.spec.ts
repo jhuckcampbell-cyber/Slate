@@ -55,6 +55,7 @@ test("live scores move the leaderboard, a final grades bets and crowns a winner"
     .single();
   const ginaReturn = Number(ginaBet!.potential_payout_cents);
 
+  await host.getByRole("button", { name: "Host tools" }).click(); // host tools live in the Host sheet
   await host.getByRole("button", { name: "Lock picks now" }).click();
   await host.getByRole("button", { name: "Lock & reveal" }).click();
   await expectRevealed(gina, 20_000);

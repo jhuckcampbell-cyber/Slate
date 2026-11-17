@@ -74,7 +74,7 @@ export function EventCard({ event, markets, allowedMarkets, locked, selected, on
           type="button"
           onClick={onOpen}
           aria-label={`More bets, ${matchup}`}
-          className="mt-2 flex h-11 w-full items-center justify-between rounded-xl border-2 border-foreground bg-surface-2/60 px-3 text-sm font-semibold"
+          className="press-ink mt-2.5 flex h-11 w-full items-center justify-between rounded-xl border-2 border-foreground bg-surface-2 px-3 text-sm font-semibold"
         >
           <span>
             Player props &amp; more
@@ -101,7 +101,13 @@ export function GameLines({ event, markets, allowedMarkets, locked, selected, on
   ];
   return (
     <div>
-      <header className={cn("mb-1 grid items-end gap-1.5 text-[11px] text-muted-foreground", grid)}>
+      <header
+        className={cn(
+          // A faint strip across the top of the card (the card's own padding is 3.5).
+          "-mx-3.5 -mt-3.5 mb-1.5 grid items-end gap-1.5 rounded-t-2xl bg-surface-2 px-3.5 py-2 text-[11px] text-muted-foreground",
+          grid,
+        )}
+      >
         <span className="flex items-center gap-1">
           <Clock className="size-3" />
           <LocalTime iso={event.commence_time} />
@@ -334,7 +340,7 @@ export function OddsButton({
       }}
       aria-label={`${selectionLabel(row)} ${formatAmerican(row.priceAmerican)}${row.isStale ? " (updating)" : ""}`}
       className={cn(
-        "num h-13 overflow-hidden rounded-xl border-2 border-foreground transition-[background-color,transform] duration-150 motion-safe:active:scale-[0.95] disabled:cursor-not-allowed disabled:opacity-40",
+        "press-ink num h-13 overflow-hidden rounded-xl border-2 border-foreground disabled:cursor-not-allowed disabled:opacity-40",
         selected ? "bg-foreground text-background" : "bg-card hover:bg-surface-2",
       )}
     >

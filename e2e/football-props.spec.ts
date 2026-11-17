@@ -91,6 +91,7 @@ test("football: team-grouped props, alternate yards and anytime TD, graded by th
   await expect(gina.getByText("2-leg parlay")).toBeVisible();
   await expect(gina.getByText(td).first()).toBeVisible(); // My picks names the team too
 
+  await host.getByRole("button", { name: "Host tools" }).click(); // host tools live in the Host sheet
   await host.getByRole("button", { name: "Lock picks now" }).click();
   await host.getByRole("button", { name: "Lock & reveal" }).click();
   await expectRevealed(host, 20_000);
@@ -101,7 +102,7 @@ test("football: team-grouped props, alternate yards and anytime TD, graded by th
     await nudgeSync(host);
     await host.reload();
     const hank = await openPlayerBets(host, "Hank");
-    await expect(hank.getByLabel(/^Live stat: -?\d+ Rush Yds · (needs \d+ more|cleared)$/)).toBeVisible({ timeout: 2_000 });
+    await expect(hank.getByLabel(/^Live stat: -?\d+ of [\d.]+ Rush Yds$/)).toBeVisible({ timeout: 2_000 });
     await expect(hank.getByLabel(/^Chance to win (\d+%|>99%|<1%)$/).first()).toBeVisible({ timeout: 2_000 });
     const ginaBets = await openPlayerBets(host, "Gina");
     await expect(ginaBets.getByLabel(/^Live stat: (No TD yet|\d+ TDs? · scored)$/).first()).toBeVisible({ timeout: 2_000 });

@@ -57,7 +57,7 @@ export function JoinCodeForm() {
         required
         className="h-12 rounded-xl bg-card font-mono text-base tracking-widest uppercase"
       />
-      <Button type="submit" variant="outline" disabled={pending} className="press h-12 rounded-xl px-4" aria-label={pending ? "Opening invite" : "Join"}>
+      <Button type="submit" variant="outline" disabled={pending} className="h-12 rounded-xl px-4" aria-label={pending ? "Opening invite" : "Join"}>
         {pending ? <Loader2 className="motion-safe:animate-spin" /> : <ArrowRight />}
       </Button>
     </form>

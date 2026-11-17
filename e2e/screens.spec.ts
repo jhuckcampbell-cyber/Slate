@@ -73,9 +73,11 @@ test("design tour", async ({ browser }) => {
 
   await host.reload();
   await host.waitForLoadState("networkidle");
+  await host.getByRole("button", { name: "Host tools" }).click(); // host tools live in the Host sheet
   await host.getByRole("button", { name: "Edit rules" }).click();
   await shot(host, "09-edit-rules");
   await host.getByRole("button", { name: "Cancel" }).click();
+  await host.getByRole("button", { name: "Host tools" }).click(); // host tools live in the Host sheet
   await host.getByRole("button", { name: "Lock picks now" }).click();
   await shot(host, "10-lock-confirm");
   await host.getByRole("button", { name: "Lock & reveal" }).click();

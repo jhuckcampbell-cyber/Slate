@@ -1,7 +1,7 @@
 "use client";
 
 import { HouseRulesFields } from "@/components/tournament/house-rules-fields";
-import { Loader2, LockKeyhole, SlidersHorizontal } from "lucide-react";
+import { ChevronRight, Loader2, LockKeyhole, MoreHorizontal, SlidersHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -26,6 +26,8 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   tournamentId: string;
+  /** Join code, shown at the top of the Host sheet. */
+  code: string;
   rules: EditableRules;
   firstKickoff: string;
   /** Bankroll can only be re-dealt while the host is alone (and hasn't bet). */
@@ -42,21 +44,57 @@ const MARKETS = [
   { key: "totals", label: "Over/Under" },
 ] as const;
 
-export function HostTools({ tournamentId, rules, firstKickoff, canEditBankroll, waitingOn, propsAvailable }: Props) {
+export function HostTools({ tournamentId, code, rules, firstKickoff, canEditBankroll, waitingOn, propsAvailable }: Props) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const [lockOpen, setLockOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  // One sheet at a time: close the menu, then open the tool it picked.
+  const pick = (open: (v: boolean) => void) => () => {
+    setMenuOpen(false);
+    open(true);
+  };
 
   return (
-    <section aria-label="Host tools" className="mt-6 rounded-2xl border border-warn/30 bg-warn/5 p-4">
-      <h2 className="text-xs font-semibold tracking-wide text-warn uppercase">Host tools</h2>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <Button variant="outline" className="h-11" onClick={() => setEditOpen(true)}>
-          <SlidersHorizontal /> Edit rules
-        </Button>
-        <Button variant="secondary" className="h-11 ring-1 ring-warn/40" onClick={() => setLockOpen(true)}>
-          <LockKeyhole className="text-warn" /> Lock picks now
-        </Button>
-      </div>
+    <>
+      <Button
+        variant="outline"
+        className="h-11 shrink-0 rounded-full px-4 font-semibold"
+        aria-label="Host tools"
+        onClick={() => setMenuOpen(true)}
+      >
+        Host <MoreHorizontal />
+      </Button>
+
+      <Drawer open={menuOpen} onOpenChange={setMenuOpen}>
+        <DrawerContent className="mx-auto w-full max-w-md">
+          <DrawerHeader className="text-left">
+            <DrawerTitle className="font-display text-2xl font-extrabold">Host</DrawerTitle>
+            <DrawerDescription className="flex items-center justify-between text-left">
+              Join code <span className="num text-lg font-bold tracking-[0.14em] text-foreground">{code}</span>
+            </DrawerDescription>
+          </DrawerHeader>
+          <div className="px-4">
+            <div className="overflow-hidden rounded-2xl border-2 border-foreground bg-card">
+              <button type="button" onClick={pick(setEditOpen)} className="flex h-13 w-full items-center gap-2.5 px-4 text-left font-medium">
+                <SlidersHorizontal className="size-4" aria-hidden /> <span className="flex-1">Edit rules</span>
+                <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={pick(setLockOpen)}
+                className="flex h-13 w-full items-center gap-2.5 border-t border-border px-4 text-left font-medium text-sand-foreground"
+              >
+                <LockKeyhole className="size-4" aria-hidden /> <span className="flex-1">Lock picks now</span>
+                <ChevronRight className="size-4" aria-hidden />
+              </button>
+            </div>
+            <p className="mt-2 px-1 text-xs text-muted-foreground">To remove a player, open the squad list.</p>
+          </div>
+          <DrawerFooter className="pb-[max(env(safe-area-inset-bottom),16px)]">
+            <DrawerClose render={<Button variant="outline" className="h-12" />}>Done</DrawerClose>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
 
       <LockNowDrawer tournamentId={tournamentId} open={lockOpen} onOpenChange={setLockOpen} waitingOn={waitingOn} />
       <Drawer open={editOpen} onOpenChange={setEditOpen}>
@@ -74,7 +112,7 @@ export function HostTools({ tournamentId, rules, firstKickoff, canEditBankroll, 
           )}
         </DrawerContent>
       </Drawer>
-    </section>
+    </>
   );
 }
 

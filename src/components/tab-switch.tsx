@@ -22,7 +22,7 @@ export function TabSwitch<T extends string>({
     <div
       role="tablist"
       aria-label={label}
-      className={cn("grid gap-1 rounded-full border-2 border-foreground bg-card p-1 text-sm", className)}
+      className={cn("ink-shadow grid gap-1 rounded-full border-2 border-foreground bg-card p-1 text-sm", className)}
       style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
     >
       {options.map((o) => (

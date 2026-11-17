@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openSquad } from "./helpers";
 
 // Requires local Supabase running with seed data (`npx supabase db reset`).
 test("host creates a tournament, guest joins via invite link in <15s", async ({ browser }) => {
@@ -27,6 +28,8 @@ test("host creates a tournament, guest joins via invite link in <15s", async ({ 
   await guest.getByLabel("Your name").fill("Gina");
   await guest.getByRole("button", { name: "Join tournament" }).click();
   await guest.waitForURL(`**/t/${code}`);
+  await guest.waitForLoadState("networkidle"); // hydrated: the squad row opens on tap
+  await openSquad(guest);
   await expect(guest.getByText("Gina (you)")).toBeVisible();
   const elapsed = Date.now() - started;
   expect(elapsed, `join took ${elapsed}ms`).toBeLessThan(15_000);

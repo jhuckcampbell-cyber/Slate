@@ -80,8 +80,9 @@ export function GamePage({ event, markets, allowedMarkets, locked, selected, onT
               setQuery("");
             }}
             className={cn(
-              "h-11 shrink-0 rounded-full border-2 border-foreground px-4 text-xs font-semibold",
-              t.key === current ? "bg-foreground text-background" : "bg-card text-foreground",
+              "press-ink h-11 shrink-0 rounded-full border-2 border-foreground px-4 text-xs font-semibold",
+              // The tab you're on: light blue + underline, like every other switch.
+              t.key === current ? "bg-tab text-foreground underline decoration-2 underline-offset-4" : "bg-card text-foreground",
             )}
           >
             {t.label}
@@ -97,13 +98,13 @@ export function GamePage({ event, markets, allowedMarkets, locked, selected, onT
             </Panel>
             {stats.map((k) => (
               <Panel key={k}>
-                <div className="flex items-center justify-between">
+                <div className="-mx-3.5 -mt-3.5 mb-1 flex items-center justify-between rounded-t-[14px] border-b-2 border-sky-line bg-sky pr-3.5 pl-3.5">
                   <h3 className="text-sm font-semibold">{MARKET_LABELS[k] ?? k}</h3>
                   <button
                     type="button"
                     onClick={() => setTab(k)}
                     aria-label={`All ${(MARKET_LABELS[k] ?? k).toLowerCase()}`}
-                    className="-mr-1 flex h-11 items-center px-1 text-xs font-semibold text-brand"
+                    className="-mr-1 flex h-11 items-center px-1 text-xs font-semibold text-brand underline underline-offset-2"
                   >
                     See all <ChevronRight className="size-3.5" />
                   </button>
@@ -154,7 +155,7 @@ export function GamePage({ event, markets, allowedMarkets, locked, selected, onT
 }
 
 function Panel({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-2xl bg-card p-3.5 ring-1 ring-border">{children}</div>;
+  return <div className="ink-shadow rounded-2xl border-2 border-foreground bg-card p-3.5">{children}</div>;
 }
 
 function NoProps() {

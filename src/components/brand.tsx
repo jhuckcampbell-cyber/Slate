@@ -124,6 +124,45 @@ export function StubTear({
   );
 }
 
+export type TournamentState = "open" | "locked" | "live" | "final";
+
+/** Which band a tournament shows: status is the DB's (open → locked → live → settled). */
+export function tournamentState(status: string, isLocked: boolean): TournamentState {
+  if (status === "settled") return "final";
+  if (status === "live") return "live";
+  return isLocked ? "locked" : "open";
+}
+
+/**
+ * Status band: a full-width strip under the app bar that says where the tournament is before you read anything.
+ * Blue while open, amber once locked, coral while live, solid ink when final.
+ */
+export function StatusBand({
+  state,
+  children,
+  className,
+}: {
+  state: TournamentState;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      data-state={state}
+      className={cn(
+        "-mx-4 mt-2 flex min-h-10 items-center gap-2 border-y-2 border-foreground px-4 py-2 text-sm font-semibold",
+        state === "open" && "bg-status-open",
+        state === "locked" && "bg-status-locked",
+        state === "live" && "bg-status-live",
+        state === "final" && "bg-foreground text-background",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 /** Result mark with an ink outline; coral labels keep readable ink text. */
 export function Stamp({ children, tone = "ink", className }: {
   children: React.ReactNode;

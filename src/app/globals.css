@@ -26,6 +26,10 @@
   --color-warn: var(--warn);
   --color-surface-2: var(--surface-2);
   --color-tab: var(--tab);
+  --color-gold: var(--gold);
+  --color-silver: var(--silver);
+  --color-bronze: var(--bronze);
+  --color-bronze-foreground: var(--bronze-foreground);
   --color-felt: var(--felt);
   --color-felt-deep: var(--felt-deep);
   --color-felt-foreground: var(--felt-foreground);
@@ -88,6 +92,12 @@
 
   /* The one extra color: marks the tab you're on (light blue pill, ink outline). */
   --tab: oklch(0.87 0.07 245);
+
+  /* Leaderboard podium only: the 1st / 2nd / 3rd tear-offs (ink text on gold and silver, white on bronze). */
+  --gold: oklch(0.76 0.13 85);
+  --silver: oklch(0.81 0.012 255);
+  --bronze: oklch(0.6 0.1 55);
+  --bronze-foreground: oklch(0.99 0 0);
   --felt: oklch(0.33 0.06 165);
   --felt-deep: oklch(0.28 0.05 165);
   --felt-foreground: oklch(0.97 0.02 90);

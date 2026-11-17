@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, RotateCcw, Trophy } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, Crown, RotateCcw, Trophy } from "lucide-react";
 import { StubTear, stub } from "@/components/brand";
 import { Ticker } from "@/components/ticker";
 import { buttonVariants } from "@/components/ui/button";
@@ -21,6 +21,13 @@ export type LeaderRow = {
   rank: number;
   standing: "alive" | "eliminated" | "busted" | "disqualified";
 };
+
+/** Top 3 (still in it) get a metal tear-off on the left: gold, silver, bronze. */
+const MEDALS = [
+  { label: "1st", className: "bg-gold text-foreground" },
+  { label: "2nd", className: "bg-silver text-foreground" },
+  { label: "3rd", className: "bg-bronze text-bronze-foreground" },
+] as const;
 
 /** Money needs a wider tear-off than a place does ("$1,049.65"). */
 const WIDE_TEAR = "[--tear:6.75rem]";
@@ -101,6 +108,7 @@ export function Leaderboard({
         {sorted.map((r) => {
           const out = r.standing !== "alive";
           const leading = r.rank === 1 && !out;
+          const medal = !out && r.rank <= 3 ? MEDALS[r.rank - 1] : null;
           const score = settled ? r.cashCents : r.evCents;
           const change = startCents === undefined ? null : score - startCents;
           const note =
@@ -117,20 +125,40 @@ export function Leaderboard({
                 <summary
                   className={stub(
                     r.isYou ? "you" : "default",
-                    cn(WIDE_TEAR, "cursor-pointer list-none [&::-webkit-details-marker]:hidden"),
+                    cn(
+                      WIDE_TEAR,
+                      "cursor-pointer list-none [&::-webkit-details-marker]:hidden",
+                      leading && "min-h-[4.5rem] border-[3px]",
+                    ),
                   )}
                 >
-                  <div className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pr-2 pl-3">
+                  {medal && (
                     <span
+                      aria-hidden
                       className={cn(
-                        "num w-7 shrink-0 text-center text-[1.75rem]/none font-extrabold",
-                        leading ? "text-hype" : out ? "text-muted-foreground/60" : "text-foreground",
+                        "flex w-14 shrink-0 flex-col items-center justify-center rounded-l-[calc(var(--radius-2xl)-3px)] border-r-2 border-dashed border-foreground",
+                        medal.className,
                       )}
                     >
-                      {r.rank}
+                      {leading && <Crown className="size-4" strokeWidth={2.5} />}
+                      <span className={cn("num font-extrabold uppercase", leading ? "text-[1.6rem]/none" : "text-[1.3rem]/none")}>
+                        {medal.label}
+                      </span>
                     </span>
+                  )}
+                  <div className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pr-2 pl-3">
+                    {!medal && (
+                      <span
+                        className={cn(
+                          "num w-7 shrink-0 text-center text-[1.75rem]/none font-extrabold",
+                          out ? "text-muted-foreground/60" : "text-foreground",
+                        )}
+                      >
+                        {r.rank}
+                      </span>
+                    )}
                     <div className="min-w-0 flex-1">
-                      <p className={cn("flex items-center gap-1.5 font-semibold", out && "text-muted-foreground")}>
+                      <p className={cn("flex items-center gap-1.5 font-semibold", leading && "text-lg", out && "text-muted-foreground")}>
                         <span className="truncate">{r.name}</span>
                         {climbs[r.participantId] && (
                           <span

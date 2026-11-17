@@ -121,8 +121,11 @@ export function espnBoxToStats(summary: unknown, sportKey = "basketball_nba"): B
   const rows = new Map<string, PlayerStat>();
   const participation = new Map<string, PlayerStat>();
   const components = new Map<string, Set<string>>();
+  const rowGroups = new Map<string, Set<string>>(); // rowKey -> the categories in that player's team box
+  const badTds = new Set<string>(); // anytime TD rows with an unreadable component cell
   for (const teamBox of arr(obj(obj(summary).boxscore).players).map(obj)) {
     const team = String(obj(teamBox.team).displayName ?? "") || null;
+    const groups = new Set(arr(teamBox.statistics).map((g) => String(obj(g).name ?? "")));
     for (const group of arr(teamBox.statistics).map(obj)) {
       const keys = arr(group.keys).map(String);
       for (const a of arr(group.athletes).map(obj)) {
@@ -144,8 +147,13 @@ export function espnBoxToStats(summary: unknown, sportKey = "basketball_nba"): B
           const numeric = key === "threePointFieldGoalsMade-threePointFieldGoalsAttempted"
             ? /^\d+-\d+$/.test(cell) : /^-?\d+$/.test(cell);
           const stat = numeric ? parseInt(cell, 10) : NaN; // "2-3" (made-attempted) -> 2; "-4" rushing yards stays -4
-          if (!market || !Number.isFinite(stat)) return;
+          if (!market) return;
           const rowKey = `${playerKey}|${market}`;
+          rowGroups.set(rowKey, groups);
+          if (!Number.isFinite(stat)) {
+            if (market === "player_anytime_td") badTds.add(rowKey);
+            return;
+          }
           const seen = components.get(rowKey) ?? new Set<string>();
           const column = `${String(group.name ?? "")}.${key}`;
           if (seen.has(column)) return;
@@ -159,10 +167,11 @@ export function espnBoxToStats(summary: unknown, sportKey = "basketball_nba"): B
     }
   }
   for (const [rowKey, row] of rows) {
-    // A composite TD count is only complete with all four explicit components.
-    // Missing categories/cells never silently contribute zero.
-    if (row.provider_player_id) row.complete = final &&
-      (row.market_key !== "player_anytime_td" || components.get(rowKey)?.size === 4);
+    // A composite TD count is complete once the final box score has the team's rushing and receiving tables and
+    // every cell the player appears in reads cleanly. ESPN lists only players who returned a kick or punt (and drops
+    // the table when nobody did), so a player missing from a return table scored no return TD there.
+    if (row.provider_player_id) row.complete = final && (row.market_key !== "player_anytime_td" ||
+      (!badTds.has(rowKey) && ["rushing", "receiving"].every((g) => rowGroups.get(rowKey)?.has(g))));
   }
   const remaining = final
     ? 0

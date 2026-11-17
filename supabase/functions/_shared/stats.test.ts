@@ -266,11 +266,27 @@ describe("verified automatic grading evidence", () => {
     expect(espnBoxToStats(live).stats.find((r) => r.market_key === "player_points"))
       .toMatchObject({ complete: false });
   });
-  it("does not certify a partial touchdown sum", () => {
-    const input = nflSummary("post");
+  const swiftTd = (input: ReturnType<typeof nflSummary>) => {
     Object.assign(input.boxscore.players[0]!.statistics[1]!.athletes[0]!.athlete, { id: "swift" });
-    expect(espnBoxToStats(input, "americanfootball_nfl").stats.find((r) => r.provider_player_id === "swift" && r.market_key === "player_anytime_td"))
-      .toMatchObject({ stat: 3, complete: false });
+    Object.assign(input.boxscore.players[0]!.statistics[2]!.athletes[1]!.athlete, { id: "swift" });
+    return espnBoxToStats(input, "americanfootball_nfl").stats.find((r) => r.provider_player_id === "swift" && r.market_key === "player_anytime_td");
+  };
+  it("certifies a final touchdown sum when the player had no returns (ESPN omits him from those tables)", () => {
+    // Swift is in rushing + receiving only; there is no kickReturns table at all.
+    expect(swiftTd(nflSummary("post"))).toMatchObject({ stat: 3, complete: true });
+  });
+  it("does not certify a touchdown sum before the final", () => {
+    expect(swiftTd(nflSummary("in"))).toMatchObject({ stat: 3, complete: false });
+  });
+  it("does not certify a touchdown sum with an unreadable touchdown cell", () => {
+    const input = nflSummary("post");
+    input.boxscore.players[0]!.statistics[2]!.athletes[1]!.stats![3] = "--";
+    expect(swiftTd(input)).toMatchObject({ stat: 3, complete: false });
+  });
+  it("does not certify a touchdown sum when the team's receiving table is missing", () => {
+    const input = nflSummary("post");
+    input.boxscore.players[0]!.statistics[2]!.name = "unknown";
+    expect(swiftTd(input)).toMatchObject({ stat: 3, complete: false });
   });
   it("rejects malformed numeric cells instead of parsing a prefix", () => {
     const input = summary("post");

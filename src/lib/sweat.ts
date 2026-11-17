@@ -72,6 +72,26 @@ export function propProgress(leg: {
   return null;
 }
 
+/**
+ * Props with a line (yards, receptions, points…): where the player is against the line, for a yard-marker bar.
+ * fill = stat / line (capped at 1); the tick at the bar's end is the line. null before the market has a line
+ * (anytime TD) or for non-prop legs. current is null until the box score has the player.
+ */
+export function propMeter(leg: {
+  marketKey: string;
+  selection: string;
+  line: number | null;
+  liveStat: number | null;
+}): { current: number | null; line: number; unit: string; fill: number; tone: Tone } | null {
+  const unit = PROP_STAT_LABELS[leg.marketKey];
+  if (!unit || leg.line === null || leg.line <= 0 || (leg.selection !== "Over" && leg.selection !== "Under")) return null;
+  const current = leg.liveStat;
+  const fill = current === null ? 0 : Math.min(1, Math.max(0, current / leg.line));
+  const over = current !== null && current > leg.line;
+  const tone: Tone = !over ? "live" : leg.selection === "Over" ? "win" : "loss";
+  return { current, line: leg.line, unit, fill, tone };
+}
+
 export type LiveFeed = {
   state: string;
   home_score?: number | null;

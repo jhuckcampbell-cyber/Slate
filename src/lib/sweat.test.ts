@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatChance, gameView, propProgress, totalProgress, wagerOutcome } from "./sweat";
+import { formatChance, gameView, propMeter, propProgress, totalProgress, wagerOutcome } from "./sweat";
 
 describe("formatChance", () => {
   it("rounds to whole percent", () => {
@@ -152,5 +152,23 @@ describe("totalProgress: a totals pick against the line", () => {
   it("no score yet, or not a total: null", () => {
     expect(totalProgress({ ...base, home: null, selection: "Over" })).toBeNull();
     expect(totalProgress({ ...base, selection: "Knicks" })).toBeNull();
+  });
+});
+
+describe("propMeter: yard-marker bar for a prop with a line", () => {
+  const leg = { marketKey: "player_reception_yds", selection: "Over", line: 65.5, liveStat: 45 as number | null };
+  it("fills toward the line", () => {
+    expect(propMeter(leg)).toEqual({ current: 45, line: 65.5, unit: "Rec Yds", fill: 45 / 65.5, tone: "live" });
+  });
+  it("is empty before the box score has the player", () => {
+    expect(propMeter({ ...leg, liveStat: null })).toMatchObject({ current: null, fill: 0, tone: "live" });
+  });
+  it("caps at full and turns win for an over, loss for an under", () => {
+    expect(propMeter({ ...leg, liveStat: 80 })).toMatchObject({ fill: 1, tone: "win" });
+    expect(propMeter({ ...leg, selection: "Under", liveStat: 80 })).toMatchObject({ fill: 1, tone: "loss" });
+  });
+  it("skips anytime TD and game lines", () => {
+    expect(propMeter({ ...leg, marketKey: "player_anytime_td", selection: "Yes", line: null })).toBeNull();
+    expect(propMeter({ ...leg, marketKey: "totals" })).toBeNull();
   });
 });

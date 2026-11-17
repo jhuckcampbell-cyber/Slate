@@ -12,6 +12,7 @@ import type { RevealedWager } from "@/lib/queries/selects";
 import {
   formatChance,
   gameView,
+  propMeter,
   propProgress,
   totalProgress,
   wagerOutcome,
@@ -189,10 +190,7 @@ function SinglePick({ wager, event, live }: { wager: RevealedWager; event: Sport
         total ? (
           <TotalBar total={total} p={wager.winProbability} />
         ) : (
-          <>
-            <Chance p={wager.winProbability} className="mt-1.5" />
-            <PropLine leg={leg} />
-          </>
+          <PropOrChance leg={leg} p={wager.winProbability} />
         )
       ) : (
         <div className="mt-1 flex items-center justify-between gap-2 text-sm">
@@ -208,11 +206,49 @@ function SinglePick({ wager, event, live }: { wager: RevealedWager; event: Sport
 function LegProgress({ leg, event, live }: { leg: Leg; event: SportsbookEvent | undefined; live: LiveFeed | null }) {
   const total = event ? totalFor(leg, event, live) : null;
   if (total) return <TotalBar total={total} p={leg.winProbability} />;
+  return <PropOrChance leg={leg} p={leg.winProbability} />;
+}
+
+/** Props with a line get the live yard-marker meter; everything else the plain chance bar. */
+function PropOrChance({ leg, p }: { leg: Leg; p: number | null }) {
+  const meter = propMeter({ marketKey: leg.marketKey, selection: leg.selection, line: leg.line, liveStat: leg.liveStat });
+  if (meter) return <PropMeter meter={meter} leg={leg} p={p} />;
   return (
     <>
-      <Chance p={leg.winProbability} className="mt-1.5" />
+      <Chance p={p} className="mt-1.5" />
       <PropLine leg={leg} />
     </>
+  );
+}
+
+/**
+ * Live prop sweat: the player's number against the line and the chance to hit on top, then a bar that fills like
+ * a yard marker toward the tick (the line), then what's still needed ("needs 21 more").
+ */
+function PropMeter({ meter, leg, p }: { meter: NonNullable<ReturnType<typeof propMeter>>; leg: Leg; p: number | null }) {
+  const hint = propProgress({ marketKey: leg.marketKey, selection: leg.selection, line: leg.line, status: leg.status, liveStat: leg.liveStat });
+  const now = meter.current === null ? "0" : String(meter.current);
+  return (
+    <div className="mt-1.5">
+      <ChanceInfo pct={formatChance(p)} parlay={false}>
+        <span className="num flex-1 text-sm font-bold tabular-nums" aria-label={`Live stat: ${now} of ${meter.line} ${meter.unit}`}>
+          <span className={meter.tone === "live" ? undefined : TONE_TEXT[meter.tone]}>
+            {now}
+          </span>
+          <span className="font-normal text-muted-foreground"> / {meter.line} {meter.unit}</span>
+        </span>
+      </ChanceInfo>
+      <div className="relative mt-1.5 h-2 rounded-full bg-foreground/10" aria-hidden>
+        <div
+          className={cn("h-full rounded-full transition-[width] duration-700", meter.tone === "loss" ? "bg-loss" : meter.tone === "win" ? "bg-win" : "bg-foreground")}
+          style={{ width: `${Math.round(meter.fill * 100)}%` }}
+        />
+        <span className="absolute -top-1 right-0 h-4 w-0.5 rounded-full bg-foreground" />
+      </div>
+      <p className={cn("mt-1 text-xs font-medium tabular-nums", TONE_TEXT[meter.tone === "live" ? "muted" : meter.tone])}>
+        {meter.current === null ? "Waiting for his first stat" : (hint?.text.split(" · ")[1] ?? hint?.text)}
+      </p>
+    </div>
   );
 }
 

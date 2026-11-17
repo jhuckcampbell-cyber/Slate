@@ -22,7 +22,7 @@ export function formatOdds(american: number, format: OddsFormat): string {
 
 /** "Bet $10 to win $9.09 (about a 52% chance)". */
 export function oddsMeaning(american: number): string {
-  const profitCents = Math.round(american > 0 ? 10 * american : (1000 * 100) / -american);
+  const profitCents = payoutCents(1000, americanToDecimalE4(american)) - 1000;
   return `Bet $10 to win ${formatCents(profitCents)} (about a ${formatOdds(american, "percent")} chance)`;
 }
 

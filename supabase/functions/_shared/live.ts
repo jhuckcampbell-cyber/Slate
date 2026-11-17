@@ -62,8 +62,9 @@ function matchesTeam(team: Obj, name: string, college: boolean): boolean {
 
 export function liveGamesFromScoreboard(
   scoreboard: unknown,
-  ours: { event_id: string; home_team: string; away_team: string }[],
+  ours: { event_id: string; home_team: string; away_team: string; commence_time?: string }[],
   sportKey = "basketball_nba",
+  scoreboardDate?: string,
 ): LiveGame[] {
   const out: LiveGame[] = [];
   for (const e of arr(obj(scoreboard).events)) {
@@ -72,12 +73,17 @@ export function liveGamesFromScoreboard(
     const side = (homeAway: string) => competitors.find((x) => x.homeAway === homeAway) ?? {};
     const home = side("home");
     const away = side("away");
-    const game = ours.find(
+    const start = obj(e).date ?? c.date;
+    const candidates = ours.filter(
       (g) =>
+        (!g.commence_time || (typeof start === "string"
+          ? Math.abs(Date.parse(g.commence_time) - Date.parse(start)) <= 12 * 60 * 60 * 1000
+          : !!scoreboardDate && espnDate(g.commence_time) === scoreboardDate)) &&
         matchesTeam(obj(home.team), g.home_team, sportKey === "basketball_ncaab" || sportKey === "americanfootball_ncaaf") &&
         matchesTeam(obj(away.team), g.away_team, sportKey === "basketball_ncaab" || sportKey === "americanfootball_ncaaf"),
     );
-    if (!game) continue;
+    if (candidates.length !== 1) continue;
+    const game = candidates[0];
     const status = obj(c.status);
     const type = obj(status.type);
     const eventState = eventStatus(type.name) ?? eventStatus(type.description) ?? eventStatus(type.shortDetail);

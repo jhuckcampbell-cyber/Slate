@@ -74,7 +74,7 @@ export function EventCard({ event, markets, allowedMarkets, locked, selected, on
           type="button"
           onClick={onOpen}
           aria-label={`More bets, ${matchup}`}
-          className="mt-2 flex h-11 w-full items-center justify-between rounded-xl bg-surface-2/60 px-3 text-sm font-semibold"
+          className="mt-2 flex h-11 w-full items-center justify-between rounded-xl border-2 border-foreground bg-surface-2/60 px-3 text-sm font-semibold"
         >
           <span>
             Player props &amp; more

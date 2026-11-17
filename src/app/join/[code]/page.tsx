@@ -41,7 +41,15 @@ async function Join({ params, searchParams }: PageProps<"/join/[code]">) {
   const raw = (await params).code;
   const { name: typedName, removed } = await searchParams; // name: pre-hydration native submit fallback
   const code = normalizeCode(raw);
-  if (code !== raw) redirect(`/join/${code}`);
+  if (code !== raw) {
+    const query = new URLSearchParams();
+    for (const [key, value] of [["name", typedName], ["removed", removed]] as const) {
+      for (const item of Array.isArray(value) ? value : value === undefined ? [] : [value]) {
+        query.append(key, item);
+      }
+    }
+    redirect(`/join/${code}${query.size ? `?${query}` : ""}`);
+  }
 
   const t = await getTournamentPreview(code);
   if (!t) notFound();
@@ -51,10 +59,12 @@ async function Join({ params, searchParams }: PageProps<"/join/[code]">) {
   if (viewer) {
     // RLS only returns the tournament if the viewer is already in it.
     const supabase = await createClient();
-    const [{ data: mine }, { data: removedFrom }] = await Promise.all([
+    const [{ data: mine, error: mineError }, { data: removedFrom, error: removedError }] = await Promise.all([
       supabase.from("tournaments").select("id").eq("code", code).maybeSingle(),
       supabase.rpc("removed_from", { p_code: code }),
     ]);
+    if (mineError) throw mineError;
+    if (removedError) throw removedError;
     if (mine) redirect(`/t/${code}`);
     // However they got here (the live signal, a refresh racing it, an old text), tell a removed player why.
     wasRemoved ||= removedFrom === true;

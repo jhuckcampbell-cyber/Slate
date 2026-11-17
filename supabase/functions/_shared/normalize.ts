@@ -114,7 +114,14 @@ function pickPropBooks(ev: ApiEvent, marketKey: string, priority: readonly strin
     const found = book.markets.find((m) => m.key === marketKey);
     if (!found) continue;
     const cleaned = cleanProp(marketKey, found);
-    const outcomes = cleaned.outcomes.filter((o) => !taken.has(o.description ?? ""));
+    const players = new Map<string, ApiMarket["outcomes"]>();
+    for (const o of cleaned.outcomes) {
+      const player = o.description ?? "";
+      if (!taken.has(player)) players.set(player, [...(players.get(player) ?? []), o]);
+    }
+    const outcomes = [...players.values()].flatMap((group) =>
+      isUsableMarket(marketKey, { ...cleaned, outcomes: group }) ? group : [],
+    );
     const market = { ...cleaned, outcomes };
     if (outcomes.length === 0 || !isUsableMarket(marketKey, market)) continue;
     for (const o of outcomes) taken.add(o.description ?? "");

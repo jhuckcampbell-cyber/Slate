@@ -326,3 +326,17 @@ it("college football grades the main stats only, with anytime TD = rushing + rec
 it("college basketball box scores stay unsupported", () => {
   expect(espnBoxToStats({ header: { competitions: [{ status: { type: { completed: true } } }] } }, "basketball_ncaab")).toEqual({ final: false, stats: [], remaining: null });
 });
+
+it("matches school identity and refuses ambiguous college games", () => {
+  const event = (id: string, home: string, away: string) => ({ id, competitions: [{ competitors: [
+    { homeAway: "home", team: { id: `${id}-h`, displayName: home } },
+    { homeAway: "away", team: { id: `${id}-a`, displayName: away } },
+  ] }] });
+  const wrong = event("wrong", "LSU Tigers", "Fresno State Bulldogs");
+  const right = event("right", "Clemson Tigers", "Georgia Bulldogs");
+  const game = { home_team: "Clemson Tigers", away_team: "Georgia Bulldogs" };
+  expect(findEspnGame({ events: [wrong, right] }, game)).toEqual("right");
+  expect(findEspnGame({ events: [wrong] }, game)).toBeNull();
+  expect(findEspnGame({ events: [right, right] }, game)).toBeNull();
+  expect(findEspnGame({ events: [wrong, right] }, { home_team: "Tigers", away_team: "Bulldogs" })).toBeNull();
+});

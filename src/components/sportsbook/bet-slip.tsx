@@ -82,7 +82,7 @@ export function BetSlip({ tournamentId, participantId, rules, boardById, locked,
   const tokens = rules.tokens ?? null;
   const multiMode = "parlay";
   const parlayCheck = parlayEligibility(entries, rules);
-  const mode: SlipMode = state.mode === "parlay" && entries.length >= 2 && (tokens || parlayCheck.ok) ? "parlay" : "singles";
+  const mode: SlipMode = state.mode === "parlay" && entries.length >= 2 && parlayCheck.ok ? "parlay" : "singles";
   const stakeCents = Object.fromEntries(
     entries.map((e) => [e.oddsId, dollarsToCents(state.stakes[e.oddsId] ?? "") ?? 0]),
   );

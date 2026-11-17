@@ -55,18 +55,34 @@ export function TournamentLive({ tournamentId, code, viewerUserId, renderedVersi
 
   useEffect(() => {
     const supabase = createClient();
+    let disposed = false;
     let debounce: ReturnType<typeof setTimeout> | undefined;
 
     const refresh = () => {
+      if (disposed) return;
       clearTimeout(debounce);
-      debounce = setTimeout(() => router.refresh(), 200);
+      debounce = setTimeout(() => {
+        if (!disposed) router.refresh();
+      }, 200);
+    };
+
+    // Broadcasts only prompt this RLS-protected read; they cannot prove lost access.
+    const checkAccess = async (reason?: "deleted" | "removed") => {
+      if (disposed) return;
+      const { data, error } = await supabase.from("tournaments").select("updated_at").eq("id", tournamentId).maybeSingle();
+      if (disposed || error) return;
+      if (!data) {
+        if (!leaving.has(tournamentId)) {
+          router.replace(reason === "deleted" ? "/?deleted=1" : `/join/${code}${reason === "removed" ? "?removed=1" : ""}`);
+        }
+      } else if (data.updated_at !== version.current) refresh();
     };
 
     const stopChannel = resilientChannel(supabase, () => supabase
       .channel(`tournament:${tournamentId}`, { config: { private: true } })
       .on("broadcast", { event: "tournament" }, ({ payload }: { payload: TournamentSignal }) => {
         if (payload.status === "deleted") {
-          if (!leaving.has(tournamentId)) router.replace("/?deleted=1");
+          void checkAccess("deleted");
           return;
         }
         refresh();
@@ -74,19 +90,15 @@ export function TournamentLive({ tournamentId, code, viewerUserId, renderedVersi
       .on("broadcast", { event: "scores" }, refresh)
       .on("broadcast", { event: "roster" }, ({ payload }: { payload: RosterSignal }) => {
         if (payload.change === "left" && payload.user_id === viewerUserId) {
-          if (!leaving.has(tournamentId)) router.replace(`/join/${code}?removed=1`);
+          void checkAccess("removed");
           return;
         }
         refresh();
       }), refresh);
 
-    const poll = setInterval(async () => {
+    const poll = setInterval(() => {
       if (document.visibilityState !== "visible") return;
-      const { data } = await supabase.from("tournaments").select("updated_at").eq("id", tournamentId).maybeSingle();
-      if (!data) {
-        if (!leaving.has(tournamentId)) router.replace(`/join/${code}`);
-      }
-      else if (data.updated_at !== version.current) refresh();
+      void checkAccess();
     }, POLL_MS);
 
     const onVisible = () => {
@@ -95,6 +107,7 @@ export function TournamentLive({ tournamentId, code, viewerUserId, renderedVersi
     document.addEventListener("visibilitychange", onVisible);
 
     return () => {
+      disposed = true;
       stopChannel();
       clearTimeout(debounce);
       clearInterval(poll);

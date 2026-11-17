@@ -1,3 +1,4 @@
+import { matchesTeamIdentity } from "./team-match.ts";
 /**
  * Live player stats from ESPN's public game feed (site.api.espn.com: no key, no Odds API credits), NBA, NFL and college football.
  * Unofficial and not licensed for commercial use: fine for the friends beta, replace with a licensed feed
@@ -95,23 +96,18 @@ export const espnScoreboardUrl = (sportKey: string, commenceIso: string) =>
 export const espnSummaryUrl = (sportKey: string, gameId: string) =>
   `${ESPN}/${sport(sportKey).path}/summary?event=${encodeURIComponent(gameId)}`;
 
-/** "Los Angeles Clippers" and "LA Clippers" are the same team: compare nicknames. */
-const nickname = (team: string) => team.trim().toLowerCase().split(/\s+/).pop() ?? "";
-
 type Obj = Record<string, unknown>;
 const obj = (v: unknown): Obj => (v && typeof v === "object" ? (v as Obj) : {});
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 
 /** The feed's game id for our game (both teams must match), or null. */
 export function findEspnGame(scoreboard: unknown, game: { home_team: string; away_team: string }): string | null {
-  for (const e of arr(obj(scoreboard).events)) {
+  const matches = arr(obj(scoreboard).events).filter((e) => {
     const competitors = arr(obj(arr(obj(e).competitions)[0]).competitors).map(obj);
-    const side = (homeAway: string) =>
-      nickname(String(obj(competitors.find((c) => c.homeAway === homeAway)?.team).displayName ?? ""));
-    if (side("home") === nickname(game.home_team) && side("away") === nickname(game.away_team)) {
-      return String(obj(e).id);
-    }
-  }
+    const side = (homeAway: string) => obj(competitors.find((c) => c.homeAway === homeAway)?.team);
+    return matchesTeamIdentity(side("home"), game.home_team) && matchesTeamIdentity(side("away"), game.away_team);
+  });
+  if (matches.length === 1 && obj(matches[0]).id) return String(obj(matches[0]).id);
   return null;
 }
 

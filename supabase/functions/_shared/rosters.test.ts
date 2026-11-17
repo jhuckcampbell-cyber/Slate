@@ -37,7 +37,7 @@ describe("college rosters (ESPN)", () => {
     { homeAway: "home", team: { id: "333", displayName: "Alabama Crimson Tide" } },
     { homeAway: "away", team: { id: "2", displayName: "Auburn Tigers" } },
   ] }] }] };
-  it("finds both team ids by nickname", () => {
+  it("finds both team ids by school identity", () => {
     expect(espnGameTeamIds(scoreboard, { home_team: "Alabama Crimson Tide", away_team: "Auburn Tigers" })).toEqual({ home: "333", away: "2" });
     expect(espnGameTeamIds(scoreboard, { home_team: "Texas Longhorns", away_team: "Auburn Tigers" })).toBeNull();
   });
@@ -47,4 +47,18 @@ describe("college rosters (ESPN)", () => {
     expect(espnRosterToPlayers({ athletes: [{ displayName: "C Three" }] }, "T")).toEqual([{ name: "C Three", team: "T" }]);
     expect(espnRosterToPlayers(null, "T")).toEqual([]);
   });
+});
+
+it("matches school identity and refuses ambiguous college games", () => {
+  const event = (id: string, home: string, away: string) => ({ id, competitions: [{ competitors: [
+    { homeAway: "home", team: { id: `${id}-h`, displayName: home } },
+    { homeAway: "away", team: { id: `${id}-a`, displayName: away } },
+  ] }] });
+  const wrong = event("wrong", "LSU Tigers", "Fresno State Bulldogs");
+  const right = event("right", "Clemson Tigers", "Georgia Bulldogs");
+  const game = { home_team: "Clemson Tigers", away_team: "Georgia Bulldogs" };
+  expect(espnGameTeamIds({ events: [wrong, right] }, game)).toEqual({ home: "right-h", away: "right-a" });
+  expect(espnGameTeamIds({ events: [wrong] }, game)).toBeNull();
+  expect(espnGameTeamIds({ events: [right, right] }, game)).toBeNull();
+  expect(espnGameTeamIds({ events: [wrong, right] }, { home_team: "Tigers", away_team: "Bulldogs" })).toBeNull();
 });

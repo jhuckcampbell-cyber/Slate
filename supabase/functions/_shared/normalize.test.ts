@@ -379,3 +379,17 @@ describe("fake props", () => {
     expect(n.outcomes.filter((o) => o.market_key === "player_pass_tds").length % 2).toBe(0);
   });
 });
+
+it("validates each player's prices independently and falls back per player", () => {
+  const pair = (description: string, price: number) => [
+    { name: "Over", description, price, point: 20.5 },
+    { name: "Under", description, price: -110, point: 20.5 },
+  ];
+  const result = normalizeOddsResponse([{ ...fixture[0], bookmakers: [
+    { key: "first", title: "First", markets: [{ key: "player_points", outcomes: [...pair("Valid", -110), ...pair("Invalid", 50)] }] },
+    { key: "second", title: "Second", markets: [{ key: "player_points", outcomes: [...pair("Valid", -120), ...pair("Invalid", -120)] }] },
+  ] }], { markets: ["player_points"], bookmakers: ["first", "second"] });
+  expect(result.outcomes).toHaveLength(4);
+  expect(result.outcomes.filter(o => o.participant_name === "Valid").map(o => o.bookmaker)).toEqual(["first", "first"]);
+  expect(result.outcomes.filter(o => o.participant_name === "Invalid").map(o => o.bookmaker)).toEqual(["second", "second"]);
+});

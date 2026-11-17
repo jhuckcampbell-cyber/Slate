@@ -3,6 +3,7 @@ const MESSAGES: Record<string, string> = {
   // auth / tournaments
   CAPTCHA_FAILED: "Security verification didn't finish. Please try again. If it keeps failing, refresh the page.",
   NOT_AUTHENTICATED: "Your session expired. Refresh and try again.",
+  ACCOUNT_HOSTS_ACTIVE_TOURNAMENT: "You still host an active tournament. Delete it or wait until it finishes before deleting your account.",
   RATE_LIMITED: "You've made too many requests. Wait a minute and try again (tournament creation may take an hour).",
   INVALID_EVENTS: "One of those games already started or isn't available anymore.",
   MIXED_SPORTS: "Pick games from a single sport.",
@@ -19,6 +20,7 @@ const MESSAGES: Record<string, string> = {
   GAME_NOT_FINAL: "Enter stats once the game is final.",
   INVALID_STAT: "Enter a whole-number stat. Only yards may be negative.",
   ALREADY_GRADED: "That stat was already entered.",
+  CORRECTION_REQUIRES_REVIEW: "Changing a player to did not play needs a review. Contact support.",
   NOTHING_TO_GRADE: "Nobody has a pick on that line.",
   INVALID_CHANGES: "Those changes aren't allowed.",
   INVALID_TITLE: "Give the tournament a name (up to 60 characters).",
@@ -58,6 +60,11 @@ const MESSAGES: Record<string, string> = {
   ODDS_CHANGED: "Odds moved. Review the new prices and accept to continue.",
   WAGER_NOT_FOUND: "That bet no longer exists.",
   WAGER_SETTLED: "That bet is already settled, so it can't be cancelled.",
+  // odds sync / operator configuration
+  INVALID_BETA_SLATE: "Choose up to 6 game IDs for the beta slate.",
+  INVALID_KIND: "That odds refresh type isn't supported.",
+  INVALID_POLICY: "Choose a valid odds budget mode, profile, and game list.",
+  PROVIDER_ID_MISMATCH: "The stats provider's game ID changed. Review the game before syncing stats again.",
 };
 
 export function errorCode(error: unknown): string | null {

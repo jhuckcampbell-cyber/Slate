@@ -467,7 +467,7 @@ async function runLiveJob(
     }));
   } else {
     const urls = new Set(job.events.map((e) => espnLiveUrl(job.sport_key, e.commence_time)).filter((u) => u !== null));
-    for (const url of urls) games.push(...liveGamesFromScoreboard(await getJson(url), job.events, job.sport_key));
+    for (const url of urls) games.push(...liveGamesFromScoreboard(await getJson(url), job.events, job.sport_key, new URL(url).searchParams.get("dates") ?? undefined));
   }
   const { data, error } = await supabase.rpc("live_ingest", { p_sport_key: job.sport_key, p_games: games });
   if (error) throw new Error(`live ingest failed: ${error.message}`);

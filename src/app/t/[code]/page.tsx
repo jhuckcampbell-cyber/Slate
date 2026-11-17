@@ -80,16 +80,17 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
 
   const supabase = await createClient();
   // RLS: only visible to the host and participants. is_locked/server_now are DB-clock computed fields.
-  const { data: t } = await supabase
+  const { data: t, error: tournamentError } = await supabase
     .from("tournaments")
     .select(
       "id, code, title, description, sport_key, host_id, lock_time, status, starting_bankroll_cents, max_bet_cents, allowed_bet_types, updated_at, is_locked, server_now",
     )
     .eq("code", code)
     .maybeSingle();
+  if (tournamentError) throw tournamentError;
   if (!t) redirect(`/join/${code}`);
 
-  const [{ data: eventLinks }, { data: roster }, { data: me }, mine] = await Promise.all([
+  const [{ data: eventLinks, error: eventsError }, { data: roster, error: rosterError }, { data: me, error: participantError }, mine] = await Promise.all([
     supabase
       .from("tournament_events")
       .select("events(id, sport_key, home_team, away_team, commence_time, status, home_score, away_score)")
@@ -103,6 +104,9 @@ async function Lobby({ params, searchParams }: PageProps<"/t/[code]">) {
       .maybeSingle(),
     loadMyTournaments(),
   ]);
+  if (eventsError) throw eventsError;
+  if (rosterError) throw rosterError;
+  if (participantError) throw participantError;
   if (!me) redirect(`/join/${code}`);
 
   const events = (eventLinks ?? [])
@@ -336,7 +340,7 @@ async function PreLockSportsbook({
   bankroll: { remainingCents: number; potentialPayoutCents: number };
   houseRules?: { allIn: boolean; minBets: number; bankrollCents: number };
 }) {
-  const [{ data: boardRows }, { data: wagerRows }] = await Promise.all([
+  const [{ data: boardRows, error: boardError }, { data: wagerRows, error: wagersError }] = await Promise.all([
     supabase.from("odds_board").select(BOARD_COLUMNS).in("event_id", events.map((e) => e.id)),
     supabase
       .from("wagers")
@@ -344,6 +348,9 @@ async function PreLockSportsbook({
       .eq("participant_id", participantId)
       .order("created_at", { ascending: false }),
   ]);
+
+  if (boardError) throw boardError;
+  if (wagersError) throw wagersError;
 
   return (
     <Sportsbook
@@ -382,7 +389,7 @@ async function RevealSection({
   title: string;
   resultUrl: string;
 }) {
-  const [{ data: wagerRows }, { data: participants }, { data: board }, { data: propRows }, { data: liveRows }] =
+  const [{ data: wagerRows, error: wagersError }, { data: participants, error: participantsError }, { data: board, error: boardError }, { data: propRows, error: propsError }, { data: liveRows, error: liveError }] =
     await Promise.all([
     supabase.from("wagers").select(REVEAL_WAGER_SELECT).eq("tournament_id", tournamentId).order("created_at"),
     supabase
@@ -403,6 +410,11 @@ async function RevealSection({
       .select("event_id, state, home_score, away_score, detail, situation, last_play")
       .in("event_id", events.map((e) => e.id)),
   ]);
+  if (wagersError) throw wagersError;
+  if (participantsError) throw participantsError;
+  if (boardError) throw boardError;
+  if (propsError) throw propsError;
+  if (liveError) throw liveError;
   const live = Object.fromEntries((liveRows ?? []).map((r) => [r.event_id, r]));
 
   const leaders: LeaderRow[] = (board ?? []).map((r) => ({

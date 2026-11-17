@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Crown, Trophy } from "lucide-react";
 import { formatCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -34,6 +34,34 @@ export function FinalCelebration({ tournamentId, finishers }: { tournamentId: st
   const seen = useSyncExternalStore(noop, () => wasSeen(tournamentId), () => true);
   const [closed, setClosed] = useState(false);
   const open = !seen && !closed && finishers.length > 0;
+  const closeButton = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousFocus = document.activeElement;
+    const focusClose = () => closeButton.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeButton.current?.click();
+      } else if (event.key === "Tab") {
+        // The close button is the celebration's only focusable control.
+        event.preventDefault();
+        focusClose();
+      }
+    };
+    const onFocus = (event: FocusEvent) => {
+      if (event.target !== closeButton.current) focusClose();
+    };
+    focusClose();
+    document.addEventListener("keydown", onKeyDown, true);
+    document.addEventListener("focusin", onFocus);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("focusin", onFocus);
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+    };
+  }, [open]);
 
   // Seen only once closed (a live re-render must not close it on its own).
   function close() {
@@ -112,7 +140,7 @@ export function FinalCelebration({ tournamentId, finishers }: { tournamentId: st
 
         <button
           type="button"
-          autoFocus
+          ref={closeButton}
           onClick={close}
           className="mt-8 h-14 w-full rounded-2xl bg-primary text-base font-semibold text-primary-foreground"
         >

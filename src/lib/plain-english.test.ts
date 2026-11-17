@@ -31,6 +31,7 @@ describe("odds as a chance (Settings: percent)", () => {
 describe("oddsMeaning: what a price means in dollars, for first-timers", () => {
   it("favorite and underdog", () => {
     expect(oddsMeaning(-110)).toBe("Bet $10 to win $9.09 (about a 52% chance)");
+    expect(oddsMeaning(-150)).toBe("Bet $10 to win $6.66 (about a 60% chance)");
     expect(oddsMeaning(250)).toBe("Bet $10 to win $25 (about a 29% chance)");
   });
 });

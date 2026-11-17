@@ -1,3 +1,4 @@
+import { matchesTeamIdentity } from "./team-match.ts";
 /**
  * Which team each player is on. The Odds API names players but not their teams, so the props board
  * gets rosters from Sleeper's public player list (GET https://api.sleeper.app/v1/players/nfl, no key,
@@ -67,26 +68,26 @@ export function sleeperToRoster(json: unknown): RosterEntry[] {
 type Obj = Record<string, unknown>;
 const obj = (v: unknown): Obj => (v && typeof v === "object" ? (v as Obj) : {});
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
-const nickname = (team: string) => team.trim().toLowerCase().split(/\s+/).pop() ?? "";
 
 export const espnCollegeRosterUrl = (teamId: string) =>
   `https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams/${encodeURIComponent(teamId)}/roster`;
 
-/** ESPN team ids for both sides of our game (matched by nickname, like findEspnGame), or null. */
+/** ESPN team ids for both sides of our game (matched by school identity), or null. */
 export function espnGameTeamIds(
   scoreboard: unknown,
   game: { home_team: string; away_team: string },
 ): { home: string; away: string } | null {
+  const matches: { home: string; away: string }[] = [];
   for (const e of arr(obj(scoreboard).events)) {
     const comps = arr(obj(arr(obj(e).competitions)[0]).competitors).map(obj);
     const side = (homeAway: string) => comps.find((c) => c.homeAway === homeAway)?.team;
     const home = obj(side("home")), away = obj(side("away"));
-    if (nickname(String(home.displayName ?? "")) === nickname(game.home_team)
-      && nickname(String(away.displayName ?? "")) === nickname(game.away_team) && home.id && away.id) {
-      return { home: String(home.id), away: String(away.id) };
+    if (matchesTeamIdentity(home, game.home_team)
+      && matchesTeamIdentity(away, game.away_team) && home.id && away.id) {
+      matches.push({ home: String(home.id), away: String(away.id) });
     }
   }
-  return null;
+  return matches.length === 1 ? matches[0] : null;
 }
 
 /** ESPN team roster (athletes grouped by offense/defense/special teams, or flat) -> [{ name, team }]. */

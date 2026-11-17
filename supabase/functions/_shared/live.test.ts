@@ -145,3 +145,15 @@ describe("college live feeds", () => {
     expect(fakeLiveGames([e], key, start - 1)[0]!.state).toBe("pre");
   });
 });
+
+it("updates only the matching day's event for consecutive matchups", () => {
+  const teams = { home_team: "LA Clippers", away_team: "Miami Heat" };
+  const ours = [
+    { ...teams, event_id: "yesterday", commence_time: "2026-11-05T23:00:00Z" },
+    { ...teams, event_id: "today", commence_time: "2026-11-06T23:00:00Z" },
+  ];
+  const event = competition({ home: [teams.home_team, "50"], away: [teams.away_team, "40"], state: "in", shortDetail: "2nd" });
+  expect(liveGamesFromScoreboard({ events: [{ ...event, date: ours[1].commence_time }] }, ours).map(g => g.event_id)).toEqual(["today"]);
+  expect(liveGamesFromScoreboard({ events: [event] }, ours, "basketball_nba", "20261106").map(g => g.event_id)).toEqual(["today"]);
+  expect(liveGamesFromScoreboard({ events: [event] }, ours)).toEqual([]);
+});
